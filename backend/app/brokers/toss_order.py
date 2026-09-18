@@ -56,8 +56,7 @@ class TossOrderAdapter:
             reasons.append("Korean stock quantity must be an integer.")
 
         if (
-            side == "buy"
-            and notional >= Decimal(
+            notional >= Decimal(
                 str(self.config.toss_high_value_order_threshold_krw)
             )
             and not self.config.toss_confirm_high_value_orders
@@ -139,10 +138,7 @@ class TossOrderAdapter:
             "orderType": "MARKET",
             "quantity": str(qty),
         }
-        if (
-            side == "buy"
-            and self.config.toss_confirm_high_value_orders
-        ):
+        if self.config.toss_confirm_high_value_orders:
             body["confirmHighValueOrder"] = True
 
         return await self.client.post(
