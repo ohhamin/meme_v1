@@ -108,6 +108,8 @@ class DecisionMarkdownStore:
             [
                 f"## {now.strftime('%H:%M')} Decision Cycle",
                 "",
+                "- Execution Mode: PAPER",
+                "",
             ]
         )
 
