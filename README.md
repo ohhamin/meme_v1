@@ -70,9 +70,10 @@ meme_v1/
 - [ ] Upbit adapter
 - [ ] 국내주식 broker adapter
 - [x] 수동 매수/매도 API 골격
-- [x] 6시간 간격 news collector 스케줄 골격
+- [x] 6시간 간격 OpenAI web search news collector
 - [ ] adaptive decision scheduler (30~120분)
-- [ ] 판단 Markdown 저장/조회
+- [x] LLM 판단 preview + 판단 Markdown 저장 골격
+- [x] 일일 알고리즘 개선 review → 제안 MD 생성
 - [ ] Risk Guard / kill switch / paper trading
 - [ ] AWS EC2 + Elastic IP 배포
 
@@ -103,3 +104,15 @@ meme_v1/
 
 현재 초기 내부 한도는 `8000 tokens/cycle`, `200000 tokens/day`이며 환경변수로 조정한다.
 실제 API 응답의 usage를 누적해 운영 후 적절한 값으로 조정한다.
+
+
+## 현재 LLM 파이프라인
+
+- 판단 모델: `OPENAI_DECISION_MODEL=gpt-5.6-terra`
+- 뉴스 수집/요약 모델: `OPENAI_SUMMARY_MODEL=gpt-5.6-luna`
+- 뉴스는 Responses API의 `web_search`를 사용해 6시간마다 수집
+- `POST /decisions/preview`로 주문 없이 전체 종목 판단 파이프라인 테스트 가능
+- 판단 결과는 한 사이클에 여러 종목을 함께 반환
+- 실제 주문/Risk Guard 연결 전에는 기록 시 Risk Guard를 `PENDING`으로 표시
+- 알고리즘 review는 기본 24시간마다 실행되며 제안이 필요한 경우에만 pending Markdown 생성
+- pending 제안은 앱에서 사용자가 적용해야만 현재 알고리즘에 반영
