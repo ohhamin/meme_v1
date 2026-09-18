@@ -775,3 +775,128 @@ LLM 호출 실패 시 **기존 판단을 재사용해 새 자동 주문을 만�
 - 남은 내부 예산
 - normal / conserve / paused 상태
 - API backoff 여부 및 재시도 시각
+
+
+## 18. Position Sizer + Paper Broker
+
+자동 매매의 첫 end-to-end 경로는 Live Broker가 아니라 Paper Broker로 완성한다.
+
+```text
+Market Snapshot
+      +
+Paper Account Snapshot
+      |
+      v
+LLM Decision (여러 종목)
+      |
+      v
+Position Sizer
+      |
+      v
+Risk Guard
+      |
+  PASS / BLOCK
+      |
+      v
+Paper Broker
+      |
+      +--> paper_portfolio.json
+      +--> orders JSONL
+      +--> decisions Markdown
+      +--> FCM
+```
+
+### Position Sizer
+
+Position Sizer도 LLM이 아니라 deterministic rule이다.
+LLM은 BUY/SELL/HOLD와 방향성 점수만 만들고, Sizer가 주문 후보 금액/수량을 계산한다.
+
+초기 BUY sizing:
+
+```text
+BUY score < 60   -> NO_ORDER
+60~69            -> 현재 평가금액의 1%
+70~79            -> 2%
+80~89            -> 3%
+90~100           -> 4%
+```
+
+초기 SELL sizing:
+
+```text
+SELL score > 40  -> NO_ORDER
+31~40            -> 현재 보유수량의 25%
+21~30            -> 40%
+0~20             -> 60%
+```
+
+주식은 정수 주 단위로 내림하고, 코인은 8자리까지 계산한다.
+Sizer가 만든 주문 후보는 항상 Risk Guard를 다시 통과해야 한다.
+
+Sizer는 Risk Guard limit에 맞추기 위해 주문을 몰래 축소하지 않는다.
+즉 Sizer 결과가 hard limit을 넘으면 Risk Guard가 BLOCK한다.
+
+### Paper Broker
+
+Paper Broker 상태는 다음 파일에 저장한다.
+
+```text
+data/state/paper_portfolio.json
+```
+
+기본 초기 현금은 `PAPER_INITIAL_CASH_KRW=1000000`이다.
+
+Paper Broker는:
+
+- 현금
+- 종목별 수량
+- 평균단가
+- 최근 가격
+- 최근 가격 시각
+- 평가금액
+- 수익률
+- 실현손익
+- 일일 주문 횟수
+
+를 로컬 JSON에 보존한다.
+
+시장 snapshot이 새로 들어오면 보유종목을 mark-to-market 한다.
+
+### Paper 자동 사이클
+
+`POST /decisions/paper-cycle`은 현재 단계의 전체 자동매매 테스트 API다.
+
+입력은 여러 종목의 최신 market snapshot이며:
+
+1. Paper 계좌 가격 갱신
+2. Paper 계좌 상태를 LLM context에 포함
+3. LLM이 전체 종목을 한 번에 판단
+4. Position Sizer가 종목별 주문 후보 계산
+5. Risk Guard 검증
+6. PASS 주문만 Paper Broker 체결
+7. 판단 MD와 주문 로그 저장
+8. 최종 Paper 포트폴리오 반환
+
+순서로 동작한다.
+
+Kill switch가 켜져 있으면 토큰을 낭비하지 않도록 LLM 호출 전 사이클 자체를 차단한다.
+
+### Paper 수동 주문
+
+Paper 모드의 앱 사기/팔기 버튼도 Paper Broker + Risk Guard를 거친다.
+
+수동 주문은 마지막으로 저장된 시장가격을 사용하며,
+가격 데이터가 `RISK_MAX_DATA_AGE_SECONDS`보다 오래되었으면 차단한다.
+
+현재 UI는 보유 종목 카드에서 추가 매수/매도하는 흐름까지 지원한다.
+보유하지 않은 새 종목을 수동으로 처음 매수하는 기능은 watchlist/search 화면을 추가할 때 연결한다.
+
+### API
+
+```text
+GET  /paper/portfolio
+POST /paper/reset
+GET  /paper/position-sizing-policy
+
+POST /decisions/paper-cycle
+```
