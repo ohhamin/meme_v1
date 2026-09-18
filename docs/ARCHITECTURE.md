@@ -16,7 +16,7 @@
 ## 2. 전체 흐름
 
 ```text
-[Daily News/Context Collector]
+[6-Hour News/Context Collector]
         |
         v
 data/news/YYYY-MM-DD.md  (최근 7일)
@@ -148,7 +148,7 @@ LLM이 다음 판단 시점을 제안할 수 있지만 Backend가 반드시 **30
 
 ## 4. 뉴스 탭
 
-하루 한 번 수집한 경제/시장 뉴스를 최근 7일 동안 확인한다.
+6시간마다 수집한 경제/시장 뉴스를 최근 7일 동안 확인한다.
 
 화면 상단:
 
@@ -168,7 +168,27 @@ LLM이 다음 판단 시점을 제안할 수 있지만 Backend가 반드시 **30
 data/news/YYYY-MM-DD.md
 ```
 
-한 날짜 파일에는 해당일에 수집한 주요 경제/시장 뉴스와 요약/출처 정보를 저장한다.
+한 날짜 파일에는 해당일의 여러 수집 배치를 함께 저장한다. 하루에 파일은 1개만 만들고, 6시간마다 같은 파일에 수집 시각별 섹션을 append 한다.
+
+예:
+
+```markdown
+# 2026-09-18 News
+
+## 00:00 Collection
+- ...
+
+## 06:00 Collection
+- ...
+
+## 12:00 Collection
+- ...
+
+## 18:00 Collection
+- ...
+```
+
+즉 앱의 날짜 선택 UX는 그대로 유지하면서 하루 최대 4번 갱신된 뉴스 흐름을 한 화면에서 볼 수 있다.
 
 ## 5. 판단 탭
 
@@ -469,7 +489,7 @@ data/
    └─ system-YYYY-MM-DD.jsonl
 ```
 
-- news: 하루 1개 Markdown, 최근 7일
+- news: 하루 1개 Markdown, 최근 7일. 파일 안에는 6시간 간격 수집 배치를 누적
 - decisions: 하루 1개 Markdown, 그날의 판단들을 누적, 최근 7일
 - algorithm/current.md: 현재 Decision Engine이 읽는 승인된 전략 규칙
 - algorithm/proposals: 대기/적용/취소된 알고리즘 제안 Markdown
@@ -526,12 +546,12 @@ Upbit와 국내주식 증권사는 이 인터페이스를 각각 구현한다.
 
 ## 15. 스케줄
 
-- 하루 1회: 경제/시장 뉴스 수집
+- 6시간마다: 경제/시장 뉴스 수집
 - 판단: 30~120분 사이에서 **전체 Decision Cycle** 단위 adaptive scheduling
 - 서버 부팅 시: 헬스체크 + Scheduler 복구 + FCM 시작 알림
 - 매일: 7일보다 오래된 news/decisions 파일 정리
 
-뉴스 수집 시각은 실제 운영하면서 조정한다.
+기본 뉴스 수집 간격은 6시간이며 `NEWS_COLLECTION_INTERVAL_HOURS=6`으로 설정한다. 수집 주기와 매매 판단 주기는 서로 독립적이다.
 
 
 ## 16. 알고리즘 변경 안전 원칙
