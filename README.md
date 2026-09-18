@@ -75,7 +75,7 @@ meme_v1/
 - [x] LLM 판단 preview + 판단 Markdown 저장 골격
 - [x] 일일 알고리즘 개선 review → 제안 MD 생성
 - [x] Deterministic Risk Guard + preview API
-- [ ] Paper 자동주문 엔진
+- [x] Position Sizer + Paper 자동주문 엔진
 - [ ] AWS EC2 + Elastic IP 배포
 
 상세 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 기준으로 계속 발전시킨다.
@@ -140,3 +140,21 @@ Broker
 
 SELL은 기존 노출을 줄이는 주문이므로 일일 손실/신규 노출 제한보다
 보유수량/시장상태 같은 핵심 검사를 우선 적용한다.
+
+
+## Paper 자동매매
+
+현재 Paper 모드에서는 다음 파이프라인이 연결되어 있다.
+
+```text
+LLM 전체종목 판단
+→ deterministic Position Sizer
+→ deterministic Risk Guard
+→ Paper Broker
+→ 앱 보유종목/판단 화면 반영
+```
+
+초기 sizing은 BUY 점수에 따라 평가금액의 1~4%, SELL 점수에 따라
+보유수량의 25~60%를 주문 후보로 만든다. 최종 실행 여부는 항상 Risk Guard가 결정한다.
+
+Paper 계좌는 기본 1,000,000원으로 시작하며 세팅 화면에서 평가금액/현금/일일손익/주문횟수를 확인하고 초기화할 수 있다.
