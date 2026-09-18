@@ -26,6 +26,14 @@ class PositionSizer:
         instrument: MarketInstrumentSnapshot,
         portfolio: PaperPortfolio,
     ) -> PositionSizeResult:
+        if portfolio.market != decision.market:
+            return self._no_order(
+                decision,
+                reason=(
+                    "Decision market does not match the selected broker account."
+                ),
+            )
+
         if decision.action == "HOLD":
             return self._no_order(
                 decision,
