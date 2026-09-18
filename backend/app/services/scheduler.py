@@ -24,7 +24,7 @@ class AdaptiveDecisionScheduler:
     def schedule_next(self, proposed_minutes: int) -> int:
         minutes = self.config.clamp_decision_interval(proposed_minutes)
 
-        # TODO: Decision Engine 연결 후 실제 cycle 함수를 등록한다.
+        # TODO: Decision Engine 연결 후 전체 관심/보유 종목을 한 번에 평가하는 cycle 함수를 등록한다.
         # 현재는 골격 단계라 자동 주문이 발생하지 않도록 job을 만들지 않는다.
         return minutes
 
