@@ -73,18 +73,29 @@ class AlgorithmProposal(BaseModel):
     created_at: datetime | None = None
 
 
-class DecisionResult(BaseModel):
+class SymbolDecision(BaseModel):
     market: Literal["stock", "crypto"]
     symbol: str
+    name: str | None = None
     action: Literal["BUY", "SELL", "HOLD"]
     score: int = Field(ge=0, le=100)
-    reason: str
-    risk_blocked: bool
-    risk_reason: str | None = None
-    next_check_minutes: int = Field(ge=30, le=120)
+    reason: str = Field(min_length=1, max_length=1000)
 
-    @model_validator(mode="after")
-    def blocked_reason_required(self):
-        if self.risk_blocked and not self.risk_reason:
-            raise ValueError("risk_reason is required when risk_blocked=true")
-        return self
+
+class DecisionCycleResult(BaseModel):
+    decisions: list[SymbolDecision]
+    next_check_minutes: int = Field(ge=30, le=120)
+    cycle_summary: str = Field(min_length=1, max_length=1200)
+
+
+class DecisionPreviewRequest(BaseModel):
+    market_snapshot: dict
+    account_snapshot: dict
+
+
+class DecisionPreviewResponse(BaseModel):
+    status: Literal["completed", "blocked"]
+    mode: str
+    estimated_input_tokens: int
+    result: DecisionCycleResult | None = None
+    reason: str | None = None
