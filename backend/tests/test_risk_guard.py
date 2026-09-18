@@ -25,7 +25,6 @@ def make_intent(**overrides) -> RiskOrderIntent:
         "available_cash": Decimal("500000"),
         "position_value": Decimal("20000"),
         "position_quantity": Decimal("0.0002"),
-        "market_exposure_value": Decimal("300000"),
         "daily_pnl_pct": Decimal("-1.0"),
         "daily_order_count": 3,
         "data_age_seconds": 30,
@@ -62,7 +61,7 @@ def test_buy_blocks_after_daily_loss_limit():
 def test_buy_blocks_concentrated_position():
     result = make_guard().evaluate(
         make_intent(
-            position_value=Decimal("90000"),
+            position_value=Decimal("390000"),
             order_notional=Decimal("30000"),
         )
     )
@@ -96,3 +95,39 @@ def test_sell_blocks_when_quantity_exceeds_holding():
     )
     assert result.status == "BLOCK"
     assert any("exceeds current position" in reason for reason in result.reasons)
+
+
+def test_large_single_order_is_allowed_when_position_ratio_is_safe():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("0"),
+            position_quantity=Decimal("0"),
+            order_notional=Decimal("300000"),
+            order_quantity=Decimal("0.003"),
+            available_cash=Decimal("500000"),
+        )
+    )
+    assert result.status == "PASS"
+
+
+def test_new_position_is_blocked_when_ten_are_already_open():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("0"),
+            position_quantity=Decimal("0"),
+            open_position_count=10,
+        )
+    )
+    assert result.status == "BLOCK"
+    assert any("Maximum open position count" in reason for reason in result.reasons)
+
+
+def test_existing_position_can_be_added_to_when_ten_are_open():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("20000"),
+            position_quantity=Decimal("0.0002"),
+            open_position_count=10,
+        )
+    )
+    assert result.status == "PASS"
