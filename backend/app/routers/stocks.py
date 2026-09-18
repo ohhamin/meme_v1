@@ -92,11 +92,10 @@ async def update_toss_universe(payload: TossUniverseUpdate):
         if value.strip()
     ]
 
-    if requested:
+    adapter = TossMarketDataAdapter()
+    if requested and adapter.configured:
         try:
-            infos = await TossMarketDataAdapter().stock_info(
-                requested
-            )
+            infos = await adapter.stock_info(requested)
         except (TossApiError, ValueError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
