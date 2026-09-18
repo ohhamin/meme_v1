@@ -210,3 +210,7 @@ class PaperCycleResponse(BaseModel):
     items: list[CycleExecutionItem] = Field(default_factory=list)
     portfolio: PaperPortfolio | None = None
     reason: str | None = None
+
+
+class PaperResetRequest(BaseModel):
+    initial_cash: Decimal | None = Field(default=None, gt=0)
