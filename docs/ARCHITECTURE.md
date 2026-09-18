@@ -148,7 +148,7 @@ LLM이 다음 판단 시점을 제안할 수 있지만 Backend가 반드시 **30
 
 ## 4. 뉴스 탭
 
-6시간마다 수집한 경제/시장 뉴스를 최근 7일 동안 확인한다.
+6시간마다 OpenAI Responses API의 web search로 수집한 경제/시장 뉴스를 최근 7일 동안 확인한다.
 
 화면 상단:
 
@@ -500,6 +500,12 @@ Markdown 파일은 앱 표시용이자 LLM Context로 사용한다.
 
 주문 감사 로그는 Git에 커밋하지 않는다.
 
+### Decision Preview
+
+Broker/Risk Guard를 실제 주문에 연결하기 전에 `POST /decisions/preview`로
+시장/계좌 snapshot을 직접 넣어 LLM 판단 파이프라인을 검증할 수 있다.
+preview는 절대로 주문을 생성하지 않는다.
+
 ## 13. API 초안
 
 ```text
@@ -517,6 +523,7 @@ GET  /news/{date}
 
 GET  /decisions/dates
 GET  /decisions/{date}
+POST /decisions/preview
 
 GET  /algorithm/current
 GET  /algorithm/proposals
@@ -527,6 +534,7 @@ POST /algorithm/proposals/{id}/cancel
 GET  /settings
 PUT  /settings/mode
 PUT  /settings/kill-switch
+POST /settings/llm/resume
 ```
 
 ## 14. Adapter 인터페이스
