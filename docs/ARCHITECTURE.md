@@ -562,3 +562,135 @@ Upbit와 국내주식 증권사는 이 인터페이스를 각각 구현한다.
 - 새 규칙은 다음 Decision Cycle부터 읽힌다.
 - Live 주문은 별도의 Trading/Risk Guard 안전장치를 계속 통과해야 한다.
 - 제안 생성/적용/취소 이벤트는 추후 system audit log에 남긴다.
+
+
+## 17. LLM 토큰/장애 운영 정책
+
+매 판단 사이클마다 최근 7일의 뉴스/판단 Markdown 원문 전체를 모델에 다시 보내지 않는다.
+
+### Context 계층
+
+```text
+원본 보관
+data/news/YYYY-MM-DD.md
+data/decisions/YYYY-MM-DD.md
+        |
+        v
+Rolling Context
+data/context/news_rolling.md
+data/context/decision_rolling.md
+        |
+        v
+현재 알고리즘 + 계좌/시장 snapshot
+        |
+        v
+1회 Decision Cycle API 호출
+```
+
+원본 Markdown은 앱에서 조회하거나 사후 분석할 때 보관한다.
+LLM 판단 시에는 rolling context를 우선 사용하고, rolling 파일이 아직 없을 때만 최근 원문에서 정해진 최대 길이만 읽는다.
+
+초기 제한값:
+
+- `LLM_CYCLE_INPUT_TOKEN_LIMIT=8000`: 한 Decision Cycle의 예상 입력 토큰 상한
+- `LLM_DAILY_TOKEN_BUDGET=200000`: 앱 자체 일일 총 토큰 예산
+- `LLM_CONTEXT_NEWS_CHARS=12000`: 판단에 포함할 뉴스 context 최대 문자 수
+- `LLM_CONTEXT_DECISION_CHARS=6000`: 과거 판단 context 최대 문자 수
+- `LLM_CONSERVE_THRESHOLD_PCT=20`: 일일 예산이 20% 이하이면 conserve mode
+- `ALGORITHM_REVIEW_INTERVAL_HOURS=24`: 알고리즘 개선 검토는 판단 사이클마다 하지 않고 기본 하루 1회
+
+위 값은 OpenAI 계정 자체의 한도가 아니라 **meme_v1 내부 비용/사용량 제어용 초기값**이며 운영 데이터를 보고 조정한다.
+
+### 1회 사이클 호출
+
+대상 종목마다 LLM을 따로 호출하지 않는다.
+
+한 사이클에서 여러 종목을 한 번에 입력하고 결과도 배열 형태로 한 번에 받는 구조를 사용한다.
+
+```text
+10:00 cycle
+  BTC
+  ETH
+  삼성전자
+  SK하이닉스
+       |
+       v
+  LLM API 1회
+       |
+       v
+  [BTC 결과, ETH 결과, 삼성전자 결과, SK하이닉스 결과]
+```
+
+이렇게 해야 알고리즘/뉴스 context가 종목마다 반복 전송되는 비용을 줄일 수 있다.
+
+### Algorithm Proposal 호출 분리
+
+알고리즘 수정 제안은 매 Decision Cycle마다 생성하지 않는다.
+
+- 기본: 24시간마다 최대 1회 review
+- 동일 Risk Guard 반복 차단 등 명확한 trigger가 있을 때 별도 review 가능
+- review에는 7일 원문 전체가 아니라 집계/rolling summary를 사용
+- 제안이 없으면 Markdown을 만들지 않는다
+- 생성된 제안은 절대로 자동 적용하지 않는다
+
+### 실제 사용량 기록
+
+모델 호출이 성공하면 API 응답의 실제 input/output token usage를
+`data/state/llm_usage.json`에 누적한다.
+
+API 호출 전에는 로컬에서 예상 입력 토큰을 계산하여:
+
+1. 사이클 입력 상한 초과 여부
+2. 앱 일일 토큰 예산 초과 여부
+
+를 먼저 검사한다.
+
+### 예산 단계
+
+```text
+NORMAL
+  |
+  | 남은 예산 <= 20%
+  v
+CONSERVE
+  - news/decision context를 더 짧게 사용
+  - 알고리즘 review 연기
+  |
+  | 일일 예산 소진
+  v
+PAUSED
+  - LLM 신규 판단 중지
+  - 자동 신규 주문 중지
+  - 수동 주문/계좌 조회/앱 사용은 유지
+```
+
+Conserve/Paused 상태에서도 기존 Markdown, 계좌 조회, 뉴스 조회, 수동 매매 API는 계속 사용할 수 있다.
+
+### API 장애 및 한도 초과
+
+LLM 호출 실패 시 **기존 판단을 재사용해 새 자동 주문을 만들지 않는다.**
+
+- 일시적 rate limit / timeout / overload:
+  - 해당 사이클 자동 주문 중지
+  - Retry-After가 있으면 해당 시간 이후 재시도
+  - 없으면 backoff 후 재시도
+- 앱 내부 일일 토큰 예산 소진:
+  - 당일 LLM 자동 판단 pause
+  - 다음 날짜에 로컬 사용량 예산 reset
+- quota / billing / auth 등 자동 재시도로 해결되지 않는 오류:
+  - LLM을 paused 상태로 유지
+  - FCM으로 사용자에게 알림
+  - 설정/한도 문제가 해결된 뒤 resume
+- 어떤 경우에도 LLM 장애 자체 때문에 임의의 신규 자동 주문을 만들지 않는다.
+
+향후 별도로 사용자가 승인한 로컬 hard-risk rule(예: 긴급 손실 제한)을 만들 수 있지만,
+이는 LLM fallback 매매전략과 분리하여 Risk Guard 영역에서 관리한다.
+
+### 상태 확인
+
+`GET /status`에서 다음을 확인한다.
+
+- 현재 일일 LLM token 사용량
+- 남은 내부 예산
+- normal / conserve / paused 상태
+- API backoff 여부 및 재시도 시각
