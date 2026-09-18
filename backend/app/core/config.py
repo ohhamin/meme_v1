@@ -24,6 +24,22 @@ class AppSettings(BaseSettings):
     risk_max_data_age_seconds: int = 300
     risk_min_cash_reserve_pct: float = 10.0
 
+    # Deterministic position sizing. The sizer never overrides Risk Guard.
+    position_buy_min_score: int = 60
+    position_sell_max_score: int = 40
+    position_buy_pct_score_60: float = 1.0
+    position_buy_pct_score_70: float = 2.0
+    position_buy_pct_score_80: float = 3.0
+    position_buy_pct_score_90: float = 4.0
+    position_sell_pct_score_40: float = 25.0
+    position_sell_pct_score_30: float = 40.0
+    position_sell_pct_score_20: float = 60.0
+
+    # Local Paper broker.
+    paper_initial_cash_krw: float = 1000000.0
+    paper_fee_bps: float = 0.0
+    paper_slippage_bps: float = 0.0
+
     decision_default_interval_minutes: int = 60
     decision_min_interval_minutes: int = 30
     decision_max_interval_minutes: int = 120
