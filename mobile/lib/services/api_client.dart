@@ -1,0 +1,168 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+
+class ApiClient {
+  ApiClient._();
+
+  static final ApiClient instance = ApiClient._();
+
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
+
+  static const String apiToken = String.fromEnvironment(
+    'API_TOKEN',
+    defaultValue: '',
+  );
+
+  Map<String, String> get _headers {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (apiToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $apiToken';
+    }
+    return headers;
+  }
+
+  Future<dynamic> _request(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    late http.Response response;
+
+    switch (method) {
+      case 'GET':
+        response = await http.get(uri, headers: _headers);
+      case 'POST':
+        response = await http.post(
+          uri,
+          headers: _headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
+      case 'PUT':
+        response = await http.put(
+          uri,
+          headers: _headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
+      default:
+        throw UnsupportedError('Unsupported HTTP method: $method');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String message = response.body;
+      try {
+        final decoded = jsonDecode(response.body);
+        message = decoded['detail']?.toString() ?? response.body;
+      } catch (_) {}
+      throw Exception(message);
+    }
+
+    if (response.body.isEmpty) {
+      return null;
+    }
+    return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
+  Future<List<Map<String, dynamic>>> getPositions(String market) async {
+    final data = await _request('GET', '/$market/positions') as List<dynamic>;
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> manualStockOrder({
+    required String symbol,
+    required String side,
+    required int quantity,
+  }) async {
+    return (await _request(
+      'POST',
+      '/stocks/orders/manual',
+      body: {
+        'symbol': symbol,
+        'side': side,
+        'quantity': quantity,
+        'idempotency_key': _idempotencyKey(symbol, side),
+      },
+    )) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> manualCryptoOrder({
+    required String symbol,
+    required String side,
+    required num amountKrw,
+  }) async {
+    return (await _request(
+      'POST',
+      '/crypto/orders/manual',
+      body: {
+        'symbol': symbol,
+        'side': side,
+        'amount_krw': amountKrw,
+        'idempotency_key': _idempotencyKey(symbol, side),
+      },
+    )) as Map<String, dynamic>;
+  }
+
+  Future<String> getDailyMarkdown(String kind, DateTime date) async {
+    final day = _dateString(date);
+    final data = await _request('GET', '/$kind/$day') as Map<String, dynamic>;
+    return data['markdown']?.toString() ?? '';
+  }
+
+  Future<String> getCurrentAlgorithm() async {
+    final data =
+        await _request('GET', '/algorithm/current') as Map<String, dynamic>;
+    return data['markdown']?.toString() ?? '';
+  }
+
+  Future<List<Map<String, dynamic>>> getAlgorithmProposals() async {
+    final data =
+        await _request('GET', '/algorithm/proposals') as Map<String, dynamic>;
+    final items = data['items'] as List<dynamic>? ?? <dynamic>[];
+    return items.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> applyAlgorithmProposal(String id) async {
+    await _request('POST', '/algorithm/proposals/$id/apply');
+  }
+
+  Future<void> cancelAlgorithmProposal(String id) async {
+    await _request('POST', '/algorithm/proposals/$id/cancel');
+  }
+
+  Future<Map<String, dynamic>> getSettings() async {
+    return (await _request('GET', '/settings')) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> setMode(String mode) async {
+    return (await _request(
+      'PUT',
+      '/settings/mode',
+      body: {'mode': mode},
+    )) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> setKillSwitch(bool enabled) async {
+    return (await _request(
+      'PUT',
+      '/settings/kill-switch',
+      body: {'enabled': enabled},
+    )) as Map<String, dynamic>;
+  }
+
+  String _idempotencyKey(String symbol, String side) {
+    return '$symbol-$side-${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  String _dateString(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+}
