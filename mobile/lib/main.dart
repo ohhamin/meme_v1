@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'screens/algorithm_screen.dart';
@@ -6,11 +8,13 @@ import 'screens/decision_screen.dart';
 import 'screens/market_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
+import 'services/push_registration.dart';
 
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MemeApp());
+  unawaited(PushRegistrationService.instance.initialize());
 }
 
 
