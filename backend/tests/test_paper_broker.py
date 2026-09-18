@@ -5,11 +5,11 @@ from backend.app.services.paper_broker import PaperBroker
 
 
 def make_broker(tmp_path) -> PaperBroker:
-    broker = PaperBroker()
+    broker = PaperBroker("crypto")
     broker.path = tmp_path / "paper_portfolio.json"
     broker.audit.write = lambda *args, **kwargs: None
     broker.push.send = lambda *args, **kwargs: None
-    broker.config.paper_initial_cash_krw = 1000000
+    broker.config.paper_crypto_initial_cash_krw = 1000000
     broker.config.paper_fee_bps = 0
     broker.config.paper_slippage_bps = 0
     broker.reset(Decimal("1000000"))
@@ -20,7 +20,6 @@ def test_buy_updates_cash_and_position(tmp_path):
     broker = make_broker(tmp_path)
 
     order = broker.execute(
-        market="crypto",
         symbol="BTC",
         name="Bitcoin",
         side="buy",
@@ -40,7 +39,6 @@ def test_buy_updates_cash_and_position(tmp_path):
 def test_sell_reduces_position_and_increases_cash(tmp_path):
     broker = make_broker(tmp_path)
     broker.execute(
-        market="crypto",
         symbol="BTC",
         name="Bitcoin",
         side="buy",
@@ -49,7 +47,6 @@ def test_sell_reduces_position_and_increases_cash(tmp_path):
     )
 
     broker.execute(
-        market="crypto",
         symbol="BTC",
         name="Bitcoin",
         side="sell",
