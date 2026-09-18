@@ -99,3 +99,35 @@ class DecisionPreviewResponse(BaseModel):
     estimated_input_tokens: int
     result: DecisionCycleResult | None = None
     reason: str | None = None
+
+
+class RiskOrderIntent(BaseModel):
+    source: Literal["auto", "manual"] = "auto"
+    market: Literal["stock", "crypto"]
+    symbol: str
+    action: Literal["BUY", "SELL", "HOLD"]
+
+    # 주문 예정 값. Risk Guard는 값을 계산하지 않고 검증만 한다.
+    order_notional: Decimal = Field(default=Decimal("0"), ge=0)
+    order_quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    price: Decimal = Field(default=Decimal("0"), ge=0)
+
+    # 주문 시점 계좌/시장 snapshot.
+    portfolio_equity: Decimal = Field(gt=0)
+    available_cash: Decimal = Field(ge=0)
+    position_value: Decimal = Field(default=Decimal("0"), ge=0)
+    position_quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    market_exposure_value: Decimal = Field(default=Decimal("0"), ge=0)
+
+    daily_pnl_pct: Decimal = Decimal("0")
+    daily_order_count: int = Field(default=0, ge=0)
+    data_age_seconds: int = Field(default=0, ge=0)
+    market_open: bool = True
+    same_cycle_duplicate: bool = False
+
+
+class RiskGuardResult(BaseModel):
+    status: Literal["PASS", "BLOCK", "NO_ORDER"]
+    reasons: list[str] = Field(default_factory=list)
+    symbol: str
+    action: Literal["BUY", "SELL", "HOLD"]
