@@ -975,3 +975,98 @@ GET  /crypto/upbit/accounts
 ```
 
 현재 실제 주문 API는 연결하지 않는다.
+
+
+## 20. Toss 증권 Open API
+
+주식 쪽은 Toss 증권 Open API를 사용한다.
+
+### 인증
+
+OAuth2 Client Credentials로 access token을 발급하고 Backend 메모리에 캐시한다.
+만료 전 갱신하며 read-only GET 요청에서 401이 발생하면 token을 폐기하고 1회만 재발급 후 재시도한다.
+
+환경변수:
+
+```text
+TOSS_CLIENT_ID=
+TOSS_CLIENT_SECRET=
+TOSS_API_BASE_URL=https://openapi.tossinvest.com
+TOSS_ACCOUNT_SEQ=
+TOSS_DECISION_SYMBOLS=
+```
+
+Secret은 Flutter에 저장하지 않는다.
+
+### Read-only Market Data
+
+현재 사용 endpoint:
+
+```text
+GET /api/v1/prices
+GET /api/v1/stocks
+GET /api/v1/market-calendar/KR
+```
+
+Market Snapshot은 현재가 timestamp를 이용해 freshness를 계산한다.
+국내 장 calendar의 regular session을 사용하고,
+NXT 지원 종목은 pre/after session도 market_open으로 인정한다.
+거래정지 종목은 market_open=false 처리한다.
+
+### Read-only Account
+
+현재 사용 endpoint:
+
+```text
+GET /api/v1/accounts
+GET /api/v1/holdings
+GET /api/v1/buying-power?currency=KRW
+```
+
+계좌가 하나면 자동 선택한다.
+여러 계좌가 있으면 `TOSS_ACCOUNT_SEQ`를 명시해야 한다.
+Live mode 주식 탭은 이 read-only holdings를 표시하지만 실제 주문은 아직 연결하지 않는다.
+
+### 주식 Decision Universe
+
+```text
+data/state/toss_universe.json
+```
+
+앱 주식 탭에서 6자리 국내주식 종목코드를 관리한다.
+Toss credentials가 이미 설정돼 있으면 저장 시 ACTIVE/KRW 종목인지 서버에서 검증한다.
+credentials가 없을 때도 형식이 정상인 종목코드는 먼저 저장할 수 있다.
+
+### 통합 Decision Cycle
+
+Scheduler는 더 이상 코인과 주식을 별도 LLM 호출로 판단하지 않는다.
+
+```text
+Upbit Universe -> 실제 코인 시세 --+
+                                    |
+                                    v
+                              LLM 1회 호출
+                                    ^
+                                    |
+Toss Universe -> 실제 주식 시세 ---+
+             (장 닫힘이면 stock snapshot 제외)
+```
+
+따라서 공통 뉴스/알고리즘 context를 시장별로 중복 전송하지 않는다.
+Toss API 오류가 발생해도 Upbit 데이터가 정상이면 코인 Paper cycle은 계속 진행하며,
+실패한 주식 쪽에서는 신규 주문을 만들지 않는다.
+
+### API
+
+```text
+GET  /stocks/toss/prices?symbols=005930,000660
+GET  /stocks/toss/stocks?symbols=005930,000660
+GET  /stocks/toss/accounts
+GET  /stocks/toss/universe
+PUT  /stocks/toss/universe
+POST /stocks/toss/paper-run
+
+POST /decisions/market-paper-cycle
+```
+
+실제 주문 API는 다음 단계에서 별도 adapter로 구현한다.
