@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from backend.app.core.config import get_settings
 from backend.app.models.schemas import DecisionCycleResult
+from backend.app.services.rolling_context import RollingContextService
 
 
 class DecisionMarkdownStore:
@@ -77,4 +78,5 @@ class DecisionMarkdownStore:
         with path.open("a", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
+        RollingContextService().refresh_decisions()
         return path
