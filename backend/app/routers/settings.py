@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from backend.app.core.security import require_api_token
 from backend.app.models.schemas import KillSwitchUpdate, ModeUpdate, RuntimeSettings
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.llm_runtime import LLMRuntimeStateService
 
 
 router = APIRouter(
@@ -25,3 +26,9 @@ async def update_mode(payload: ModeUpdate):
 @router.put("/kill-switch", response_model=RuntimeSettings)
 async def update_kill_switch(payload: KillSwitchUpdate):
     return RuntimeSettingsService().set_kill_switch(payload.enabled)
+
+
+@router.post("/llm/resume")
+async def resume_llm():
+    """API key/quota 문제를 해결한 뒤 사용자가 명시적으로 LLM을 재개한다."""
+    return LLMRuntimeStateService().resume()
