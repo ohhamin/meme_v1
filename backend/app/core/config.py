@@ -14,6 +14,16 @@ class AppSettings(BaseSettings):
     trading_enabled: bool = False
     kill_switch: bool = True
 
+    # Deterministic Risk Guard hard limits.
+    # Risk Guard does not decide BUY/SELL; it only permits or blocks an order intent.
+    risk_max_position_pct: float = 10.0
+    risk_max_market_exposure_pct: float = 60.0
+    risk_max_single_order_pct: float = 5.0
+    risk_max_daily_loss_pct: float = 3.0
+    risk_max_daily_orders: int = 20
+    risk_max_data_age_seconds: int = 300
+    risk_min_cash_reserve_pct: float = 10.0
+
     decision_default_interval_minutes: int = 60
     decision_min_interval_minutes: int = 30
     decision_max_interval_minutes: int = 120
