@@ -4,6 +4,7 @@ from backend.app.core.config import get_settings
 from backend.app.core.security import require_api_token
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.llm_budget import LLMBudgetService
+from backend.app.services.llm_runtime import LLMRuntimeStateService
 
 
 router = APIRouter(tags=["system"])
@@ -26,6 +27,7 @@ async def status():
         "scheduler_enabled": config.scheduler_enabled,
         "news_collection_interval_hours": config.news_collection_interval_hours,
         "llm_budget": LLMBudgetService().status(),
+        "llm_runtime": LLMRuntimeStateService().status(),
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
             "min": config.decision_min_interval_minutes,
