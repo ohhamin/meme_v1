@@ -44,3 +44,16 @@ flutterfire configure
 `PushService.initialize()`를 앱 시작 시 연결합니다.
 
 Firebase credential/설정 파일은 저장소에 커밋하지 않습니다.
+
+
+## 디자인
+
+초기 UI는 깔끔한 핀테크 앱 스타일로 구성합니다.
+
+- 옅은 회색 배경 + 흰색 surface
+- 큰 제목과 굵은 핵심 숫자
+- 블루 포인트 컬러
+- 초록: 수익/정상, 빨강: 손실/차단
+- 주문과 Live 전환은 Bottom Sheet 확인
+- 판단은 Markdown 원문 대신 가능한 경우 종목별 카드로 렌더링
+- 알고리즘은 현재/제안 segmented tab으로 분리
