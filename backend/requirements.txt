@@ -6,3 +6,4 @@ httpx==0.28.1
 firebase-admin>=6.5,<8
 openai>=2.0,<3
 pytest>=8,<9
+PyJWT>=2.8,<3
