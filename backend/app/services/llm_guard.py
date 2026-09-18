@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from backend.app.services.llm_budget import LLMBudgetService
+from backend.app.services.llm_runtime import LLMRuntimeStateService
 
 
 @dataclass
@@ -15,8 +16,17 @@ class LLMExecutionGuard:
 
     def __init__(self):
         self.budget = LLMBudgetService()
+        self.runtime = LLMRuntimeStateService()
 
     def before_cycle(self, estimated_input_tokens: int) -> LLMExecutionDecision:
+        runtime = self.runtime.status()
+        if runtime["mode"] != "normal":
+            return LLMExecutionDecision(
+                allowed=False,
+                mode=runtime["mode"],
+                reason=runtime.get("reason") or "LLM is temporarily unavailable.",
+            )
+
         status = self.budget.status()
 
         if status["mode"] == "disabled":
