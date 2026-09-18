@@ -7,6 +7,7 @@ from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.toss_universe import TossUniverseService
 
 
 router = APIRouter(tags=["system"])
@@ -37,6 +38,14 @@ async def status():
             "private_account_api_configured": bool(
                 config.upbit_access_key and config.upbit_secret_key
             ),
+        },
+        "toss": {
+            "decision_universe": TossUniverseService().get(),
+            "oauth_configured": bool(
+                config.toss_client_id and config.toss_client_secret
+            ),
+            "account_seq_configured": config.toss_account_seq is not None,
+            "live_orders_implemented": False,
         },
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
