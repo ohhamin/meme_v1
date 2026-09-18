@@ -108,6 +108,7 @@ class _DecisionCardData {
     this.orderSide,
     this.orderQuantity,
     this.orderNotional,
+    this.executionMode = 'PAPER',
   });
 
   final String time;
@@ -121,6 +122,7 @@ class _DecisionCardData {
   final String? orderSide;
   final String? orderQuantity;
   final String? orderNotional;
+  final String executionMode;
 }
 
 
@@ -139,6 +141,7 @@ class _DecisionParser {
     String? orderSide;
     String? orderQuantity;
     String? orderNotional;
+    String cycleMode = 'PAPER';
 
     void flush() {
       if (symbol.isEmpty) return;
@@ -155,6 +158,7 @@ class _DecisionParser {
           orderSide: orderSide,
           orderQuantity: orderQuantity,
           orderNotional: orderNotional,
+          executionMode: cycleMode,
         ),
       );
       symbol = '';
@@ -176,6 +180,13 @@ class _DecisionParser {
         flush();
         cycleTime =
             line.substring(3).replaceAll('Decision Cycle', '').trim();
+        cycleMode = 'PAPER';
+        continue;
+      }
+
+      if (line.startsWith('- Execution Mode:')) {
+        cycleMode =
+            line.substring('- Execution Mode:'.length).trim().toUpperCase();
         continue;
       }
 
@@ -346,7 +357,9 @@ class _DecisionCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Paper 주문 · ' +
+                      (data.executionMode == 'LIVE'
+                              ? 'Live 주문 · '
+                              : 'Paper 주문 · ') +
                           (data.orderSide ?? '') +
                           ' · ' +
                           (data.orderQuantity ?? '-') +
