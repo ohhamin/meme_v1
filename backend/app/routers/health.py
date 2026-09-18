@@ -5,6 +5,7 @@ from backend.app.core.security import require_api_token
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
+from backend.app.services.risk_guard import RiskGuard
 
 
 router = APIRouter(tags=["system"])
@@ -28,6 +29,7 @@ async def status():
         "news_collection_interval_hours": config.news_collection_interval_hours,
         "llm_budget": LLMBudgetService().status(),
         "llm_runtime": LLMRuntimeStateService().status(),
+        "risk_policy": RiskGuard().policy(),
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
             "min": config.decision_min_interval_minutes,
