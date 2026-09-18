@@ -13,6 +13,7 @@ from backend.app.routers import (
 )
 from backend.app.services.algorithm import AlgorithmService
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.push import PushService
 from backend.app.services.scheduler import AdaptiveDecisionScheduler
 
 
@@ -23,6 +24,7 @@ scheduler = AdaptiveDecisionScheduler()
 async def lifespan(app: FastAPI):
     RuntimeSettingsService().get()
     AlgorithmService()
+    PushService().initialize()
     scheduler.start()
     yield
     scheduler.shutdown()
