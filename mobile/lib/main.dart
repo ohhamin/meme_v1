@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'screens/algorithm_screen.dart';
 import 'screens/daily_markdown_screen.dart';
+import 'screens/decision_screen.dart';
 import 'screens/market_screen.dart';
 import 'screens/settings_screen.dart';
+import 'theme/app_theme.dart';
 
 
 void main() {
@@ -20,10 +22,7 @@ class MemeApp extends StatelessWidget {
     return MaterialApp(
       title: 'meme_v1',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blueGrey,
-      ),
+      theme: buildAppTheme(),
       home: const AppShell(),
     );
   }
@@ -54,7 +53,7 @@ class _AppShellState extends State<AppShell> {
     MarketScreen(isStock: true),
     MarketScreen(isStock: false),
     DailyMarkdownScreen(kind: 'news'),
-    DailyMarkdownScreen(kind: 'decisions'),
+    DecisionScreen(),
     AlgorithmScreen(),
     SettingsScreen(),
   ];
@@ -65,41 +64,61 @@ class _AppShellState extends State<AppShell> {
       appBar: AppBar(
         title: Text(_titles[_index]),
       ),
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
+      body: SafeArea(
+        top: false,
+        child: IndexedStack(
+          index: _index,
+          children: _screens,
+        ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) {
-          setState(() => _index = value);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.candlestick_chart),
-            label: '주식',
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.divider,
+              width: 0.7,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.currency_bitcoin),
-            label: '코인',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.article_outlined),
-            label: '뉴스',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.psychology_alt_outlined),
-            label: '판단',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_tree_outlined),
-            label: '알고리즘',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            label: '세팅',
-          ),
-        ],
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (value) {
+            setState(() => _index = value);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.show_chart_rounded),
+              selectedIcon: Icon(Icons.show_chart_rounded),
+              label: '주식',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.currency_bitcoin_rounded),
+              selectedIcon: Icon(Icons.currency_bitcoin_rounded),
+              label: '코인',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.article_outlined),
+              selectedIcon: Icon(Icons.article_rounded),
+              label: '뉴스',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.psychology_alt_outlined),
+              selectedIcon: Icon(Icons.psychology_alt_rounded),
+              label: '판단',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_tree_outlined),
+              selectedIcon: Icon(Icons.account_tree_rounded),
+              label: '알고리즘',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: '세팅',
+            ),
+          ],
+        ),
       ),
     );
   }
