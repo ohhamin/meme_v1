@@ -23,6 +23,7 @@ async def status():
         "kill_switch": runtime.kill_switch,
         "live_order_allowed": runtime.live_order_allowed,
         "scheduler_enabled": config.scheduler_enabled,
+        "news_collection_interval_hours": config.news_collection_interval_hours,
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
             "min": config.decision_min_interval_minutes,
