@@ -17,6 +17,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.audit import AuditLogger
 from backend.app.services.decision_cycle import DecisionCycleService
+from backend.app.services.decision_store import DecisionMarkdownStore
 from backend.app.services.live_order_service import LiveOrderService
 from backend.app.services.live_portfolio_snapshot import (
     LivePortfolioSnapshotService,
@@ -35,6 +36,7 @@ class LiveAutoCycleService:
         self.config = RuntimeSettingsService().config
         self.runtime = RuntimeSettingsService()
         self.decisions = DecisionCycleService()
+        self.store = DecisionMarkdownStore()
         self.orders = LiveOrderService()
         self.portfolios = LivePortfolioSnapshotService()
         self.sizer = PositionSizer()
@@ -307,6 +309,11 @@ class LiveAutoCycleService:
                     message=message,
                 )
             )
+
+        self.store.append_live_execution_cycle(
+            result,
+            items,
+        )
 
         self.audit.write(
             "system",
