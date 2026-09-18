@@ -47,9 +47,21 @@ class TossMarketDataAdapter:
             if currency != "KRW":
                 continue
 
-            suspended = bool(
+            nxt_supported = bool(detail.get("nxtSupported"))
+            krx_suspended = bool(
                 detail.get("krxTradingSuspended")
-                or detail.get("nxtTradingSuspended")
+            )
+            nxt_suspended = bool(
+                detail.get("nxtTradingSuspended")
+            )
+            # Treat the symbol as fully suspended only when there is no
+            # available Korean venue for it.
+            suspended = (
+                krx_suspended
+                and (
+                    not nxt_supported
+                    or nxt_suspended
+                )
             )
 
             result.append(
@@ -67,7 +79,7 @@ class TossMarketDataAdapter:
                     ),
                     status=str(item.get("status") or "UNKNOWN"),
                     currency=currency,
-                    nxt_supported=bool(detail.get("nxtSupported")),
+                    nxt_supported=nxt_supported,
                     trading_suspended=suspended,
                 )
             )
