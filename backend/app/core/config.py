@@ -21,6 +21,10 @@ class AppSettings(BaseSettings):
     scheduler_enabled: bool = False
 
     openai_api_key: str = ""
+    openai_decision_model: str = "gpt-5.6-terra"
+    openai_summary_model: str = "gpt-5.6-luna"
+    openai_reasoning_effort: str = "low"
+    openai_max_output_tokens: int = 4000
     llm_enabled: bool = True
     llm_daily_token_budget: int = 200000
     llm_cycle_input_token_limit: int = 8000
