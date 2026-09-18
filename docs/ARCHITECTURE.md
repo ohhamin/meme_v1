@@ -477,17 +477,20 @@ LLM/알고리즘이 BUY 또는 SELL을 제안하더라도 Risk Guard가 최종�
 6. SELL이면 보유수량 초과 여부
 7. BUY이면 일일 손실 한도
 8. BUY이면 일일 주문 횟수
-9. BUY이면 단일 주문 비중
-10. BUY 후 종목 집중도
-11. BUY 후 주식/코인 시장별 노출도
-12. BUY 후 현금 reserve
+9. BUY 후 한 종목 집중도
+10. 신규 BUY이면 전체 보유종목 수 10개 초과 여부
+11. BUY 후 해당 계좌의 현금 reserve
+
+주식(Toss)과 코인(Upbit)은 **완전히 분리된 계좌**로 계산한다.
+따라서 주식+코인을 합친 시장 노출도 제한은 두지 않는다.
+주문금액 자체에도 별도의 최대금액 제한을 두지 않고,
+최종적으로 해당 계좌 기준 종목 비중/현금/손실 제한을 만족하는지만 본다.
 
 초기 Paper 운영용 기본값:
 
 ```text
-RISK_MAX_POSITION_PCT=10
-RISK_MAX_MARKET_EXPOSURE_PCT=60
-RISK_MAX_SINGLE_ORDER_PCT=5
+RISK_MAX_POSITION_PCT=40
+RISK_MAX_OPEN_POSITIONS=10
 RISK_MAX_DAILY_LOSS_PCT=3
 RISK_MAX_DAILY_ORDERS=20
 RISK_MAX_DATA_AGE_SECONDS=300
@@ -496,6 +499,20 @@ RISK_MIN_CASH_RESERVE_PCT=10
 
 이 숫자는 전략의 수익성을 의미하는 값이 아니라 초기 안전장치 기본값이다.
 Paper 결과를 보고 변경한다.
+
+### 0~10종목 / 현금 100% 허용
+
+보유 종목 수에는 **최대 10개만 있고 최소 보유 종목 수는 없다.**
+따라서 0개 보유도 정상 상태다.
+
+```text
+상승/기회 시장 -> 1~10종목 보유 가능
+애매한 시장    -> 일부만 보유 가능
+전면 매도 판단 -> 0종목 / 현금 100% 가능
+```
+
+10개를 이미 보유 중이면 새로운 11번째 종목 BUY는 BLOCK하지만,
+기존 10개 종목 중 하나를 추가 매수하는 것은 40% 종목비중 제한 안에서 가능하다.
 
 ### BUY / SELL 비대칭
 
@@ -623,7 +640,7 @@ BrokerAdapter
   is_market_open()
 ```
 
-Upbit와 국내주식 증권사는 이 인터페이스를 각각 구현한다.
+코인은 Upbit adapter, 주식은 Toss 증권 연동 adapter를 목표로 각각 구현한다. 실제 Live 연동 방식은 해당 서비스의 지원 API를 확인한 뒤 확정한다.
 
 ## 15. 스케줄
 
@@ -838,13 +855,23 @@ Sizer는 Risk Guard limit에 맞추기 위해 주문을 몰래 축소하지 않�
 
 ### Paper Broker
 
-Paper Broker 상태는 다음 파일에 저장한다.
+Paper Broker도 실제 운영 계좌 구조처럼 주식/코인을 분리한다.
 
 ```text
-data/state/paper_portfolio.json
+data/state/paper_stock_portfolio.json   # Toss 주식 계좌 역할
+data/state/paper_crypto_portfolio.json  # Upbit 코인 계좌 역할
 ```
 
-기본 초기 현금은 `PAPER_INITIAL_CASH_KRW=1000000`이다.
+각 계좌의 현금/평가금액/손익/주문횟수는 서로 섞지 않는다.
+
+기본 초기 현금은 각각:
+
+```text
+PAPER_STOCK_INITIAL_CASH_KRW=1000000
+PAPER_CRYPTO_INITIAL_CASH_KRW=1000000
+```
+
+이며 테스트용 값이므로 환경변수로 독립 조정할 수 있다.
 
 Paper Broker는:
 
