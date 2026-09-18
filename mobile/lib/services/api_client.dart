@@ -173,6 +173,25 @@ class ApiClient {
     return values.map((item) => item.toString()).toList();
   }
 
+  Future<List<String>> getTossUniverse() async {
+    final data = await _request(
+      'GET',
+      '/stocks/toss/universe',
+    ) as Map<String, dynamic>;
+    final symbols = data['symbols'] as List<dynamic>? ?? <dynamic>[];
+    return symbols.map((item) => item.toString()).toList();
+  }
+
+  Future<List<String>> updateTossUniverse(List<String> symbols) async {
+    final data = await _request(
+      'PUT',
+      '/stocks/toss/universe',
+      body: {'symbols': symbols},
+    ) as Map<String, dynamic>;
+    final values = data['symbols'] as List<dynamic>? ?? <dynamic>[];
+    return values.map((item) => item.toString()).toList();
+  }
+
   Future<Map<String, dynamic>> resetPaperPortfolio({
     String market = 'all',
     num? initialCash,
