@@ -13,6 +13,7 @@ from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
 from backend.app.services.toss_live_portfolio import TossLivePortfolioService
+from backend.app.services.live_order_service import LiveOrderService
 
 
 class TradingService:
@@ -71,7 +72,7 @@ class TradingService:
 
         return await UpbitLivePortfolioService().positions()
 
-    def manual_stock_order(
+    async def manual_stock_order(
         self,
         *,
         symbol: str,
@@ -90,13 +91,14 @@ class TradingService:
                 idempotency_key=idempotency_key,
             )
 
-        return self._live_not_ready(
+        return await LiveOrderService().manual_stock_order(
             symbol=symbol,
             side=side,
+            quantity=quantity,
             idempotency_key=idempotency_key,
         )
 
-    def manual_crypto_order(
+    async def manual_crypto_order(
         self,
         *,
         symbol: str,
@@ -139,9 +141,10 @@ class TradingService:
                 idempotency_key=idempotency_key,
             )
 
-        return self._live_not_ready(
+        return await LiveOrderService().manual_crypto_order(
             symbol=symbol,
             side=side,
+            amount_krw=amount_krw,
             idempotency_key=idempotency_key,
         )
 
