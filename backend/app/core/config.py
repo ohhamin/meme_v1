@@ -17,6 +17,8 @@ class AppSettings(BaseSettings):
     live_auto_order_enabled: bool = False
     upbit_live_order_enabled: bool = False
     toss_live_order_enabled: bool = False
+    toss_confirm_high_value_orders: bool = False
+    toss_high_value_order_threshold_krw: int = 100000000
     live_order_reconcile_attempts: int = 3
     live_order_reconcile_interval_seconds: float = 1.0
 
