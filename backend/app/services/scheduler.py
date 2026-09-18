@@ -6,6 +6,7 @@ from backend.app.core.config import get_settings
 from backend.app.services.algorithm_review import AlgorithmReviewService
 from backend.app.services.audit import AuditLogger
 from backend.app.services.news_collector import NewsCollector
+from backend.app.services.live_order_reconciler import LiveOrderReconciler
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
@@ -17,6 +18,7 @@ class AdaptiveDecisionScheduler:
         )
         self.news_collector = NewsCollector()
         self.algorithm_review = AlgorithmReviewService()
+        self.live_order_reconciler = LiveOrderReconciler()
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
 
@@ -29,6 +31,7 @@ class AdaptiveDecisionScheduler:
 
         self.schedule_news_collection()
         self.schedule_algorithm_review()
+        self.schedule_live_order_reconciliation()
         self.schedule_next(
             self.config.decision_default_interval_minutes
         )
@@ -56,6 +59,18 @@ class AdaptiveDecisionScheduler:
             trigger="interval",
             hours=self.config.algorithm_review_interval_hours,
             id="algorithm-review",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+
+    def schedule_live_order_reconciliation(self) -> None:
+        """Broker status checks only; never submits or retries a live order."""
+        self.scheduler.add_job(
+            self.live_order_reconciler.reconcile,
+            trigger="interval",
+            minutes=5,
+            id="live-order-reconciler",
             replace_existing=True,
             coalesce=True,
             max_instances=1,
