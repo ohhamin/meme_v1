@@ -1,5 +1,6 @@
 import asyncio
 from decimal import Decimal, ROUND_DOWN
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 
@@ -140,6 +141,43 @@ class LiveOrderService:
             idempotency_key=idempotency_key,
         )
 
+    async def auto_order(
+        self,
+        *,
+        market: str,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        notional: Decimal,
+    ) -> OrderResult:
+        broker = "upbit" if market == "crypto" else "toss"
+        self._require_live_auto(broker)
+
+        try:
+            snapshot = (
+                await self.snapshots.upbit(symbol)
+                if broker == "upbit"
+                else await self.snapshots.toss(symbol)
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Live broker snapshot unavailable: {exc}",
+            ) from exc
+
+        return await self._execute(
+            broker=broker,
+            source="auto",
+            symbol=snapshot["symbol"],
+            side=side,
+            quantity=quantity,
+            notional=notional,
+            snapshot=snapshot,
+            idempotency_key=(
+                f"auto-{broker}-{uuid4().hex}"
+            ),
+        )
+
     def _require_live_manual(self, broker: str) -> None:
         runtime = self.runtime.get()
         reasons: list[str] = []
@@ -162,6 +200,32 @@ class LiveOrderService:
                 status_code=status.HTTP_423_LOCKED,
                 detail={
                     "message": "Live order is disabled by safety gates.",
+                    "reasons": reasons,
+                },
+            )
+
+    def _require_live_auto(self, broker: str) -> None:
+        runtime = self.runtime.get()
+        reasons: list[str] = []
+
+        if runtime.mode != "live":
+            reasons.append("Runtime mode is not live.")
+        if runtime.kill_switch:
+            reasons.append("Kill switch is enabled.")
+        if not self.config.trading_enabled:
+            reasons.append("TRADING_ENABLED=false.")
+        if not self.config.live_auto_order_enabled:
+            reasons.append("LIVE_AUTO_ORDER_ENABLED=false.")
+        if broker == "upbit" and not self.config.upbit_live_order_enabled:
+            reasons.append("UPBIT_LIVE_ORDER_ENABLED=false.")
+        if broker == "toss" and not self.config.toss_live_order_enabled:
+            reasons.append("TOSS_LIVE_ORDER_ENABLED=false.")
+
+        if reasons:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail={
+                    "message": "Live auto order is disabled by safety gates.",
                     "reasons": reasons,
                 },
             )
