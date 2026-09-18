@@ -28,6 +28,7 @@ def portfolio(with_position: bool = False) -> PaperPortfolio:
         )
 
     return PaperPortfolio(
+        market="crypto",
         date="2026-09-19",
         cash=Decimal("1000000"),
         initial_cash=Decimal("2000000"),
