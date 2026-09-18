@@ -105,6 +105,9 @@ class _DecisionCardData {
     required this.risk,
     this.blockReason,
     this.nextCheck,
+    this.orderSide,
+    this.orderQuantity,
+    this.orderNotional,
   });
 
   final String time;
@@ -115,6 +118,9 @@ class _DecisionCardData {
   final String risk;
   final String? blockReason;
   final String? nextCheck;
+  final String? orderSide;
+  final String? orderQuantity;
+  final String? orderNotional;
 }
 
 
@@ -130,6 +136,9 @@ class _DecisionParser {
     String risk = '';
     String? blockReason;
     String? nextCheck;
+    String? orderSide;
+    String? orderQuantity;
+    String? orderNotional;
 
     void flush() {
       if (symbol.isEmpty) return;
@@ -143,6 +152,9 @@ class _DecisionParser {
           risk: risk,
           blockReason: blockReason,
           nextCheck: nextCheck,
+          orderSide: orderSide,
+          orderQuantity: orderQuantity,
+          orderNotional: orderNotional,
         ),
       );
       symbol = '';
@@ -152,6 +164,9 @@ class _DecisionParser {
       risk = '';
       blockReason = null;
       nextCheck = null;
+      orderSide = null;
+      orderQuantity = null;
+      orderNotional = null;
     }
 
     for (final raw in markdown.split('\n')) {
@@ -182,6 +197,12 @@ class _DecisionParser {
         blockReason = line.substring('- Block Reason:'.length).trim();
       } else if (line.startsWith('- Next Check:')) {
         nextCheck = line.substring('- Next Check:'.length).trim();
+      } else if (line.startsWith('- Order:')) {
+        orderSide = line.substring('- Order:'.length).trim();
+      } else if (line.startsWith('- Order Quantity:')) {
+        orderQuantity = line.substring('- Order Quantity:'.length).trim();
+      } else if (line.startsWith('- Order Notional:')) {
+        orderNotional = line.substring('- Order Notional:'.length).trim();
       }
     }
 
@@ -223,6 +244,7 @@ class _DecisionCard extends StatelessWidget {
     final risk = data.risk.toUpperCase();
     final blocked = risk.contains('BLOCK');
     final pending = risk.contains('PENDING');
+    final noOrder = risk.contains('NO_ORDER');
 
     return AppSurface(
       child: Column(
@@ -278,12 +300,16 @@ class _DecisionCard extends StatelessWidget {
                     ? '차단'
                     : pending
                         ? '대기'
-                        : '통과',
+                        : noOrder
+                            ? '주문없음'
+                            : '통과',
                 valueColor: blocked
                     ? AppColors.negative
                     : pending
                         ? AppColors.warning
-                        : AppColors.positive,
+                        : noOrder
+                            ? AppColors.textSecondary
+                            : AppColors.positive,
               ),
             ],
           ),
@@ -299,6 +325,43 @@ class _DecisionCard extends StatelessWidget {
             Text(
               data.reason,
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+          if (data.orderSide?.isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: AppColors.primary,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Paper 주문 · ' +
+                          (data.orderSide ?? '') +
+                          ' · ' +
+                          (data.orderQuantity ?? '-') +
+                          ' · ' +
+                          (data.orderNotional ?? '-') +
+                          '원',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
           if (data.blockReason?.isNotEmpty == true) ...[
