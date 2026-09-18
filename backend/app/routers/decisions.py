@@ -7,11 +7,13 @@ from backend.app.models.schemas import (
     DecisionPreviewResponse,
     PaperCycleRequest,
     PaperCycleResponse,
+    LiveAutoCycleResponse,
 )
 from backend.app.services.file_store import DailyMarkdownStore
 from backend.app.services.decision_cycle import DecisionCycleService
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
+from backend.app.services.live_auto_cycle import LiveAutoCycleService
 
 
 router = APIRouter(
@@ -53,3 +55,9 @@ async def paper_cycle(payload: PaperCycleRequest):
 async def market_paper_cycle():
     """Fetch Toss/Upbit market data and run one combined Paper cycle."""
     return await CombinedPaperRunner().run()
+
+
+@router.post("/live-cycle", response_model=LiveAutoCycleResponse)
+async def live_cycle():
+    """Explicitly run one live automatic cycle; all env/runtime safety gates still apply."""
+    return await LiveAutoCycleService().run()
