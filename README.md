@@ -86,3 +86,20 @@ meme_v1/
 취소한 제안은 화면에서는 사라지고 감사 목적으로 cancelled archive로 이동한다.
 
 현재 단계에서는 Broker/LLM을 실제 연결하지 않았으므로 Live 주문은 실행되지 않는다.
+
+
+## LLM 비용 제어
+
+매 판단마다 최근 7일 Markdown 전체를 보내지 않는다.
+
+- 뉴스/판단 원본은 7일 보관
+- 판단용 rolling context는 별도로 압축
+- 한 Decision Cycle에서 여러 종목을 한 번의 LLM 호출로 처리
+- 한 사이클 예상 입력 상한 적용
+- 앱 자체 일일 token budget 적용
+- 남은 예산이 적으면 conserve mode
+- 예산 소진/API 장애 시 자동 신규 주문은 fail-closed
+- 알고리즘 개선 review는 기본 24시간마다 별도로 수행
+
+현재 초기 내부 한도는 `8000 tokens/cycle`, `200000 tokens/day`이며 환경변수로 조정한다.
+실제 API 응답의 usage를 누적해 운영 후 적절한 값으로 조정한다.
