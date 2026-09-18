@@ -8,6 +8,7 @@ from backend.app.routers import (
     decisions,
     health,
     news,
+    risk,
     settings,
     stocks,
 )
@@ -42,4 +43,5 @@ app.include_router(crypto.router)
 app.include_router(news.router)
 app.include_router(decisions.router)
 app.include_router(algorithm.router)
+app.include_router(risk.router)
 app.include_router(settings.router)
