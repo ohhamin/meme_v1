@@ -17,27 +17,51 @@ from backend.app.services.push import PushService
 
 
 class PaperBroker:
-    """Local JSON-backed paper broker.
+    """Local JSON-backed paper account, separated by market/broker.
 
-    Prices come from the supplied market snapshot.
-    No external broker API is called.
+    stock  -> Toss-like paper account
+    crypto -> Upbit-like paper account
+
+    The two accounts never share cash/equity for risk calculations.
     """
 
-    def __init__(self):
+    def __init__(self, market: str):
+        if market not in {"stock", "crypto"}:
+            raise ValueError("market must be stock or crypto")
+
+        self.market = market
         self.config = get_settings()
         self.tz = ZoneInfo(self.config.app_timezone)
-        self.path: Path = self.config.data_path / "state" / "paper_portfolio.json"
+        self.path: Path = (
+            self.config.data_path
+            / "state"
+            / f"paper_{market}_portfolio.json"
+        )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.audit = AuditLogger()
         self.push = PushService()
 
+    @property
+    def broker_name(self) -> str:
+        return "toss" if self.market == "stock" else "upbit"
+
+    def default_initial_cash(self) -> Decimal:
+        value = (
+            self.config.paper_stock_initial_cash_krw
+            if self.market == "stock"
+            else self.config.paper_crypto_initial_cash_krw
+        )
+        return Decimal(str(value))
+
     def reset(self, initial_cash: Decimal | None = None) -> PaperPortfolio:
-        cash = initial_cash or Decimal(str(self.config.paper_initial_cash_krw))
+        cash = initial_cash or self.default_initial_cash()
         if cash <= 0:
             raise ValueError("initial_cash must be positive")
 
         today = datetime.now(self.tz).date().isoformat()
         state = {
+            "market": self.market,
+            "broker": self.broker_name,
             "date": today,
             "cash": str(cash),
             "initial_cash": str(cash),
@@ -50,6 +74,8 @@ class PaperBroker:
             "system",
             {
                 "event": "paper_portfolio_reset",
+                "market": self.market,
+                "broker": self.broker_name,
                 "initial_cash": str(cash),
             },
         )
@@ -61,12 +87,15 @@ class PaperBroker:
     ) -> None:
         state = self._load()
         positions = state["positions"]
+        now = datetime.now(self.tz).isoformat()
 
         for instrument in instruments:
-            key = self._key(instrument.market, instrument.symbol)
+            if instrument.market != self.market:
+                continue
+            key = instrument.symbol
             if key in positions:
                 positions[key]["last_price"] = str(instrument.price)
-                positions[key]["last_price_at"] = datetime.now(self.tz).isoformat()
+                positions[key]["last_price_at"] = now
                 positions[key]["last_market_open"] = instrument.market_open
                 if instrument.name:
                     positions[key]["name"] = instrument.name
@@ -79,7 +108,6 @@ class PaperBroker:
 
         positions: list[PaperPosition] = []
         market_value_total = Decimal("0")
-        realized_total = Decimal("0")
 
         for raw in state["positions"].values():
             quantity = Decimal(raw["quantity"])
@@ -90,14 +118,13 @@ class PaperBroker:
             invested = quantity * average_price
             market_value = quantity * last_price
             market_value_total += market_value
-            realized_total += realized_pnl
 
-            if average_price > 0:
-                return_rate = (
-                    (last_price - average_price) / average_price
-                ) * Decimal("100")
-            else:
-                return_rate = Decimal("0")
+            return_rate = (
+                ((last_price - average_price) / average_price)
+                * Decimal("100")
+                if average_price > 0
+                else Decimal("0")
+            )
 
             last_price_at = None
             raw_last_price_at = raw.get("last_price_at")
@@ -109,7 +136,7 @@ class PaperBroker:
 
             positions.append(
                 PaperPosition(
-                    market=raw["market"],
+                    market=self.market,
                     symbol=raw["symbol"],
                     name=raw.get("name") or raw["symbol"],
                     quantity=quantity,
@@ -129,7 +156,6 @@ class PaperBroker:
         equity = cash + market_value_total
         day_start_equity = Decimal(state["day_start_equity"])
         daily_pnl = equity - day_start_equity
-
         daily_pnl_pct = (
             daily_pnl / day_start_equity * Decimal("100")
             if day_start_equity > 0
@@ -137,6 +163,7 @@ class PaperBroker:
         )
 
         return PaperPortfolio(
+            market=self.market,
             date=state["date"],
             cash=cash,
             initial_cash=Decimal(state["initial_cash"]),
@@ -145,16 +172,15 @@ class PaperBroker:
             daily_pnl=daily_pnl,
             daily_pnl_pct=daily_pnl_pct,
             daily_order_count=int(state["daily_order_count"]),
-            positions=sorted(
-                positions,
-                key=lambda p: (p.market, p.symbol),
-            ),
+            positions=sorted(positions, key=lambda p: p.symbol),
         )
 
     def account_snapshot(self) -> dict:
         portfolio = self.portfolio()
         return {
             "mode": "paper",
+            "broker": self.broker_name,
+            "market": self.market,
             "date": portfolio.date,
             "cash": str(portfolio.cash),
             "equity": str(portfolio.equity),
@@ -169,7 +195,11 @@ class PaperBroker:
                     "quantity": str(p.quantity),
                     "average_price": str(p.average_price),
                     "last_price": str(p.last_price),
-                    "last_price_at": p.last_price_at.isoformat() if p.last_price_at else None,
+                    "last_price_at": (
+                        p.last_price_at.isoformat()
+                        if p.last_price_at
+                        else None
+                    ),
                     "market_open": p.last_market_open,
                     "market_value": str(p.market_value),
                     "return_rate": str(p.return_rate),
@@ -179,22 +209,12 @@ class PaperBroker:
             ],
         }
 
-    def market_exposure_value(self, market: str) -> Decimal:
-        return sum(
-            (
-                p.market_value
-                for p in self.portfolio().positions
-                if p.market == market
-            ),
-            Decimal("0"),
-        )
-
-    def position(self, market: str, symbol: str) -> PaperPosition | None:
+    def position(self, symbol: str) -> PaperPosition | None:
         return next(
             (
                 p
                 for p in self.portfolio().positions
-                if p.market == market and p.symbol == symbol
+                if p.symbol == symbol
             ),
             None,
         )
@@ -202,7 +222,6 @@ class PaperBroker:
     def execute(
         self,
         *,
-        market: str,
         symbol: str,
         name: str | None,
         side: str,
@@ -210,6 +229,7 @@ class PaperBroker:
         market_price: Decimal,
         decision_score: int | None = None,
         source: str = "auto",
+        market_open: bool = True,
     ) -> PaperOrderExecution:
         if quantity <= 0:
             raise ValueError("quantity must be positive")
@@ -220,10 +240,13 @@ class PaperBroker:
 
         state = self._load()
         self._roll_day_if_needed(state)
-        key = self._key(market, symbol)
         positions = state["positions"]
+        key = symbol
 
-        slippage = Decimal(str(self.config.paper_slippage_bps)) / Decimal("10000")
+        slippage = (
+            Decimal(str(self.config.paper_slippage_bps))
+            / Decimal("10000")
+        )
         fill_price = (
             market_price * (Decimal("1") + slippage)
             if side == "buy"
@@ -238,6 +261,7 @@ class PaperBroker:
 
         cash = Decimal(state["cash"])
         existing = positions.get(key)
+        now = datetime.now(self.tz).isoformat()
 
         if side == "buy":
             total_cost = notional + fee
@@ -249,24 +273,28 @@ class PaperBroker:
                 old_avg = Decimal(existing["average_price"])
                 new_qty = old_qty + quantity
                 new_avg = (
-                    (old_qty * old_avg) + (quantity * fill_price) + fee
+                    (old_qty * old_avg)
+                    + (quantity * fill_price)
+                    + fee
                 ) / new_qty
                 existing["quantity"] = str(new_qty)
                 existing["average_price"] = str(new_avg)
                 existing["last_price"] = str(fill_price)
-                existing["last_price_at"] = datetime.now(self.tz).isoformat()
-                existing["name"] = name or existing.get("name") or symbol
+                existing["last_price_at"] = now
+                existing["last_market_open"] = market_open
+                existing["name"] = (
+                    name or existing.get("name") or symbol
+                )
                 existing["decision_score"] = decision_score
             else:
                 positions[key] = {
-                    "market": market,
                     "symbol": symbol,
                     "name": name or symbol,
                     "quantity": str(quantity),
                     "average_price": str((notional + fee) / quantity),
                     "last_price": str(fill_price),
-                    "last_price_at": datetime.now(self.tz).isoformat(),
-                    "last_market_open": True,
+                    "last_price_at": now,
+                    "last_market_open": market_open,
                     "realized_pnl": "0",
                     "decision_score": decision_score,
                 }
@@ -293,7 +321,8 @@ class PaperBroker:
             else:
                 existing["quantity"] = str(remaining)
                 existing["last_price"] = str(fill_price)
-                existing["last_price_at"] = datetime.now(self.tz).isoformat()
+                existing["last_price_at"] = now
+                existing["last_market_open"] = market_open
                 existing["realized_pnl"] = str(realized)
                 existing["decision_score"] = decision_score
 
@@ -302,7 +331,7 @@ class PaperBroker:
 
         execution = PaperOrderExecution(
             order_id=f"paper-{uuid4().hex[:12]}",
-            market=market,
+            market=self.market,
             symbol=symbol,
             side=side,
             quantity=quantity,
@@ -318,14 +347,24 @@ class PaperBroker:
             {
                 "source": source,
                 "mode": "paper",
+                "broker": self.broker_name,
                 **execution.model_dump(mode="json"),
             },
         )
         self.push.send(
-            title="Paper 자동 주문" if source == "auto" else "Paper 수동 주문",
+            title=(
+                "Paper 자동 주문"
+                if source == "auto"
+                else "Paper 수동 주문"
+            ),
             body=f"{symbol} {side.upper()} {quantity}",
             data={
-                "type": "paper_auto_order" if source == "auto" else "paper_manual_order",
+                "type": (
+                    "paper_auto_order"
+                    if source == "auto"
+                    else "paper_manual_order"
+                ),
+                "market": self.market,
                 "symbol": symbol,
                 "side": side,
                 "order_id": execution.order_id,
@@ -338,10 +377,21 @@ class PaperBroker:
             self.reset()
 
         try:
-            state = json.loads(self.path.read_text(encoding="utf-8"))
+            state = json.loads(
+                self.path.read_text(encoding="utf-8")
+            )
         except (OSError, json.JSONDecodeError, TypeError):
             self.reset()
-            state = json.loads(self.path.read_text(encoding="utf-8"))
+            state = json.loads(
+                self.path.read_text(encoding="utf-8")
+            )
+
+        # Old/malformed state should not cross account boundaries.
+        if state.get("market") != self.market:
+            self.reset()
+            state = json.loads(
+                self.path.read_text(encoding="utf-8")
+            )
 
         self._roll_day_if_needed(state)
         return state
@@ -351,11 +401,11 @@ class PaperBroker:
         if state.get("date") == today:
             return
 
-        # Mark-to-market equity at the start of a new local day.
         cash = Decimal(state["cash"])
         market_value = sum(
             (
-                Decimal(raw["quantity"]) * Decimal(raw["last_price"])
+                Decimal(raw["quantity"])
+                * Decimal(raw["last_price"])
                 for raw in state["positions"].values()
             ),
             Decimal("0"),
@@ -368,11 +418,11 @@ class PaperBroker:
     def _write(self, state: dict) -> None:
         temp = self.path.with_suffix(".tmp")
         temp.write_text(
-            json.dumps(state, ensure_ascii=False, indent=2),
+            json.dumps(
+                state,
+                ensure_ascii=False,
+                indent=2,
+            ),
             encoding="utf-8",
         )
         temp.replace(self.path)
-
-    @staticmethod
-    def _key(market: str, symbol: str) -> str:
-        return f"{market}:{symbol}"
