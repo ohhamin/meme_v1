@@ -72,7 +72,7 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
                       : Icons.psychology_alt_outlined,
                   title: '이 날짜의 ' + _label + '가 없어요',
                   description: widget.kind == 'news'
-                      ? '하루 한 번 수집이 끝나면 주요 경제 뉴스가 여기에 정리됩니다.'
+                      ? '6시간마다 수집이 끝나면 주요 경제 뉴스가 여기에 누적됩니다.'
                       : '판단 사이클이 실행되면 결과가 여기에 쌓입니다.',
                 );
               }
