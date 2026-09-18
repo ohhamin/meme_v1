@@ -23,4 +23,5 @@ async def manual_order(payload: CryptoManualOrderRequest):
         symbol=payload.symbol,
         side=payload.side,
         amount_krw=payload.amount_krw,
+        idempotency_key=payload.idempotency_key,
     )
