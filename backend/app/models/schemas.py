@@ -160,6 +160,8 @@ class PaperPosition(BaseModel):
     quantity: Decimal = Field(default=Decimal("0"), ge=0)
     average_price: Decimal = Field(default=Decimal("0"), ge=0)
     last_price: Decimal = Field(default=Decimal("0"), ge=0)
+    last_price_at: datetime | None = None
+    last_market_open: bool = True
     invested_amount: Decimal = Field(default=Decimal("0"), ge=0)
     market_value: Decimal = Field(default=Decimal("0"), ge=0)
     return_rate: Decimal = Decimal("0")
