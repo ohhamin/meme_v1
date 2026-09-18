@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from backend.app.core.config import get_settings
+from backend.app.core.security import require_api_token
 from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
@@ -12,7 +13,7 @@ async def health():
     return {"status": "ok"}
 
 
-@router.get("/status")
+@router.get("/status", dependencies=[Depends(require_api_token)])
 async def status():
     config = get_settings()
     runtime = RuntimeSettingsService().get()
