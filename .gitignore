@@ -1,0 +1,17 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+.vscode/
+data/logs/*.jsonl
+data/context/*.md
+!data/context/.gitkeep
+!data/logs/.gitkeep
+mobile/.dart_tool/
+mobile/build/
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+firebase-adminsdk*.json
