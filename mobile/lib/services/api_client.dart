@@ -143,6 +143,20 @@ class ApiClient {
     return (await _request('GET', '/status')) as Map<String, dynamic>;
   }
 
+  Future<void> registerPushToken({
+    required String token,
+    required String platform,
+  }) async {
+    await _request(
+      'PUT',
+      '/devices/push',
+      body: {
+        'token': token,
+        'platform': platform,
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> getPaperPortfolio() async {
     return (await _request('GET', '/paper/portfolio'))
         as Map<String, dynamic>;
