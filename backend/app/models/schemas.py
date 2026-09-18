@@ -131,3 +131,82 @@ class RiskGuardResult(BaseModel):
     reasons: list[str] = Field(default_factory=list)
     symbol: str
     action: Literal["BUY", "SELL", "HOLD"]
+
+
+class MarketInstrumentSnapshot(BaseModel):
+    market: Literal["stock", "crypto"]
+    symbol: str
+    name: str | None = None
+    price: Decimal = Field(gt=0)
+    data_age_seconds: int = Field(default=0, ge=0)
+    market_open: bool = True
+
+
+class PositionSizeResult(BaseModel):
+    status: Literal["ORDER", "NO_ORDER"]
+    market: Literal["stock", "crypto"]
+    symbol: str
+    action: Literal["BUY", "SELL", "HOLD"]
+    score: int = Field(ge=0, le=100)
+    order_notional: Decimal = Field(default=Decimal("0"), ge=0)
+    order_quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    reason: str
+
+
+class PaperPosition(BaseModel):
+    market: Literal["stock", "crypto"]
+    symbol: str
+    name: str
+    quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    average_price: Decimal = Field(default=Decimal("0"), ge=0)
+    last_price: Decimal = Field(default=Decimal("0"), ge=0)
+    invested_amount: Decimal = Field(default=Decimal("0"), ge=0)
+    market_value: Decimal = Field(default=Decimal("0"), ge=0)
+    return_rate: Decimal = Decimal("0")
+    realized_pnl: Decimal = Decimal("0")
+    decision_score: int | None = Field(default=None, ge=0, le=100)
+
+
+class PaperPortfolio(BaseModel):
+    date: str
+    cash: Decimal = Field(ge=0)
+    initial_cash: Decimal = Field(gt=0)
+    day_start_equity: Decimal = Field(gt=0)
+    equity: Decimal = Field(gt=0)
+    daily_pnl: Decimal = Decimal("0")
+    daily_pnl_pct: Decimal = Decimal("0")
+    daily_order_count: int = Field(default=0, ge=0)
+    positions: list[PaperPosition] = Field(default_factory=list)
+
+
+class PaperOrderExecution(BaseModel):
+    order_id: str
+    market: Literal["stock", "crypto"]
+    symbol: str
+    side: Literal["buy", "sell"]
+    quantity: Decimal = Field(gt=0)
+    price: Decimal = Field(gt=0)
+    notional: Decimal = Field(gt=0)
+    fee: Decimal = Field(default=Decimal("0"), ge=0)
+    status: Literal["paper_filled"]
+    created_at: datetime
+
+
+class CycleExecutionItem(BaseModel):
+    decision: SymbolDecision
+    sizing: PositionSizeResult
+    risk: RiskGuardResult | None = None
+    order: PaperOrderExecution | None = None
+
+
+class PaperCycleRequest(BaseModel):
+    market_snapshot: list[MarketInstrumentSnapshot]
+
+
+class PaperCycleResponse(BaseModel):
+    status: Literal["completed", "blocked"]
+    next_check_minutes: int | None = None
+    cycle_summary: str | None = None
+    items: list[CycleExecutionItem] = Field(default_factory=list)
+    portfolio: PaperPortfolio | None = None
+    reason: str | None = None
