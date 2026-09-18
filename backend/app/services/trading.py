@@ -49,6 +49,9 @@ class TradingService:
                     "quantity": p.quantity,
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
+                    "current_price": p.last_price,
+                    "market_value": p.market_value,
+                    "source": "paper",
                 }
                 for p in self.paper["stock"].portfolio().positions
             ]
@@ -66,6 +69,9 @@ class TradingService:
                     "quantity": p.quantity,
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
+                    "current_price": p.last_price,
+                    "market_value": p.market_value,
+                    "source": "paper",
                 }
                 for p in self.paper["crypto"].portfolio().positions
             ]
