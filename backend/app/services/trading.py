@@ -11,6 +11,7 @@ from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
 
 
 class TradingService:
@@ -53,7 +54,7 @@ class TradingService:
         # TODO: Toss stock adapter connection.
         return []
 
-    def crypto_positions(self) -> list[dict]:
+    async def crypto_positions(self) -> list[dict]:
         runtime = self.runtime.get()
         if runtime.mode == "paper":
             return [
@@ -68,8 +69,7 @@ class TradingService:
                 for p in self.paper["crypto"].portfolio().positions
             ]
 
-        # TODO: Upbit adapter connection.
-        return []
+        return await UpbitLivePortfolioService().positions()
 
     def manual_stock_order(
         self,
