@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter
 from backend.app.core.security import require_api_token
@@ -7,9 +7,12 @@ from backend.app.models.schemas import (
     PaperCycleResponse,
     UpbitMarketInfo,
     UpbitQuote,
+    UpbitUniverseResponse,
+    UpbitUniverseUpdate,
 )
 from backend.app.services.trading import TradingService
 from backend.app.services.upbit_paper_runner import UpbitPaperRunner
+from backend.app.services.upbit_universe import UpbitUniverseService
 
 
 router = APIRouter(
@@ -77,3 +80,42 @@ async def upbit_paper_run(
         else None
     )
     return await UpbitPaperRunner().run(selected)
+
+
+@router.get("/upbit/universe", response_model=UpbitUniverseResponse)
+async def upbit_universe():
+    markets = UpbitUniverseService().get()
+    return UpbitUniverseResponse(
+        markets=markets,
+        count=len(markets),
+    )
+
+
+@router.put("/upbit/universe", response_model=UpbitUniverseResponse)
+async def update_upbit_universe(payload: UpbitUniverseUpdate):
+    available = await UpbitMarketDataAdapter().list_markets(
+        quote_currency="KRW",
+        details=True,
+    )
+    available_codes = {item.market for item in available}
+    requested = [
+        value.strip().upper()
+        for value in payload.markets
+        if value.strip()
+    ]
+    invalid = sorted(set(requested) - available_codes)
+
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Unknown Upbit KRW markets.",
+                "markets": invalid,
+            },
+        )
+
+    markets = UpbitUniverseService().set(requested)
+    return UpbitUniverseResponse(
+        markets=markets,
+        count=len(markets),
+    )
