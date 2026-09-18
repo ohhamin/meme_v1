@@ -260,3 +260,17 @@ class UpbitUniverseUpdate(BaseModel):
 class UpbitUniverseResponse(BaseModel):
     markets: list[str]
     count: int = Field(ge=0)
+
+
+class UpbitAccountAsset(BaseModel):
+    currency: str
+    balance: Decimal = Field(ge=0)
+    locked: Decimal = Field(ge=0)
+    total: Decimal = Field(ge=0)
+    avg_buy_price: Decimal = Field(ge=0)
+    unit_currency: str = "KRW"
+
+
+class UpbitAccountStatus(BaseModel):
+    configured: bool
+    assets: list[UpbitAccountAsset] = Field(default_factory=list)
