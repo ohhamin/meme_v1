@@ -218,3 +218,8 @@ class PaperCycleResponse(BaseModel):
 class PaperResetRequest(BaseModel):
     market: Literal["stock", "crypto", "all"] = "all"
     initial_cash: Decimal | None = Field(default=None, gt=0)
+
+
+class PaperAccountsResponse(BaseModel):
+    stock: PaperPortfolio
+    crypto: PaperPortfolio
