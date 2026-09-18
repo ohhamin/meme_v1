@@ -16,13 +16,12 @@ class AppSettings(BaseSettings):
 
     # Deterministic Risk Guard hard limits.
     # Risk Guard does not decide BUY/SELL; it only permits or blocks an order intent.
-    risk_max_position_pct: float = 10.0
-    risk_max_market_exposure_pct: float = 60.0
-    risk_max_single_order_pct: float = 5.0
+    risk_max_position_pct: float = 40.0
     risk_max_daily_loss_pct: float = 3.0
     risk_max_daily_orders: int = 20
     risk_max_data_age_seconds: int = 300
     risk_min_cash_reserve_pct: float = 10.0
+    risk_max_open_positions: int = 10
 
     # Deterministic position sizing. The sizer never overrides Risk Guard.
     position_buy_min_score: int = 60
@@ -36,7 +35,8 @@ class AppSettings(BaseSettings):
     position_sell_pct_score_20: float = 60.0
 
     # Local Paper broker.
-    paper_initial_cash_krw: float = 1000000.0
+    paper_stock_initial_cash_krw: float = 1000000.0
+    paper_crypto_initial_cash_krw: float = 1000000.0
     paper_fee_bps: float = 0.0
     paper_slippage_bps: float = 0.0
 
