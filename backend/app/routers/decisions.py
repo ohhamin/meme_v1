@@ -11,6 +11,7 @@ from backend.app.models.schemas import (
 from backend.app.services.file_store import DailyMarkdownStore
 from backend.app.services.decision_cycle import DecisionCycleService
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
+from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
 router = APIRouter(
@@ -46,3 +47,9 @@ async def paper_cycle(payload: PaperCycleRequest):
     return await PaperAutoCycleService().run(
         instruments=payload.market_snapshot,
     )
+
+
+@router.post("/market-paper-cycle", response_model=PaperCycleResponse)
+async def market_paper_cycle():
+    """Fetch Toss/Upbit market data and run one combined Paper cycle."""
+    return await CombinedPaperRunner().run()
