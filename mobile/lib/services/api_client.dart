@@ -148,11 +148,15 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> resetPaperPortfolio({num? initialCash}) async {
+  Future<Map<String, dynamic>> resetPaperPortfolio({
+    String market = 'all',
+    num? initialCash,
+  }) async {
     return (await _request(
       'POST',
       '/paper/reset',
       body: {
+        'market': market,
         'initial_cash': initialCash,
       },
     )) as Map<String, dynamic>;
