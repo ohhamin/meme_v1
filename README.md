@@ -74,7 +74,8 @@ meme_v1/
 - [ ] adaptive decision scheduler (30~120분)
 - [x] LLM 판단 preview + 판단 Markdown 저장 골격
 - [x] 일일 알고리즘 개선 review → 제안 MD 생성
-- [ ] Risk Guard / kill switch / paper trading
+- [x] Deterministic Risk Guard + preview API
+- [ ] Paper 자동주문 엔진
 - [ ] AWS EC2 + Elastic IP 배포
 
 상세 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 기준으로 계속 발전시킨다.
@@ -116,3 +117,26 @@ meme_v1/
 - 실제 주문/Risk Guard 연결 전에는 기록 시 Risk Guard를 `PENDING`으로 표시
 - 알고리즘 review는 기본 24시간마다 실행되며 제안이 필요한 경우에만 pending Markdown 생성
 - pending 제안은 앱에서 사용자가 적용해야만 현재 알고리즘에 반영
+
+
+## Risk Guard
+
+LLM 판단과 별개의 deterministic hard-rule 계층이다.
+
+```text
+LLM Decision
+    ↓
+Order Intent
+    ↓
+Risk Guard
+ PASS / BLOCK / NO_ORDER
+    ↓
+Broker
+```
+
+초기 규칙은 Kill switch, stale data, 장 운영 여부, 중복 주문,
+일일 손실, 주문 횟수, 단일 주문 비중, 종목 집중도, 시장별 노출도,
+현금 reserve를 검사한다.
+
+SELL은 기존 노출을 줄이는 주문이므로 일일 손실/신규 노출 제한보다
+보유수량/시장상태 같은 핵심 검사를 우선 적용한다.
