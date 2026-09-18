@@ -251,3 +251,12 @@ class UpbitPaperRunRequest(BaseModel):
 class UpbitPaperRunResponse(BaseModel):
     markets: list[str]
     cycle: PaperCycleResponse
+
+
+class UpbitUniverseUpdate(BaseModel):
+    markets: list[str] = Field(default_factory=list, max_length=100)
+
+
+class UpbitUniverseResponse(BaseModel):
+    markets: list[str]
+    count: int = Field(ge=0)
