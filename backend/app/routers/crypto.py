@@ -31,7 +31,7 @@ async def positions():
 
 @router.post("/orders/manual")
 async def manual_order(payload: CryptoManualOrderRequest):
-    return TradingService().manual_crypto_order(
+    return await TradingService().manual_crypto_order(
         symbol=payload.symbol,
         side=payload.side,
         amount_krw=payload.amount_krw,
