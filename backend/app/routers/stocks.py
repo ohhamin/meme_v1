@@ -23,4 +23,5 @@ async def manual_order(payload: StockManualOrderRequest):
         symbol=payload.symbol,
         side=payload.side,
         quantity=payload.quantity,
+        idempotency_key=payload.idempotency_key,
     )
