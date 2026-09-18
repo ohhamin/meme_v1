@@ -167,7 +167,7 @@ class TossApiClient:
                 expires_in = 3600
 
             # Refresh a little before actual expiry.
-            ttl = max(60, expires_in - 60)
+            ttl = max(1, expires_in - 60)
             self.__class__._token = token
             self.__class__._expires_at = (
                 datetime.now(timezone.utc)
