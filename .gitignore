@@ -12,6 +12,7 @@ data/news/*.md
 data/decisions/*.md
 data/logs/*.jsonl
 data/state/*.json
+data/state/live_orders/*.json
 data/context/*.md
 data/algorithm/current.md
 data/algorithm/proposals/**/*.md
@@ -20,6 +21,7 @@ data/algorithm/proposals/**/*.md
 !data/decisions/.gitkeep
 !data/logs/.gitkeep
 !data/state/.gitkeep
+!data/state/live_orders/.gitkeep
 !data/context/.gitkeep
 !data/algorithm/.gitkeep
 !data/algorithm/proposals/.gitkeep
