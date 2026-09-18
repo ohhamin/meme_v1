@@ -270,6 +270,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final llmRuntime =
         (status['llm_runtime'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
+    final liveOrders =
+        (status['live_orders'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final liveEnablement =
+        (liveOrders['enablement'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final unresolvedLiveOrders =
+        (liveOrders['unresolved_count'] as num?)?.toInt() ?? 0;
+    final pushStatus =
+        (status['push'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final pushRegistered = pushStatus['registered'] == true;
 
     final budgetMode = llmBudget['mode']?.toString() ?? 'unknown';
     final runtimeMode = llmRuntime['mode']?.toString() ?? 'unknown';
@@ -339,6 +351,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          if (live) ...[
+            const SizedBox(height: 20),
+            const SectionTitle('Live 안전 상태'),
+            const SizedBox(height: 12),
+            AppSurface(
+              child: Column(
+                children: [
+                  _SafetyRow(
+                    label: '전체 거래 게이트',
+                    enabled: liveEnablement['trading_enabled'] == true,
+                  ),
+                  const Divider(height: 24),
+                  _SafetyRow(
+                    label: '수동 Live 주문',
+                    enabled:
+                        liveEnablement['live_manual_order_enabled'] == true,
+                  ),
+                  const Divider(height: 24),
+                  _SafetyRow(
+                    label: '자동 Live 주문',
+                    enabled:
+                        liveEnablement['live_auto_order_enabled'] == true,
+                  ),
+                  const Divider(height: 24),
+                  _SafetyRow(
+                    label: 'Upbit Live 주문',
+                    enabled:
+                        liveEnablement['upbit_live_order_enabled'] == true,
+                  ),
+                  const Divider(height: 24),
+                  _SafetyRow(
+                    label: 'Toss Live 주문',
+                    enabled:
+                        liveEnablement['toss_live_order_enabled'] == true,
+                  ),
+                  const Divider(height: 24),
+                  _SafetyRow(
+                    label: '확인 필요한 주문',
+                    enabled: unresolvedLiveOrders == 0,
+                    enabledText: '없음',
+                    disabledText: '$unresolvedLiveOrders건',
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (!live) ...[
             const SizedBox(height: 20),
             SectionTitle(
@@ -363,6 +421,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onReset: () => _resetPaper('crypto', '코인'),
             ),
           ],
+          const SizedBox(height: 20),
+          const SectionTitle('알림'),
+          const SizedBox(height: 12),
+          AppSurface(
+            child: _SafetyRow(
+              label: 'FCM 기기 등록',
+              enabled: pushRegistered,
+              enabledText: '연결됨',
+              disabledText: '미등록',
+            ),
+          ),
           const SizedBox(height: 20),
           const SectionTitle('AI 사용량'),
           const SizedBox(height: 12),
@@ -573,6 +642,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return '남은 예산이 적어 과거 context를 더 짧게 사용하고 있어요.';
     }
     return '판단 사이클에서 토큰 예산을 확인하며 사용하고 있어요.';
+  }
+}
+
+
+class _SafetyRow extends StatelessWidget {
+  const _SafetyRow({
+    required this.label,
+    required this.enabled,
+    this.enabledText = 'ON',
+    this.disabledText = 'OFF',
+  });
+
+  final String label;
+  final bool enabled;
+  final String enabledText;
+  final String disabledText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: enabled
+                ? AppColors.positiveSoft
+                : AppColors.negativeSoft,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            enabled ? enabledText : disabledText,
+            style: TextStyle(
+              color: enabled
+                  ? AppColors.positive
+                  : AppColors.negative,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
