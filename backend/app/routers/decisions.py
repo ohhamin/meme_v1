@@ -5,9 +5,12 @@ from backend.app.models.schemas import (
     DailyMarkdown,
     DecisionPreviewRequest,
     DecisionPreviewResponse,
+    PaperCycleRequest,
+    PaperCycleResponse,
 )
 from backend.app.services.file_store import DailyMarkdownStore
 from backend.app.services.decision_cycle import DecisionCycleService
+from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 
 
 router = APIRouter(
@@ -34,4 +37,12 @@ async def preview(payload: DecisionPreviewRequest):
     return await DecisionCycleService().preview(
         market_snapshot=payload.market_snapshot,
         account_snapshot=payload.account_snapshot,
+    )
+
+
+@router.post("/paper-cycle", response_model=PaperCycleResponse)
+async def paper_cycle(payload: PaperCycleRequest):
+    """LLM -> Position Sizer -> Risk Guard -> Paper Broker 전체 사이클."""
+    return await PaperAutoCycleService().run(
+        instruments=payload.market_snapshot,
     )
