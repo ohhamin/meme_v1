@@ -80,6 +80,9 @@ class _MarketScreenState extends State<MarketScreen> {
     final symbol = position['symbol']?.toString() ?? '';
     final name = position['name']?.toString() ?? symbol;
     final isBuy = side == 'buy';
+    final currentPrice =
+        num.tryParse(position['current_price']?.toString() ?? '0') ?? 0;
+    final money = NumberFormat('#,###');
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -118,7 +121,9 @@ class _MarketScreenState extends State<MarketScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isBuy ? '얼마나 살까요?' : '얼마나 팔까요?',
+                    currentPrice > 0
+                        ? '현재가 약 ${money.format(currentPrice)}원'
+                        : (isBuy ? '얼마나 살까요?' : '얼마나 팔까요?'),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -132,6 +137,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     decoration: InputDecoration(
                       hintText: widget.isStock ? '예: 3' : '예: 100000',
                       suffixText: widget.isStock ? '주' : '원',
+                      labelText: widget.isStock ? '주문 수량' : '주문 금액',
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -147,7 +153,7 @@ class _MarketScreenState extends State<MarketScreen> {
                       Expanded(
                         child: FilledButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: Text(isBuy ? '매수' : '매도'),
+                          child: const Text('주문 확인'),
                         ),
                       ),
                     ],
@@ -161,36 +167,86 @@ class _MarketScreenState extends State<MarketScreen> {
     );
 
     if (confirmed != true || !mounted) {
+      controller.dispose();
       return;
     }
 
     try {
+      int? stockQuantity;
+      num? cryptoAmount;
+      String orderSummary;
+
       if (widget.isStock) {
-        final quantity = int.tryParse(controller.text.trim());
-        if (quantity == null || quantity <= 0) {
+        stockQuantity = int.tryParse(controller.text.trim());
+        if (stockQuantity == null || stockQuantity <= 0) {
           throw Exception('1주 이상의 수량을 입력해 주세요.');
         }
+        final estimated =
+            currentPrice > 0 ? currentPrice * stockQuantity : null;
+        orderSummary = estimated == null
+            ? '$stockQuantity주'
+            : '$stockQuantity주 · 약 ${money.format(estimated)}원';
+      } else {
+        cryptoAmount =
+            num.tryParse(controller.text.replaceAll(',', '').trim());
+        if (cryptoAmount == null || cryptoAmount <= 0) {
+          throw Exception('0원보다 큰 금액을 입력해 주세요.');
+        }
+        orderSummary = '${money.format(cryptoAmount)}원';
+      }
+
+      final settings = await ApiClient.instance.getSettings();
+      final isLive = settings['mode'] == 'live';
+
+      if (isLive && mounted) {
+        final finalConfirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('실제 주문을 제출할까요?'),
+              content: Text(
+                '$name\n'
+                '${isBuy ? '매수' : '매도'} · $orderSummary\n\n'
+                'Live mode에서는 실제 계좌에 주문이 제출될 수 있어요.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('취소'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('실제 주문 제출'),
+                ),
+              ],
+            );
+          },
+        );
+        if (finalConfirmed != true) return;
+      }
+
+      if (widget.isStock) {
         await ApiClient.instance.manualStockOrder(
           symbol: symbol,
           side: side,
-          quantity: quantity,
+          quantity: stockQuantity!,
         );
       } else {
-        final amount = num.tryParse(controller.text.replaceAll(',', '').trim());
-        if (amount == null || amount <= 0) {
-          throw Exception('0원보다 큰 금액을 입력해 주세요.');
-        }
         await ApiClient.instance.manualCryptoOrder(
           symbol: symbol,
           side: side,
-          amountKrw: amount,
+          amountKrw: cryptoAmount!,
         );
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text((isBuy ? '매수' : '매도') + ' 요청을 처리했어요.'),
+          content: Text(
+            (isLive ? 'Live ' : 'Paper ') +
+                (isBuy ? '매수' : '매도') +
+                ' 요청을 처리했어요.',
+          ),
         ),
       );
       await _refresh();
@@ -199,6 +255,8 @@ class _MarketScreenState extends State<MarketScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
+    } finally {
+      controller.dispose();
     }
   }
 
