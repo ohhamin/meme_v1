@@ -8,14 +8,25 @@ from backend.app.core.config import get_settings
 
 
 class TossApiError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        ambiguous: bool = False,
+        status_code: int | None = None,
+        error_code: str | None = None,
+    ):
+        super().__init__(message)
+        self.ambiguous = ambiguous
+        self.status_code = status_code
+        self.error_code = error_code
 
 
 class TossApiClient:
     """OAuth2 client-credentials client for Toss Securities Open API.
 
     GET requests may refresh the token once on 401.
-    No mutation/order endpoint is implemented in this client.
+    POST mutations never retry after transport/5xx ambiguity.
     """
 
     _token: str | None = None
@@ -41,18 +52,38 @@ class TossApiClient:
         params: dict[str, Any] | None = None,
         account_seq: int | None = None,
     ) -> dict:
-        return await self._get(
+        return await self._request(
+            "GET",
             path,
             params=params,
+            body=None,
             account_seq=account_seq,
             retry_on_401=True,
         )
 
-    async def _get(
+    async def post(
         self,
         path: str,
         *,
+        body: dict[str, Any],
+        account_seq: int | None = None,
+    ) -> dict:
+        return await self._request(
+            "POST",
+            path,
+            params=None,
+            body=body,
+            account_seq=account_seq,
+            retry_on_401=True,
+        )
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
         params: dict[str, Any] | None,
+        body: dict[str, Any] | None,
         account_seq: int | None,
         retry_on_401: bool,
     ) -> dict:
@@ -61,6 +92,8 @@ class TossApiClient:
             "Accept": "application/json",
             "Authorization": f"Bearer {token}",
         }
+        if body is not None:
+            headers["Content-Type"] = "application/json"
         if account_seq is not None:
             headers["X-Tossinvest-Account"] = str(account_seq)
 
@@ -69,40 +102,71 @@ class TossApiClient:
                 timeout=self.timeout,
                 headers=headers,
             ) as client:
-                response = await client.get(
+                response = await client.request(
+                    method,
                     self.base_url + path,
                     params=params,
+                    json=body,
                 )
-
-            if response.status_code == 401 and retry_on_401:
-                self._invalidate_token()
-                return await self._get(
-                    path,
-                    params=params,
-                    account_seq=account_seq,
-                    retry_on_401=False,
-                )
-
-            response.raise_for_status()
-            data = response.json()
         except (
             httpx.TimeoutException,
             httpx.NetworkError,
-            httpx.HTTPStatusError,
-            ValueError,
         ) as exc:
             raise TossApiError(
-                f"Toss API request failed: {type(exc).__name__}"
+                f"Toss {method} transport failure: {type(exc).__name__}",
+                ambiguous=method == "POST",
             ) from exc
 
+        if response.status_code == 401 and retry_on_401:
+            # A 401 means the mutation was not authorized/accepted.
+            self._invalidate_token()
+            return await self._request(
+                method,
+                path,
+                params=params,
+                body=body,
+                account_seq=account_seq,
+                retry_on_401=False,
+            )
+
+        try:
+            data = response.json()
+        except ValueError:
+            data = None
+
+        if response.status_code >= 400:
+            error_code = None
+            if isinstance(data, dict):
+                error = data.get("error")
+                if isinstance(error, dict):
+                    error_code = error.get("code")
+
+            raise TossApiError(
+                f"Toss API error {response.status_code}: "
+                f"{error_code or 'request_failed'}",
+                ambiguous=(
+                    method == "POST"
+                    and response.status_code >= 500
+                ),
+                status_code=response.status_code,
+                error_code=error_code,
+            )
+
         if not isinstance(data, dict):
-            raise TossApiError("Toss API returned a non-object response.")
+            raise TossApiError(
+                "Toss API returned a non-object response.",
+                ambiguous=method == "POST",
+                status_code=response.status_code,
+            )
 
         if "error" in data:
             error = data.get("error") or {}
             code = error.get("code") if isinstance(error, dict) else None
             raise TossApiError(
-                f"Toss API error: {code or 'unknown'}"
+                f"Toss API error: {code or 'unknown'}",
+                ambiguous=False,
+                status_code=response.status_code,
+                error_code=code,
             )
 
         return data
@@ -166,7 +230,6 @@ class TossApiClient:
             except (TypeError, ValueError):
                 expires_in = 3600
 
-            # Refresh a little before actual expiry.
             ttl = max(1, expires_in - 60)
             self.__class__._token = token
             self.__class__._expires_at = (
