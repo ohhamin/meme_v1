@@ -6,12 +6,27 @@ __pycache__/
 .pytest_cache/
 .idea/
 .vscode/
+
+# Runtime market/news/decision data
+data/news/*.md
+data/decisions/*.md
 data/logs/*.jsonl
-data/context/*.md
-!data/context/.gitkeep
+data/state/*.json
+data/algorithm/current.md
+data/algorithm/proposals/**/*.md
+
+!data/news/.gitkeep
+!data/decisions/.gitkeep
 !data/logs/.gitkeep
+!data/state/.gitkeep
+!data/algorithm/.gitkeep
+!data/algorithm/proposals/.gitkeep
+
+# Flutter
 mobile/.dart_tool/
 mobile/build/
 mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
+
+# Firebase Admin
 firebase-adminsdk*.json
