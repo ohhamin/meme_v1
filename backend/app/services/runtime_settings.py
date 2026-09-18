@@ -45,6 +45,14 @@ class RuntimeSettingsService:
             state.mode == "live"
             and self.config.trading_enabled
             and not state.kill_switch
+            and (
+                self.config.live_manual_order_enabled
+                or self.config.live_auto_order_enabled
+            )
+            and (
+                self.config.upbit_live_order_enabled
+                or self.config.toss_live_order_enabled
+            )
         )
         return state
 
