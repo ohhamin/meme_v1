@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_DOWN
-from uuid import uuid4
 
 from fastapi import HTTPException, status
 
@@ -21,8 +20,20 @@ class TradingService:
         self.idempotency = IdempotencyStore()
         self.audit = AuditLogger()
         self.push = PushService()
-        self.paper = PaperBroker()
+        self.paper = {
+            "stock": PaperBroker("stock"),
+            "crypto": PaperBroker("crypto"),
+        }
         self.risk = RiskGuard()
+
+    def _paper_broker(self, market: str) -> PaperBroker:
+        return self.paper[market]
+
+    def _total_open_positions(self) -> int:
+        return sum(
+            len(broker.portfolio().positions)
+            for broker in self.paper.values()
+        )
 
     def stock_positions(self) -> list[dict]:
         runtime = self.runtime.get()
@@ -36,11 +47,10 @@ class TradingService:
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
                 }
-                for p in self.paper.portfolio().positions
-                if p.market == "stock"
+                for p in self.paper["stock"].portfolio().positions
             ]
 
-        # TODO: 국내주식 Broker Adapter 연결
+        # TODO: Toss stock adapter connection.
         return []
 
     def crypto_positions(self) -> list[dict]:
@@ -55,11 +65,10 @@ class TradingService:
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
                 }
-                for p in self.paper.portfolio().positions
-                if p.market == "crypto"
+                for p in self.paper["crypto"].portfolio().positions
             ]
 
-        # TODO: Upbit Adapter 연결
+        # TODO: Upbit adapter connection.
         return []
 
     def manual_stock_order(
@@ -98,7 +107,8 @@ class TradingService:
         runtime = self.runtime.get()
 
         if runtime.mode == "paper":
-            position = self.paper.position("crypto", symbol)
+            broker = self._paper_broker("crypto")
+            position = broker.position(symbol)
             if position is None or position.last_price <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -110,7 +120,10 @@ class TradingService:
 
             quantity = (
                 Decimal(str(amount_krw)) / position.last_price
-            ).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+            ).quantize(
+                Decimal("0.00000001"),
+                rounding=ROUND_DOWN,
+            )
 
             if quantity <= 0:
                 raise HTTPException(
@@ -148,8 +161,9 @@ class TradingService:
             )
 
         self.idempotency.ensure_new(idempotency_key)
+        broker = self._paper_broker(market)
 
-        position = self.paper.position(market, symbol)
+        position = broker.position(symbol)
         if position is None or position.last_price <= 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -159,10 +173,12 @@ class TradingService:
                 ),
             )
 
-        portfolio = self.paper.portfolio()
+        portfolio = broker.portfolio()
         action = "BUY" if side == "buy" else "SELL"
         notional = quantity * position.last_price
-        data_age_seconds = self._price_age_seconds(position.last_price_at)
+        data_age_seconds = self._price_age_seconds(
+            position.last_price_at
+        )
 
         intent = RiskOrderIntent(
             source="manual",
@@ -176,7 +192,7 @@ class TradingService:
             available_cash=portfolio.cash,
             position_value=position.market_value,
             position_quantity=position.quantity,
-            market_exposure_value=self.paper.market_exposure_value(market),
+            open_position_count=self._total_open_positions(),
             daily_pnl_pct=portfolio.daily_pnl_pct,
             daily_order_count=portfolio.daily_order_count,
             data_age_seconds=data_age_seconds,
@@ -189,14 +205,15 @@ class TradingService:
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
                 detail={
-                    "message": "Risk Guard blocked the manual Paper order.",
+                    "message": (
+                        "Risk Guard blocked the manual Paper order."
+                    ),
                     "reasons": risk.reasons,
                 },
             )
 
         try:
-            execution = self.paper.execute(
-                market=market,
+            execution = broker.execute(
                 symbol=symbol,
                 name=position.name,
                 side=side,
@@ -204,6 +221,7 @@ class TradingService:
                 market_price=position.last_price,
                 decision_score=position.decision_score,
                 source="manual",
+                market_open=position.last_market_open,
             )
         except ValueError as exc:
             raise HTTPException(
@@ -211,7 +229,10 @@ class TradingService:
                 detail=str(exc),
             ) from exc
 
-        self.idempotency.remember(idempotency_key, execution.order_id)
+        self.idempotency.remember(
+            idempotency_key,
+            execution.order_id,
+        )
 
         return OrderResult(
             order_id=execution.order_id,
@@ -237,7 +258,9 @@ class TradingService:
         if runtime.kill_switch:
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
-                detail="Kill switch is enabled. New orders are blocked.",
+                detail=(
+                    "Kill switch is enabled. New orders are blocked."
+                ),
             )
 
         self.idempotency.ensure_new(idempotency_key)
@@ -245,7 +268,10 @@ class TradingService:
         if not self.config.trading_enabled:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Live mode is selected, but TRADING_ENABLED=false.",
+                detail=(
+                    "Live mode is selected, but "
+                    "TRADING_ENABLED=false."
+                ),
             )
 
         raise HTTPException(
@@ -258,4 +284,7 @@ class TradingService:
             return self.config.risk_max_data_age_seconds + 1
 
         now = datetime.now(last_price_at.tzinfo or timezone.utc)
-        return max(0, int((now - last_price_at).total_seconds()))
+        return max(
+            0,
+            int((now - last_price_at).total_seconds()),
+        )
