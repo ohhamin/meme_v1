@@ -114,6 +114,28 @@ class LiveOrderJournal:
             limit=limit,
         )
 
+    def count_today(
+        self,
+        *,
+        broker: str | None = None,
+    ) -> int:
+        today = datetime.now(self.tz).date()
+        count = 0
+        for record in self.list(limit=500):
+            if record.created_at.astimezone(self.tz).date() != today:
+                continue
+            if broker and record.broker != broker:
+                continue
+            if record.status in {
+                "PREFLIGHTED",
+                "SUBMITTING",
+                "SUBMITTED",
+                "CONFIRMED",
+                "UNKNOWN",
+            }:
+                count += 1
+        return count
+
     def _write(self, record: LiveOrderRecord) -> None:
         path = self.base_dir / f"{record.intent_id}.json"
         temp = path.with_suffix(".tmp")
