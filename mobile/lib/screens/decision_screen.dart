@@ -220,7 +220,9 @@ class _DecisionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final blocked = data.risk.toUpperCase().contains('BLOCK');
+    final risk = data.risk.toUpperCase();
+    final blocked = risk.contains('BLOCK');
+    final pending = risk.contains('PENDING');
 
     return AppSurface(
       child: Column(
@@ -272,8 +274,16 @@ class _DecisionCard extends StatelessWidget {
               const SizedBox(width: 28),
               _Metric(
                 label: 'Risk Guard',
-                value: blocked ? '차단' : '통과',
-                valueColor: blocked ? AppColors.negative : AppColors.positive,
+                value: blocked
+                    ? '차단'
+                    : pending
+                        ? '대기'
+                        : '통과',
+                valueColor: blocked
+                    ? AppColors.negative
+                    : pending
+                        ? AppColors.warning
+                        : AppColors.positive,
               ),
             ],
           ),
