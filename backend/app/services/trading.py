@@ -8,6 +8,7 @@ from backend.app.models.schemas import OrderResult
 from backend.app.services.audit import AuditLogger
 from backend.app.services.idempotency import IdempotencyStore
 from backend.app.services.push import PushService
+from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
@@ -20,10 +21,40 @@ class TradingService:
         self.push = PushService()
 
     def stock_positions(self) -> list[dict]:
+        runtime = self.runtime.get()
+        if runtime.mode == "paper":
+            return [
+                {
+                    "symbol": p.symbol,
+                    "name": p.name,
+                    "invested_amount": p.invested_amount,
+                    "quantity": p.quantity,
+                    "return_rate": p.return_rate,
+                    "decision_score": p.decision_score,
+                }
+                for p in PaperBroker().portfolio().positions
+                if p.market == "stock"
+            ]
+
         # TODO: 국내주식 Broker Adapter 연결
         return []
 
     def crypto_positions(self) -> list[dict]:
+        runtime = self.runtime.get()
+        if runtime.mode == "paper":
+            return [
+                {
+                    "symbol": p.symbol,
+                    "name": p.name,
+                    "invested_amount": p.invested_amount,
+                    "quantity": p.quantity,
+                    "return_rate": p.return_rate,
+                    "decision_score": p.decision_score,
+                }
+                for p in PaperBroker().portfolio().positions
+                if p.market == "crypto"
+            ]
+
         # TODO: Upbit Adapter 연결
         return []
 
