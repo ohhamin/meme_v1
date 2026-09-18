@@ -55,6 +55,8 @@ class AppSettings(BaseSettings):
     news_web_search_enabled: bool = True
     news_max_output_tokens: int = 2500
     scheduler_enabled: bool = False
+    data_retention_days: int = 7
+    startup_push_enabled: bool = False
 
     openai_api_key: str = ""
     openai_decision_model: str = "gpt-5.6-terra"
