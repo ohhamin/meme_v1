@@ -397,3 +397,13 @@ class LiveAutoCycleResponse(BaseModel):
     cycle_summary: str | None = None
     items: list[LiveCycleExecutionItem] = Field(default_factory=list)
     reason: str | None = None
+
+
+class DeviceTokenUpdate(BaseModel):
+    token: str = Field(min_length=20, max_length=4096)
+    platform: Literal["android", "ios", "unknown"] = "unknown"
+
+
+class DeviceTokenStatus(BaseModel):
+    registered: bool
+    token_count: int = Field(ge=0)
