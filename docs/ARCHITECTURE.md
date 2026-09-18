@@ -452,6 +452,76 @@ FCM으로 아래 이벤트를 푸시한다.
 
 ## 11. 안전장치
 
+### Risk Guard 알고리즘
+
+Risk Guard는 LLM이 아니다. **결정론적 hard-rule 엔진**으로 동작한다.
+LLM/알고리즘이 BUY 또는 SELL을 제안하더라도 Risk Guard가 최종적으로
+`PASS / BLOCK / NO_ORDER` 중 하나를 반환한다.
+
+중요 원칙:
+
+- Risk Guard는 종목이나 방향을 새로 고르지 않는다.
+- 주문 수량/금액을 임의로 바꾸지 않는다.
+- 조건을 넘으면 주문 전체를 BLOCK한다.
+- HOLD는 `NO_ORDER`이며 차단으로 취급하지 않는다.
+- 동일한 입력에는 동일한 결과가 나와야 한다.
+- LLM 장애와 무관하게 로컬 코드에서 실행된다.
+
+검사 순서:
+
+1. Kill switch
+2. 같은 Decision Cycle에서 동일 종목 중복 주문
+3. 시장/계좌 snapshot freshness
+4. 주식 장 운영 여부
+5. 주문 데이터 유효성
+6. SELL이면 보유수량 초과 여부
+7. BUY이면 일일 손실 한도
+8. BUY이면 일일 주문 횟수
+9. BUY이면 단일 주문 비중
+10. BUY 후 종목 집중도
+11. BUY 후 주식/코인 시장별 노출도
+12. BUY 후 현금 reserve
+
+초기 Paper 운영용 기본값:
+
+```text
+RISK_MAX_POSITION_PCT=10
+RISK_MAX_MARKET_EXPOSURE_PCT=60
+RISK_MAX_SINGLE_ORDER_PCT=5
+RISK_MAX_DAILY_LOSS_PCT=3
+RISK_MAX_DAILY_ORDERS=20
+RISK_MAX_DATA_AGE_SECONDS=300
+RISK_MIN_CASH_RESERVE_PCT=10
+```
+
+이 숫자는 전략의 수익성을 의미하는 값이 아니라 초기 안전장치 기본값이다.
+Paper 결과를 보고 변경한다.
+
+### BUY / SELL 비대칭
+
+손실 한도나 주문 횟수 한도에 도달했을 때 **신규 BUY는 막지만,
+기존 노출을 줄이는 SELL은 허용**한다.
+
+예:
+
+```text
+daily PnL = -3.4%
+limit = -3%
+
+BUY  -> BLOCK
+SELL -> PASS (보유수량/시장상태 등 다른 검사는 그대로 수행)
+```
+
+즉 손실 제한 때문에 오히려 위험을 줄이는 주문까지 막히는 상황을 피한다.
+
+### Risk Preview
+
+`POST /risk/preview`에 정규화된 주문 의도를 넣으면 실제 주문 없이
+Risk Guard 결과를 테스트할 수 있다.
+
+`GET /risk/policy`에서는 현재 서버에 적용된 hard limit을 확인한다.
+
+
 - 기본 PAPER_TRADING=true
 - LIVE 전환은 환경변수 + 앱 설정을 모두 만족해야 함
 - Kill switch 활성화 시 모든 신규 주문 차단
@@ -530,6 +600,9 @@ GET  /algorithm/proposals
 POST /algorithm/proposals
 POST /algorithm/proposals/{id}/apply
 POST /algorithm/proposals/{id}/cancel
+
+GET  /risk/policy
+POST /risk/preview
 
 GET  /settings
 PUT  /settings/mode
