@@ -67,11 +67,14 @@ meme_v1/
 - [x] Backend foundation
 - [x] Flutter 하단 6탭 UI 골격
 - [ ] Firebase/FCM 연결
-- [ ] Upbit adapter
+- [x] Upbit public market-data adapter
+- [x] Upbit read-only account adapter
+- [ ] Upbit Live order adapter
 - [ ] Toss 주식 adapter (지원 API 확인 후 Live 방식 확정)
 - [x] 수동 매수/매도 API 골격
 - [x] 6시간 간격 OpenAI web search news collector
-- [ ] adaptive decision scheduler (30~120분)
+- [x] adaptive crypto Paper scheduler (30~120분)
+- [ ] Toss 시장데이터 연결 후 주식+코인 통합 adaptive cycle
 - [x] LLM 판단 preview + 판단 Markdown 저장 골격
 - [x] 일일 알고리즘 개선 review → 제안 MD 생성
 - [x] Deterministic Risk Guard + preview API
@@ -162,3 +165,35 @@ LLM 전체종목 판단
 보유수량의 25~60%를 주문 후보로 만든다. 최종 실행 여부는 항상 Risk Guard가 결정한다.
 
 Paper 계좌도 주식(Toss 역할)과 코인(Upbit 역할)을 분리한다. 각각 기본 1,000,000원으로 시작하며 세팅 화면에서 평가금액/현금/일일손익/주문횟수를 따로 확인하고 개별 또는 전체 초기화할 수 있다.
+
+
+## Upbit 연동
+
+현재 Upbit 연동은 안전하게 단계별로 분리되어 있다.
+
+1. **Public 시세**
+   - API Key 없이 KRW 마켓 목록/현재가 조회
+   - 코인 탭에서 AI 판단 대상 universe 선택
+   - 선택값은 `data/state/upbit_universe.json`에 저장
+2. **Read-only 계좌**
+   - `UPBIT_ACCESS_KEY / UPBIT_SECRET_KEY`가 있으면 잔고 조회
+   - Live mode의 코인 보유종목 화면은 실제 Upbit 잔고 + 현재가를 읽어 표시
+   - 주문 API는 호출하지 않음
+3. **Live 주문**
+   - 아직 구현하지 않음
+   - 현재 Live 수동/자동 주문 요청은 계속 fail-closed
+
+자동 Paper 코인 사이클은 선택한 universe의 Upbit 실제 현재가를 읽은 뒤:
+
+```text
+Upbit public quote
+→ LLM 전체 판단
+→ Position Sizer
+→ Risk Guard
+→ Upbit 역할의 Paper 계좌
+```
+
+로 동작한다.
+
+보유종목 수 0~10과 **판단 대상 universe 개수는 별개**다.
+예를 들어 20개 코인을 관찰하더라도 실제 보유는 0~10개만 가능하다.
