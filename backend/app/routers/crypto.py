@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from backend.app.brokers.upbit_account import UpbitAccountAdapter
 from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter
 from backend.app.core.security import require_api_token
 from backend.app.models.schemas import (
     CryptoManualOrderRequest,
     PaperCycleResponse,
+    UpbitAccountStatus,
     UpbitMarketInfo,
     UpbitQuote,
     UpbitUniverseResponse,
@@ -24,7 +26,7 @@ router = APIRouter(
 
 @router.get("/positions")
 async def positions():
-    return TradingService().crypto_positions()
+    return await TradingService().crypto_positions()
 
 
 @router.post("/orders/manual")
@@ -119,3 +121,8 @@ async def update_upbit_universe(payload: UpbitUniverseUpdate):
         markets=markets,
         count=len(markets),
     )
+
+
+@router.get("/upbit/accounts", response_model=UpbitAccountStatus)
+async def upbit_accounts():
+    return await UpbitAccountAdapter().balances()
