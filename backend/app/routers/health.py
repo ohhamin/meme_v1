@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from backend.app.core.config import get_settings
 from backend.app.core.security import require_api_token
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.llm_budget import LLMBudgetService
 
 
 router = APIRouter(tags=["system"])
@@ -24,6 +25,7 @@ async def status():
         "live_order_allowed": runtime.live_order_allowed,
         "scheduler_enabled": config.scheduler_enabled,
         "news_collection_interval_hours": config.news_collection_interval_hours,
+        "llm_budget": LLMBudgetService().status(),
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
             "min": config.decision_min_interval_minutes,
