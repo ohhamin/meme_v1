@@ -381,3 +381,19 @@ class LiveOrderEnablement(BaseModel):
     live_auto_order_enabled: bool
     upbit_live_order_enabled: bool
     toss_live_order_enabled: bool
+
+
+class LiveCycleExecutionItem(BaseModel):
+    decision: SymbolDecision
+    sizing: PositionSizeResult
+    risk: RiskGuardResult | None = None
+    live_order: LiveOrderRecord | None = None
+    message: str | None = None
+
+
+class LiveAutoCycleResponse(BaseModel):
+    status: Literal["completed", "blocked"]
+    next_check_minutes: int | None = None
+    cycle_summary: str | None = None
+    items: list[LiveCycleExecutionItem] = Field(default_factory=list)
+    reason: str | None = None
