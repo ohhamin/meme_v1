@@ -3,16 +3,22 @@ from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from backend.app.core.config import get_settings
-from backend.app.services.news_collector import NewsCollector
 from backend.app.services.algorithm_review import AlgorithmReviewService
+from backend.app.services.audit import AuditLogger
+from backend.app.services.news_collector import NewsCollector
+from backend.app.services.upbit_paper_runner import UpbitPaperRunner
 
 
 class AdaptiveDecisionScheduler:
     def __init__(self):
         self.config = get_settings()
-        self.scheduler = AsyncIOScheduler(timezone=self.config.app_timezone)
+        self.scheduler = AsyncIOScheduler(
+            timezone=self.config.app_timezone
+        )
         self.news_collector = NewsCollector()
         self.algorithm_review = AlgorithmReviewService()
+        self.upbit_paper_runner = UpbitPaperRunner()
+        self.audit = AuditLogger()
 
     def start(self) -> None:
         if not self.config.scheduler_enabled:
@@ -23,7 +29,9 @@ class AdaptiveDecisionScheduler:
 
         self.schedule_news_collection()
         self.schedule_algorithm_review()
-        self.schedule_next(self.config.decision_default_interval_minutes)
+        self.schedule_next(
+            self.config.decision_default_interval_minutes
+        )
 
     def shutdown(self) -> None:
         if self.scheduler.running:
@@ -54,12 +62,70 @@ class AdaptiveDecisionScheduler:
         )
 
     def schedule_next(self, proposed_minutes: int) -> int:
-        minutes = self.config.clamp_decision_interval(proposed_minutes)
+        """Schedule one future decision cycle.
 
-        # TODO: Decision Engine 연결 후 전체 관심/보유 종목을 한 번에 평가하는 cycle 함수를 등록한다.
-        # 현재는 골격 단계라 자동 주문이 발생하지 않도록 job을 만들지 않는다.
+        The next job is a one-shot date job. After it finishes, the returned
+        next_check_minutes schedules the following cycle.
+        """
+        minutes = self.config.clamp_decision_interval(
+            proposed_minutes
+        )
+
+        if not self.scheduler.running:
+            return minutes
+
+        run_at = datetime.now(timezone.utc) + timedelta(
+            minutes=minutes
+        )
+        self.scheduler.add_job(
+            self._run_decision_cycle,
+            trigger="date",
+            run_date=run_at,
+            id="adaptive-decision-cycle",
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=300,
+        )
+
+        self.audit.write(
+            "system",
+            {
+                "event": "decision_cycle_scheduled",
+                "run_at": run_at.isoformat(),
+                "minutes": minutes,
+                "markets": self.config.upbit_decision_market_list,
+            },
+        )
         return minutes
 
+    async def _run_decision_cycle(self) -> None:
+        result = await self.upbit_paper_runner.run()
+
+        if (
+            result.status == "completed"
+            and result.next_check_minutes is not None
+        ):
+            next_minutes = result.next_check_minutes
+        else:
+            next_minutes = (
+                self.config.decision_default_interval_minutes
+            )
+
+        self.audit.write(
+            "system",
+            {
+                "event": "scheduled_decision_cycle_finished",
+                "status": result.status,
+                "reason": result.reason,
+                "next_check_minutes": next_minutes,
+            },
+        )
+        self.schedule_next(next_minutes)
+
     def next_run_at(self, proposed_minutes: int) -> datetime:
-        minutes = self.config.clamp_decision_interval(proposed_minutes)
-        return datetime.now(timezone.utc) + timedelta(minutes=minutes)
+        minutes = self.config.clamp_decision_interval(
+            proposed_minutes
+        )
+        return datetime.now(timezone.utc) + timedelta(
+            minutes=minutes
+        )
