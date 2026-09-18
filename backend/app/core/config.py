@@ -63,6 +63,9 @@ class AppSettings(BaseSettings):
 
     upbit_access_key: str = ""
     upbit_secret_key: str = ""
+    upbit_api_base_url: str = "https://api.upbit.com/v1"
+    upbit_decision_markets: str = ""
+    upbit_http_timeout_seconds: float = 8.0
 
     korea_broker_app_key: str = ""
     korea_broker_app_secret: str = ""
@@ -81,6 +84,14 @@ class AppSettings(BaseSettings):
     @property
     def data_path(self) -> Path:
         return Path(self.data_dir)
+
+    @property
+    def upbit_decision_market_list(self) -> list[str]:
+        return [
+            value.strip().upper()
+            for value in self.upbit_decision_markets.split(",")
+            if value.strip()
+        ]
 
     def clamp_decision_interval(self, minutes: int) -> int:
         return max(
