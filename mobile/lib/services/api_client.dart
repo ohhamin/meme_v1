@@ -148,6 +148,31 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
+  Future<List<Map<String, dynamic>>> getUpbitMarkets() async {
+    final data =
+        await _request('GET', '/crypto/upbit/markets') as List<dynamic>;
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  Future<List<String>> getUpbitUniverse() async {
+    final data = await _request(
+      'GET',
+      '/crypto/upbit/universe',
+    ) as Map<String, dynamic>;
+    final markets = data['markets'] as List<dynamic>? ?? <dynamic>[];
+    return markets.map((item) => item.toString()).toList();
+  }
+
+  Future<List<String>> updateUpbitUniverse(List<String> markets) async {
+    final data = await _request(
+      'PUT',
+      '/crypto/upbit/universe',
+      body: {'markets': markets},
+    ) as Map<String, dynamic>;
+    final values = data['markets'] as List<dynamic>? ?? <dynamic>[];
+    return values.map((item) => item.toString()).toList();
+  }
+
   Future<Map<String, dynamic>> resetPaperPortfolio({
     String market = 'all',
     num? initialCash,
