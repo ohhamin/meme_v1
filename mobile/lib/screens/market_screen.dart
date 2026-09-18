@@ -21,6 +21,7 @@ class MarketScreen extends StatefulWidget {
 
 class _MarketScreenState extends State<MarketScreen> {
   late Future<List<Map<String, dynamic>>> _future;
+  int? _upbitUniverseCount;
 
   String get _market => widget.isStock ? 'stocks' : 'crypto';
   String get _title => widget.isStock ? '주식' : '코인';
@@ -29,15 +30,31 @@ class _MarketScreenState extends State<MarketScreen> {
   void initState() {
     super.initState();
     _reload();
+    if (!widget.isStock) {
+      _loadUniverseCount();
+    }
   }
 
   void _reload() {
     _future = ApiClient.instance.getPositions(_market);
   }
 
+  Future<void> _loadUniverseCount() async {
+    try {
+      final markets = await ApiClient.instance.getUpbitUniverse();
+      if (!mounted) return;
+      setState(() => _upbitUniverseCount = markets.length);
+    } catch (_) {
+      // Positions should still be usable even when universe loading fails.
+    }
+  }
+
   Future<void> _refresh() async {
     setState(_reload);
     await _future;
+    if (!widget.isStock) {
+      await _loadUniverseCount();
+    }
   }
 
   Future<void> _openOrder(
@@ -170,6 +187,233 @@ class _MarketScreenState extends State<MarketScreen> {
     }
   }
 
+  Future<void> _openUpbitUniverse() async {
+    try {
+      final results = await Future.wait([
+        ApiClient.instance.getUpbitMarkets(),
+        ApiClient.instance.getUpbitUniverse(),
+      ]);
+
+      if (!mounted) return;
+
+      final allMarkets =
+          (results[0] as List<Map<String, dynamic>>);
+      final selected = <String>{
+        ...(results[1] as List<String>),
+      };
+      final searchController = TextEditingController();
+
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              final query = searchController.text.trim().toLowerCase();
+              final filtered = allMarkets.where((item) {
+                if (query.isEmpty) return true;
+                final market =
+                    item['market']?.toString().toLowerCase() ?? '';
+                final korean =
+                    item['korean_name']?.toString().toLowerCase() ?? '';
+                final english =
+                    item['english_name']?.toString().toLowerCase() ?? '';
+                return market.contains(query) ||
+                    korean.contains(query) ||
+                    english.contains(query);
+              }).toList();
+
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.84,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(26),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Container(
+                          width: 38,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.divider,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '코인 판단 대상',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '선택 ${selected.length}개 · 보유 종목 수 0~10개와는 별개예요.',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setSheetState(selected.clear);
+                              },
+                              child: const Text('전체 해제'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: TextField(
+                          controller: searchController,
+                          onChanged: (_) => setSheetState(() {}),
+                          decoration: const InputDecoration(
+                            hintText: '비트코인, BTC, KRW-BTC 검색',
+                            prefixIcon: Icon(Icons.search_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final item = filtered[index];
+                            final market =
+                                item['market']?.toString() ?? '';
+                            final korean =
+                                item['korean_name']?.toString() ?? market;
+                            final warning = item['warning'] == true;
+                            final caution = item['caution'] == true;
+                            final checked = selected.contains(market);
+
+                            return CheckboxListTile(
+                              value: checked,
+                              onChanged: (value) {
+                                setSheetState(() {
+                                  if (value == true) {
+                                    selected.add(market);
+                                  } else {
+                                    selected.remove(market);
+                                  }
+                                });
+                              },
+                              controlAffinity:
+                                  ListTileControlAffinity.trailing,
+                              title: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      korean,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (warning || caution) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.negativeSoft,
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: const Text(
+                                        '주의',
+                                        style: TextStyle(
+                                          color: AppColors.negative,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              subtitle: Text(market),
+                            );
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: () async {
+                              try {
+                                final savedMarkets =
+                                    await ApiClient.instance
+                                        .updateUpbitUniverse(
+                                  selected.toList(),
+                                );
+                                if (!context.mounted) return;
+                                Navigator.pop(context, true);
+                                if (mounted) {
+                                  setState(() {
+                                    _upbitUniverseCount =
+                                        savedMarkets.length;
+                                  });
+                                }
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            },
+                            child: Text(
+                              selected.isEmpty
+                                  ? '판단 대상 없이 저장'
+                                  : '${selected.length}개 저장',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+
+      searchController.dispose();
+
+      if (saved == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('코인 판단 대상을 저장했어요.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final money = NumberFormat('#,###');
@@ -199,14 +443,24 @@ class _MarketScreenState extends State<MarketScreen> {
           final items = snapshot.data ?? <Map<String, dynamic>>[];
           if (items.isEmpty) {
             return ListView(
-              padding: const EdgeInsets.only(top: 110),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
               children: [
+                if (!widget.isStock) ...[
+                  _UniverseBanner(
+                    count: _upbitUniverseCount,
+                    onManage: _openUpbitUniverse,
+                  ),
+                  const SizedBox(height: 90),
+                ] else
+                  const SizedBox(height: 90),
                 AppEmptyState(
                   icon: widget.isStock
                       ? Icons.show_chart_rounded
                       : Icons.currency_bitcoin_rounded,
                   title: '아직 보유한 ' + _title + '이 없어요',
-                  description: 'Broker 연결이 완료되면 보유 종목이 여기에 표시됩니다.',
+                  description: widget.isStock
+                      ? 'Toss 연동 또는 Paper 매매가 시작되면 여기에 표시됩니다.'
+                      : '판단 대상은 있어도 보유 종목이 0개일 수 있어요. 현금 100%도 정상 상태입니다.',
                 ),
               ],
             );
@@ -222,6 +476,13 @@ class _MarketScreenState extends State<MarketScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
             children: [
+              if (!widget.isStock) ...[
+                _UniverseBanner(
+                  count: _upbitUniverseCount,
+                  onManage: _openUpbitUniverse,
+                ),
+                const SizedBox(height: 12),
+              ],
               AppSurface(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,6 +527,64 @@ class _MarketScreenState extends State<MarketScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+
+class _UniverseBanner extends StatelessWidget {
+  const _UniverseBanner({
+    required this.count,
+    required this.onManage,
+  });
+
+  final int? count;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSurface(
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.radar_rounded,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI 판단 대상',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  count == null
+                      ? '불러오는 중'
+                      : count == 0
+                          ? '선택 없음 · 자동 코인 판단은 대기'
+                          : '$count개 코인을 현재가 기준으로 판단',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onManage,
+            child: const Text('관리'),
+          ),
+        ],
       ),
     );
   }
