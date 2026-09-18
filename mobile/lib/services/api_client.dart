@@ -139,6 +139,15 @@ class ApiClient {
     return (await _request('GET', '/settings')) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getStatus() async {
+    return (await _request('GET', '/status')) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> resumeLlm() async {
+    return (await _request('POST', '/settings/llm/resume'))
+        as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> setMode(String mode) async {
     return (await _request(
       'PUT',
