@@ -209,6 +209,7 @@ class PaperBroker:
         quantity: Decimal,
         market_price: Decimal,
         decision_score: int | None = None,
+        source: str = "auto",
     ) -> PaperOrderExecution:
         if quantity <= 0:
             raise ValueError("quantity must be positive")
@@ -315,16 +316,16 @@ class PaperBroker:
         self.audit.write(
             "orders",
             {
-                "source": "auto",
+                "source": source,
                 "mode": "paper",
                 **execution.model_dump(mode="json"),
             },
         )
         self.push.send(
-            title="Paper 자동 주문",
+            title="Paper 자동 주문" if source == "auto" else "Paper 수동 주문",
             body=f"{symbol} {side.upper()} {quantity}",
             data={
-                "type": "paper_auto_order",
+                "type": "paper_auto_order" if source == "auto" else "paper_manual_order",
                 "symbol": symbol,
                 "side": side,
                 "order_id": execution.order_id,
