@@ -6,6 +6,7 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
 from backend.app.services.risk_guard import RiskGuard
+from backend.app.services.upbit_universe import UpbitUniverseService
 
 
 router = APIRouter(tags=["system"])
@@ -30,6 +31,13 @@ async def status():
         "llm_budget": LLMBudgetService().status(),
         "llm_runtime": LLMRuntimeStateService().status(),
         "risk_policy": RiskGuard().policy(),
+        "upbit": {
+            "decision_universe": UpbitUniverseService().get(),
+            "public_market_data": True,
+            "private_account_api_configured": bool(
+                config.upbit_access_key and config.upbit_secret_key
+            ),
+        },
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
             "min": config.decision_min_interval_minutes,
