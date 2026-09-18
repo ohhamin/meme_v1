@@ -67,6 +67,15 @@ class AppSettings(BaseSettings):
     upbit_decision_markets: str = ""
     upbit_http_timeout_seconds: float = 8.0
 
+    # Toss Securities Open API
+    toss_client_id: str = ""
+    toss_client_secret: str = ""
+    toss_api_base_url: str = "https://openapi.tossinvest.com"
+    toss_account_seq: int | None = None
+    toss_decision_symbols: str = ""
+    toss_http_timeout_seconds: float = 8.0
+
+    # Legacy generic Korea broker envs kept for migration only.
     korea_broker_app_key: str = ""
     korea_broker_app_secret: str = ""
     korea_broker_account_no: str = ""
@@ -84,6 +93,14 @@ class AppSettings(BaseSettings):
     @property
     def data_path(self) -> Path:
         return Path(self.data_dir)
+
+    @property
+    def toss_decision_symbol_list(self) -> list[str]:
+        return [
+            value.strip().upper()
+            for value in self.toss_decision_symbols.split(",")
+            if value.strip()
+        ]
 
     @property
     def upbit_decision_market_list(self) -> list[str]:
