@@ -30,3 +30,6 @@ jobs:
 
       - name: Import FastAPI app
         run: python -c "from backend.app.main import app; print(app.title)"
+
+      - name: Run tests
+        run: pytest -q
