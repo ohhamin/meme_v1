@@ -927,3 +927,51 @@ GET  /paper/position-sizing-policy
 
 POST /decisions/paper-cycle
 ```
+
+
+## 19. Upbit 시세/계좌 연동
+
+Upbit 연동은 시세 조회, 계좌 조회, 주문 실행을 분리한다.
+
+```text
+Upbit Public Quotation
+  -> KRW 마켓 목록 / 현재가
+  -> Decision Universe
+  -> LLM 판단
+  -> Position Sizer
+  -> Risk Guard
+  -> Crypto Paper Account
+
+Upbit Private Read-only
+  -> 잔고 조회
+  -> Live mode 코인 보유 화면
+
+Upbit Live Order
+  -> 아직 미구현 / fail-closed
+```
+
+코인 탭에서 사용자가 선택한 판단 대상은
+`data/state/upbit_universe.json`에 저장한다.
+
+판단 대상 수와 실제 보유 종목 수는 별개다.
+판단 대상이 여러 개여도 Risk Guard가 허용하는 실제 보유는 전체 0~10개다.
+Universe가 0개인 것도 정상이며 이 경우 자동 코인 판단을 대기한다.
+
+### Adaptive Crypto Paper Cycle
+
+Scheduler가 활성화되면 기본 판단 간격 뒤 첫 사이클을 예약한다.
+각 사이클 결과의 `next_check_minutes`를 30~120분 범위로 제한한 뒤
+다음 one-shot job을 예약한다. 실패하거나 차단된 사이클은 기본 간격으로 재시도한다.
+
+### API
+
+```text
+GET  /crypto/upbit/markets
+GET  /crypto/upbit/quotes?markets=KRW-BTC,KRW-ETH
+GET  /crypto/upbit/universe
+PUT  /crypto/upbit/universe
+POST /crypto/upbit/paper-run
+GET  /crypto/upbit/accounts
+```
+
+현재 실제 주문 API는 연결하지 않는다.
