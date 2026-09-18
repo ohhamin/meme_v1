@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from backend.app.core.config import get_settings
+from backend.app.services.audit import AuditLogger
 from backend.app.models.schemas import AlgorithmProposal, AlgorithmProposalCreate
 
 
@@ -75,6 +76,7 @@ class AlgorithmService:
         self.pending_dir = root / "proposals" / "pending"
         self.applied_dir = root / "proposals" / "applied"
         self.cancelled_dir = root / "proposals" / "cancelled"
+        self.audit = AuditLogger()
 
         for directory in (
             root,
@@ -121,6 +123,14 @@ class AlgorithmService:
         )
         path = self.pending_dir / f"{proposal_id}.md"
         path.write_text(markdown, encoding="utf-8")
+        self.audit.write(
+            "system",
+            {
+                "event": "algorithm_proposal_created",
+                "proposal_id": proposal_id,
+                "title": payload.title,
+            },
+        )
         return AlgorithmProposal(
             id=proposal_id,
             title=payload.title,
@@ -157,11 +167,28 @@ class AlgorithmService:
         temp.replace(self.current_path)
 
         shutil.move(str(source), str(self.applied_dir / source.name))
+        self.audit.write(
+            "system",
+            {
+                "event": "algorithm_proposal_applied",
+                "proposal_id": proposal_id,
+                "title": self._extract_title(markdown),
+            },
+        )
         return self.current()
 
     def cancel(self, proposal_id: str) -> None:
         source = self._proposal_path(proposal_id)
+        markdown = source.read_text(encoding="utf-8")
         shutil.move(str(source), str(self.cancelled_dir / source.name))
+        self.audit.write(
+            "system",
+            {
+                "event": "algorithm_proposal_cancelled",
+                "proposal_id": proposal_id,
+                "title": self._extract_title(markdown),
+            },
+        )
 
     def _proposal_path(self, proposal_id: str) -> Path:
         if not re.fullmatch(r"[A-Za-z0-9_-]+", proposal_id):
