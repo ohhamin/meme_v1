@@ -143,6 +143,21 @@ class ApiClient {
     return (await _request('GET', '/status')) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getPaperPortfolio() async {
+    return (await _request('GET', '/paper/portfolio'))
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> resetPaperPortfolio({num? initialCash}) async {
+    return (await _request(
+      'POST',
+      '/paper/reset',
+      body: {
+        'initial_cash': initialCash,
+      },
+    )) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> resumeLlm() async {
     return (await _request('POST', '/settings/llm/resume'))
         as Map<String, dynamic>;
