@@ -21,6 +21,13 @@ class AppSettings(BaseSettings):
     scheduler_enabled: bool = False
 
     openai_api_key: str = ""
+    llm_enabled: bool = True
+    llm_daily_token_budget: int = 200000
+    llm_cycle_input_token_limit: int = 8000
+    llm_context_news_chars: int = 12000
+    llm_context_decision_chars: int = 6000
+    llm_conserve_threshold_pct: int = 20
+    algorithm_review_interval_hours: int = 24
 
     upbit_access_key: str = ""
     upbit_secret_key: str = ""
