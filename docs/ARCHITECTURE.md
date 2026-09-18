@@ -53,6 +53,8 @@ data/news/YYYY-MM-DD.md  (최근 7일)
 
 LLM이 다음 판단 시점을 제안할 수 있지만 Backend가 반드시 **30분 이상, 120분 이하**로 제한한다.
 
+중요: 이 주기는 **종목별 주기**가 아니라 **전체 매매 판단 사이클의 실행 주기**다. 한 번의 Decision Cycle이 시작되면 관심/보유 종목 전체를 한꺼번에 평가하며, 같은 시각에 여러 종목의 BUY/SELL/HOLD 카드와 여러 주문이 발생할 수 있다.
+
 ## 3. 하단 메뉴
 
 앱 하단 탭은 아래 6개로 고정한다.
@@ -181,7 +183,7 @@ data/news/YYYY-MM-DD.md
 
 ### 판단 저장
 
-**하루에 파일 하나**를 만들고 그날 발생한 여러 판단을 한 파일에 누적한다.
+**하루에 파일 하나**를 만들고 그날 발생한 여러 판단을 한 파일에 누적한다. 같은 Decision Cycle 시각에 여러 종목 카드가 있을 수 있다.
 
 ```text
 data/decisions/YYYY-MM-DD.md
@@ -192,19 +194,37 @@ data/decisions/YYYY-MM-DD.md
 ```markdown
 # 2026-09-18 Decisions
 
-## 10:00 BTC
+## 10:00 Decision Cycle
+
+### BTC
 - Action: HOLD
 - Score: 54
 - Reason: ...
 - Risk Guard: PASS
+
+### ETH
+- Action: BUY
+- Score: 73
+- Reason: ...
+- Risk Guard: PASS
+
 - Next Check: 11:00
 
-## 11:00 삼성전자
+## 11:00 Decision Cycle
+
+### 삼성전자
 - Action: BUY
 - Score: 72
 - Reason: ...
 - Risk Guard: BLOCKED
 - Block Reason: ...
+
+### SK하이닉스
+- Action: HOLD
+- Score: 58
+- Reason: ...
+- Risk Guard: PASS
+
 - Next Check: 11:30
 ```
 
@@ -236,7 +256,7 @@ data/algorithm/current.md
 - BUY / SELL / HOLD 판단
 - 판단점수 0~100
 - 판단 근거 작성
-- 다음 판단 시점 30~120분 제안
+- 전체 Decision Cycle의 다음 판단 시점 30~120분 제안
 - Risk Guard 최종 검증
 
 ### 제안
@@ -319,7 +339,7 @@ pending proposal
 30분 <= next_check_minutes <= 120분
 ```
 
-기본 시작값은 60분으로 두고, 각 판단이 끝날 때 다음 체크 시간을 정한다.
+기본 시작값은 60분으로 두고, 각 **전체 Decision Cycle**이 끝날 때 다음 체크 시간을 정한다.
 
 고려 요소:
 
@@ -336,7 +356,9 @@ pending proposal
 - 일반 상태: 60분
 - 변화가 적고 포지션도 안정적: 90~120분
 
-LLM은 `next_check_minutes`를 제안하고 Backend Scheduler가 범위를 검증한 뒤 `next_check_at`을 예약한다.
+LLM은 전체 사이클에 대해 하나의 `next_check_minutes`를 제안하고 Backend Scheduler가 범위를 검증한 뒤 `next_check_at`을 예약한다.
+
+한 사이클에서는 종목 수 제한 없이 여러 종목을 평가할 수 있다. 예를 들어 10:00 사이클에서 BTC와 ETH 두 개 카드가 동시에 생성되고, 둘 다 주문 조건을 만족하면 둘 다 주문할 수 있다.
 
 주식의 경우 장이 닫혀 있으면 Broker Adapter가 실제 주문을 차단하고 다음 유효 체크 시점을 조정한다.
 
@@ -400,6 +422,7 @@ FCM으로 아래 이벤트를 푸시한다.
 - LIVE 전환은 환경변수 + 앱 설정을 모두 만족해야 함
 - Kill switch 활성화 시 모든 신규 주문 차단
 - 자동 주문은 동일 종목에 대해 같은 판단 사이클에서 1회만 허용
+- 하나의 판단 사이클에서 여러 종목 주문 가능
 - 최소 자동 재판단 간격 30분
 - 일일 총 주문 횟수 제한
 - 종목별 최대 투자금 제한
@@ -490,7 +513,7 @@ Upbit와 국내주식 증권사는 이 인터페이스를 각각 구현한다.
 ## 15. 스케줄
 
 - 하루 1회: 경제/시장 뉴스 수집
-- 판단: 30~120분 사이에서 adaptive scheduling
+- 판단: 30~120분 사이에서 **전체 Decision Cycle** 단위 adaptive scheduling
 - 서버 부팅 시: 헬스체크 + Scheduler 복구 + FCM 시작 알림
 - 매일: 7일보다 오래된 news/decisions 파일 정리
 
