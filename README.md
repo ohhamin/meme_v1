@@ -70,11 +70,11 @@ meme_v1/
 - [x] Upbit public market-data adapter
 - [x] Upbit read-only account adapter
 - [ ] Upbit Live order adapter
-- [ ] Toss 주식 adapter (지원 API 확인 후 Live 방식 확정)
+- [x] Toss OAuth/시세/계좌 read-only adapter
+- [ ] Toss Live order adapter
 - [x] 수동 매수/매도 API 골격
 - [x] 6시간 간격 OpenAI web search news collector
-- [x] adaptive crypto Paper scheduler (30~120분)
-- [ ] Toss 시장데이터 연결 후 주식+코인 통합 adaptive cycle
+- [x] adaptive 주식+코인 통합 Paper scheduler (30~120분)
 - [x] LLM 판단 preview + 판단 Markdown 저장 골격
 - [x] 일일 알고리즘 개선 review → 제안 MD 생성
 - [x] Deterministic Risk Guard + preview API
@@ -197,3 +197,27 @@ Upbit public quote
 
 보유종목 수 0~10과 **판단 대상 universe 개수는 별개**다.
 예를 들어 20개 코인을 관찰하더라도 실제 보유는 0~10개만 가능하다.
+
+
+## Toss 증권 연동
+
+토스증권 Open API의 OAuth2 Client Credentials 기반 read-only 연동을 추가했다.
+
+현재 구현:
+
+- OAuth access token 발급/캐시/401 시 1회 갱신
+- 국내주식 현재가 조회
+- 국내주식 기본정보 조회
+- 국내 장 운영 캘린더 조회
+- 계좌 목록 조회
+- 국내주식 보유종목 조회
+- KRW 매수가능금액 조회
+- 주식 판단 universe 저장
+- Live mode에서 실제 Toss 보유종목 read-only 표시
+- 실제 Toss 시세를 이용한 Paper 판단/체결
+- 주식+코인을 한 번의 LLM Decision Cycle에 함께 전달
+
+실제 주문 endpoint는 아직 연결하지 않았고 계속 fail-closed 상태다.
+
+주식 판단 대상은 앱 주식 탭에서 6자리 종목코드로 관리하며
+`data/state/toss_universe.json`에 저장한다.
