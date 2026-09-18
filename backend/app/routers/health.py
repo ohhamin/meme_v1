@@ -8,6 +8,8 @@ from backend.app.services.llm_runtime import LLMRuntimeStateService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.toss_universe import TossUniverseService
+from backend.app.services.live_order_journal import LiveOrderJournal
+from backend.app.services.live_order_service import LiveOrderService
 
 
 router = APIRouter(tags=["system"])
@@ -32,6 +34,12 @@ async def status():
         "llm_budget": LLMBudgetService().status(),
         "llm_runtime": LLMRuntimeStateService().status(),
         "risk_policy": RiskGuard().policy(),
+        "live_orders": {
+            "enablement": LiveOrderService().enablement(),
+            "unresolved_count": len(
+                LiveOrderJournal().unresolved(limit=200)
+            ),
+        },
         "upbit": {
             "decision_universe": UpbitUniverseService().get(),
             "public_market_data": True,
