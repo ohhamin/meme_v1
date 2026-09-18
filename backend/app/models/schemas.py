@@ -326,3 +326,58 @@ class TossUniverseUpdate(BaseModel):
 class TossUniverseResponse(BaseModel):
     symbols: list[str]
     count: int = Field(ge=0)
+
+
+class LiveOrderRecord(BaseModel):
+    intent_id: str
+    broker: Literal["upbit", "toss"]
+    source: Literal["manual", "auto"]
+    market: Literal["stock", "crypto"]
+    symbol: str
+    side: Literal["buy", "sell"]
+    quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    notional: Decimal = Field(default=Decimal("0"), ge=0)
+    reference_price: Decimal = Field(default=Decimal("0"), ge=0)
+    client_order_id: str
+    status: Literal[
+        "CREATED",
+        "PREFLIGHTED",
+        "SUBMITTING",
+        "SUBMITTED",
+        "CONFIRMED",
+        "REJECTED",
+        "UNKNOWN",
+    ]
+    broker_order_id: str | None = None
+    broker_status: str | None = None
+    reason: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class LiveOrderPreflightResult(BaseModel):
+    allowed: bool
+    broker: Literal["upbit", "toss"]
+    symbol: str
+    side: Literal["buy", "sell"]
+    reasons: list[str] = Field(default_factory=list)
+
+
+class LiveOrderExecutionResult(BaseModel):
+    status: Literal["submitted", "confirmed", "rejected", "unknown", "blocked"]
+    record: LiveOrderRecord
+    message: str
+
+
+class LiveOrderReconcileResponse(BaseModel):
+    updated: int = Field(ge=0)
+    unresolved: int = Field(ge=0)
+    records: list[LiveOrderRecord] = Field(default_factory=list)
+
+
+class LiveOrderEnablement(BaseModel):
+    trading_enabled: bool
+    live_manual_order_enabled: bool
+    live_auto_order_enabled: bool
+    upbit_live_order_enabled: bool
+    toss_live_order_enabled: bool
