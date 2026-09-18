@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:intl/intl.dart';
 
 import '../services/api_client.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_surface.dart';
+import '../widgets/date_selector.dart';
 
 
 class DailyMarkdownScreen extends StatefulWidget {
@@ -34,42 +36,26 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
     _future = ApiClient.instance.getDailyMarkdown(widget.kind, _selected);
   }
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final first = DateTime(now.year, now.month, now.day)
-        .subtract(const Duration(days: 6));
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selected,
-      firstDate: first,
-      lastDate: now,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selected = picked;
-        _load();
-      });
-    }
+  void _changeDate(DateTime value) {
+    setState(() {
+      _selected = value;
+      _load();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateFormat('yyyy-MM-dd').format(_selected);
+    final now = DateTime.now();
+    final firstDate =
+        DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_month),
-              label: Text(dateText),
-            ),
-          ),
+        DateSelector(
+          date: _selected,
+          firstDate: firstDate,
+          lastDate: now,
+          onChanged: _changeDate,
         ),
         Expanded(
           child: FutureBuilder<String>(
@@ -78,14 +64,61 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
+
               if (snapshot.hasError) {
-                return Center(
-                  child: Text(dateText + ' ' + _label + ' 데이터가 없습니다.'),
+                return AppEmptyState(
+                  icon: widget.kind == 'news'
+                      ? Icons.article_outlined
+                      : Icons.psychology_alt_outlined,
+                  title: '이 날짜의 ' + _label + '가 없어요',
+                  description: widget.kind == 'news'
+                      ? '하루 한 번 수집이 끝나면 주요 경제 뉴스가 여기에 정리됩니다.'
+                      : '판단 사이클이 실행되면 결과가 여기에 쌓입니다.',
                 );
               }
-              return Markdown(
-                data: snapshot.data ?? '',
-                padding: const EdgeInsets.all(16),
+
+              final markdown = snapshot.data ?? '';
+              if (markdown.trim().isEmpty) {
+                return AppEmptyState(
+                  icon: Icons.inbox_outlined,
+                  title: '아직 내용이 없어요',
+                  description: _label + ' 데이터가 생기면 이 화면에서 볼 수 있습니다.',
+                );
+              }
+
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                children: [
+                  AppSurface(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+                    child: MarkdownBody(
+                      data: markdown,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        h1: Theme.of(context).textTheme.titleLarge,
+                        h2: Theme.of(context).textTheme.titleMedium,
+                        h3: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontSize: 15,
+                            ),
+                        p: Theme.of(context).textTheme.bodyMedium,
+                        listBullet:
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                        blockquoteDecoration: BoxDecoration(
+                          color: AppColors.chip,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        blockquotePadding: const EdgeInsets.all(12),
+                        codeblockDecoration: BoxDecoration(
+                          color: AppColors.chip,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
