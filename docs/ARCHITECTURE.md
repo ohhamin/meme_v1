@@ -309,7 +309,7 @@ pending proposal
 - 자동/수동 주문 모두 동일하게 적용
 - 기존 보유 포지션을 자동 청산하지는 않음
 
-## 7. Adaptive Decision Scheduler
+## 8. Adaptive Decision Scheduler
 
 판단 주기를 고정 1시간으로 두지 않는다.
 
@@ -418,6 +418,15 @@ data/
 │  └─ YYYY-MM-DD.md
 ├─ decisions/
 │  └─ YYYY-MM-DD.md
+├─ algorithm/
+│  ├─ current.md
+│  └─ proposals/
+│     ├─ pending/*.md
+│     ├─ applied/*.md
+│     └─ cancelled/*.md
+├─ state/
+│  ├─ settings.json
+│  └─ idempotency.json
 └─ logs/
    ├─ orders-YYYY-MM-DD.jsonl
    └─ system-YYYY-MM-DD.jsonl
@@ -425,7 +434,10 @@ data/
 
 - news: 하루 1개 Markdown, 최근 7일
 - decisions: 하루 1개 Markdown, 그날의 판단들을 누적, 최근 7일
-- orders/system logs: 감사 및 장애 분석용 JSONL
+- algorithm/current.md: 현재 Decision Engine이 읽는 승인된 전략 규칙
+- algorithm/proposals: 대기/적용/취소된 알고리즘 제안 Markdown
+- state: Paper/Live, Kill switch, idempotency 등 로컬 런타임 상태
+- orders/system logs: 주문/알고리즘 변경 감사 및 장애 분석용 JSONL
 
 Markdown 파일은 앱 표시용이자 LLM Context로 사용한다.
 
@@ -448,6 +460,12 @@ GET  /news/{date}
 
 GET  /decisions/dates
 GET  /decisions/{date}
+
+GET  /algorithm/current
+GET  /algorithm/proposals
+POST /algorithm/proposals
+POST /algorithm/proposals/{id}/apply
+POST /algorithm/proposals/{id}/cancel
 
 GET  /settings
 PUT  /settings/mode
