@@ -1,14 +1,16 @@
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_DOWN
 from uuid import uuid4
 
 from fastapi import HTTPException, status
 
 from backend.app.core.config import get_settings
-from backend.app.models.schemas import OrderResult
+from backend.app.models.schemas import OrderResult, RiskOrderIntent
 from backend.app.services.audit import AuditLogger
 from backend.app.services.idempotency import IdempotencyStore
-from backend.app.services.push import PushService
 from backend.app.services.paper_broker import PaperBroker
+from backend.app.services.push import PushService
+from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
@@ -19,6 +21,8 @@ class TradingService:
         self.idempotency = IdempotencyStore()
         self.audit = AuditLogger()
         self.push = PushService()
+        self.paper = PaperBroker()
+        self.risk = RiskGuard()
 
     def stock_positions(self) -> list[dict]:
         runtime = self.runtime.get()
@@ -32,7 +36,7 @@ class TradingService:
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
                 }
-                for p in PaperBroker().portfolio().positions
+                for p in self.paper.portfolio().positions
                 if p.market == "stock"
             ]
 
@@ -51,7 +55,7 @@ class TradingService:
                     "return_rate": p.return_rate,
                     "decision_score": p.decision_score,
                 }
-                for p in PaperBroker().portfolio().positions
+                for p in self.paper.portfolio().positions
                 if p.market == "crypto"
             ]
 
@@ -66,11 +70,20 @@ class TradingService:
         quantity: int,
         idempotency_key: str,
     ) -> OrderResult:
-        return self._manual_order(
-            market="stock",
+        runtime = self.runtime.get()
+
+        if runtime.mode == "paper":
+            return self._paper_manual_order(
+                market="stock",
+                symbol=symbol,
+                side=side,
+                quantity=Decimal(quantity),
+                idempotency_key=idempotency_key,
+            )
+
+        return self._live_not_ready(
             symbol=symbol,
             side=side,
-            description=f"{quantity}주",
             idempotency_key=idempotency_key,
         )
 
@@ -82,21 +95,141 @@ class TradingService:
         amount_krw,
         idempotency_key: str,
     ) -> OrderResult:
-        return self._manual_order(
-            market="crypto",
+        runtime = self.runtime.get()
+
+        if runtime.mode == "paper":
+            position = self.paper.position("crypto", symbol)
+            if position is None or position.last_price <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "No recent Paper price is available for this crypto. "
+                        "Run a market/decision cycle first."
+                    ),
+                )
+
+            quantity = (
+                Decimal(str(amount_krw)) / position.last_price
+            ).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+
+            if quantity <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Calculated crypto quantity is zero.",
+                )
+
+            return self._paper_manual_order(
+                market="crypto",
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                idempotency_key=idempotency_key,
+            )
+
+        return self._live_not_ready(
             symbol=symbol,
             side=side,
-            description=f"{amount_krw} KRW",
             idempotency_key=idempotency_key,
         )
 
-    def _manual_order(
+    def _paper_manual_order(
         self,
         *,
         market: str,
         symbol: str,
         side: str,
-        description: str,
+        quantity: Decimal,
+        idempotency_key: str,
+    ) -> OrderResult:
+        if side not in {"buy", "sell"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="side must be buy or sell",
+            )
+
+        self.idempotency.ensure_new(idempotency_key)
+
+        position = self.paper.position(market, symbol)
+        if position is None or position.last_price <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "No recent Paper price is available for this symbol. "
+                    "Run a market/decision cycle first."
+                ),
+            )
+
+        portfolio = self.paper.portfolio()
+        action = "BUY" if side == "buy" else "SELL"
+        notional = quantity * position.last_price
+        data_age_seconds = self._price_age_seconds(position.last_price_at)
+
+        intent = RiskOrderIntent(
+            source="manual",
+            market=market,
+            symbol=symbol,
+            action=action,
+            order_notional=notional,
+            order_quantity=quantity,
+            price=position.last_price,
+            portfolio_equity=portfolio.equity,
+            available_cash=portfolio.cash,
+            position_value=position.market_value,
+            position_quantity=position.quantity,
+            market_exposure_value=self.paper.market_exposure_value(market),
+            daily_pnl_pct=portfolio.daily_pnl_pct,
+            daily_order_count=portfolio.daily_order_count,
+            data_age_seconds=data_age_seconds,
+            market_open=position.last_market_open,
+            same_cycle_duplicate=False,
+        )
+        risk = self.risk.evaluate(intent)
+
+        if risk.status != "PASS":
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail={
+                    "message": "Risk Guard blocked the manual Paper order.",
+                    "reasons": risk.reasons,
+                },
+            )
+
+        try:
+            execution = self.paper.execute(
+                market=market,
+                symbol=symbol,
+                name=position.name,
+                side=side,
+                quantity=quantity,
+                market_price=position.last_price,
+                decision_score=position.decision_score,
+                source="manual",
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(exc),
+            ) from exc
+
+        self.idempotency.remember(idempotency_key, execution.order_id)
+
+        return OrderResult(
+            order_id=execution.order_id,
+            symbol=symbol,
+            side=side,
+            status="paper_filled",
+            message=(
+                f"Paper manual order filled: {execution.quantity} "
+                f"@ {execution.price}"
+            ),
+            created_at=execution.created_at,
+        )
+
+    def _live_not_ready(
+        self,
+        *,
+        symbol: str,
+        side: str,
         idempotency_key: str,
     ) -> OrderResult:
         runtime = self.runtime.get()
@@ -108,42 +241,6 @@ class TradingService:
             )
 
         self.idempotency.ensure_new(idempotency_key)
-        now = datetime.now(timezone.utc)
-
-        if runtime.mode == "paper":
-            result = OrderResult(
-                order_id=f"paper-{uuid4().hex[:12]}",
-                symbol=symbol,
-                side=side,
-                status="paper_filled",
-                message=f"Paper order simulated: {description}",
-                created_at=now,
-            )
-            self.idempotency.remember(idempotency_key, result.order_id)
-            self.audit.write(
-                "orders",
-                {
-                    "source": "manual",
-                    "market": market,
-                    "mode": "paper",
-                    "symbol": symbol,
-                    "side": side,
-                    "description": description,
-                    "order_id": result.order_id,
-                    "status": result.status,
-                },
-            )
-            self.push.send(
-                title="Paper 주문 처리",
-                body=f"{symbol} {side.upper()} {description}",
-                data={
-                    "market": market,
-                    "symbol": symbol,
-                    "side": side,
-                    "order_id": result.order_id,
-                },
-            )
-            return result
 
         if not self.config.trading_enabled:
             raise HTTPException(
@@ -151,8 +248,14 @@ class TradingService:
                 detail="Live mode is selected, but TRADING_ENABLED=false.",
             )
 
-        # 실제 Adapter 연결 전에는 절대로 주문하지 않는다.
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="Live broker adapter is not implemented yet.",
         )
+
+    def _price_age_seconds(self, last_price_at) -> int:
+        if last_price_at is None:
+            return self.config.risk_max_data_age_seconds + 1
+
+        now = datetime.now(last_price_at.tzinfo or timezone.utc)
+        return max(0, int((now - last_price_at).total_seconds()))
