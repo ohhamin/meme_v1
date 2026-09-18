@@ -223,3 +223,31 @@ class PaperResetRequest(BaseModel):
 class PaperAccountsResponse(BaseModel):
     stock: PaperPortfolio
     crypto: PaperPortfolio
+
+
+class UpbitMarketInfo(BaseModel):
+    market: str
+    korean_name: str
+    english_name: str
+    warning: bool = False
+    caution: bool = False
+
+
+class UpbitQuote(BaseModel):
+    market: str
+    korean_name: str | None = None
+    english_name: str | None = None
+    trade_price: Decimal = Field(gt=0)
+    signed_change_rate: Decimal | None = None
+    acc_trade_price_24h: Decimal | None = None
+    timestamp: datetime
+    data_age_seconds: int = Field(ge=0)
+
+
+class UpbitPaperRunRequest(BaseModel):
+    markets: list[str] = Field(default_factory=list, max_length=100)
+
+
+class UpbitPaperRunResponse(BaseModel):
+    markets: list[str]
+    cycle: PaperCycleResponse
