@@ -12,7 +12,7 @@ Flutter 앱 하단 탭:
 
 - **주식**: 보유 종목, 투자금/수량/이익률/판단점수, 수동 매수·매도
 - **코인**: 보유 코인, 투자금/수량/이익률/판단점수, KRW 금액 기준 수동 매수·매도
-- **뉴스**: 하루 1회 수집한 경제/시장 뉴스 최근 7일
+- **뉴스**: 6시간마다 수집한 경제/시장 뉴스 최근 7일
 - **판단**: BUY/SELL/HOLD, 판단점수, 판단근거, Risk Guard 결과 최근 7일
 - **알고리즘**: 현재 적용 규칙 확인 + 개선 제안 카드 적용/취소
 - **세팅**: Paper/Live mode, Kill switch
@@ -34,7 +34,7 @@ data/
 └─ logs/*.jsonl
 ```
 
-뉴스와 판단은 하루에 Markdown 파일 하나씩 만들고 앱에서는 최근 7일을 날짜별로 조회한다.
+뉴스와 판단은 하루에 Markdown 파일 하나씩 만들고 앱에서는 최근 7일을 날짜별로 조회한다. 뉴스는 하루 파일 안에 6시간 간격의 여러 수집 배치를 누적한다.
 
 ## 기본 원칙
 
@@ -70,7 +70,7 @@ meme_v1/
 - [ ] Upbit adapter
 - [ ] 국내주식 broker adapter
 - [x] 수동 매수/매도 API 골격
-- [ ] 하루 1회 news collector
+- [x] 6시간 간격 news collector 스케줄 골격
 - [ ] adaptive decision scheduler (30~120분)
 - [ ] 판단 Markdown 저장/조회
 - [ ] Risk Guard / kill switch / paper trading
