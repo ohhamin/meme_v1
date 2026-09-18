@@ -21,12 +21,12 @@ class RiskGuard:
     def policy(self) -> dict:
         return {
             "max_position_pct": self.config.risk_max_position_pct,
-            "max_market_exposure_pct": self.config.risk_max_market_exposure_pct,
-            "max_single_order_pct": self.config.risk_max_single_order_pct,
             "max_daily_loss_pct": self.config.risk_max_daily_loss_pct,
             "max_daily_orders": self.config.risk_max_daily_orders,
             "max_data_age_seconds": self.config.risk_max_data_age_seconds,
             "min_cash_reserve_pct": self.config.risk_min_cash_reserve_pct,
+            "max_open_positions": self.config.risk_max_open_positions,
+            "minimum_open_positions": 0,
             "sell_is_risk_reducing": True,
             "resizes_orders": False,
         }
@@ -83,12 +83,11 @@ class RiskGuard:
             return self._finalize(intent, reasons)
 
         # From here, BUY-only exposure controls.
+        # portfolio_equity / available_cash are always the selected broker account
+        # (Toss stock account OR Upbit crypto account), never a combined account.
         equity = intent.portfolio_equity
-        order_pct = self._pct(intent.order_notional, equity)
         position_after = intent.position_value + intent.order_notional
         position_after_pct = self._pct(position_after, equity)
-        market_after = intent.market_exposure_value + intent.order_notional
-        market_after_pct = self._pct(market_after, equity)
 
         if intent.daily_pnl_pct <= Decimal(
             str(-self.config.risk_max_daily_loss_pct)
@@ -106,13 +105,6 @@ class RiskGuard:
                 f"{self.config.risk_max_daily_orders})."
             )
 
-        if order_pct > Decimal(str(self.config.risk_max_single_order_pct)):
-            reasons.append(
-                "Single order exposure exceeds limit "
-                f"({order_pct:.2f}% > "
-                f"{self.config.risk_max_single_order_pct}%)."
-            )
-
         if position_after_pct > Decimal(
             str(self.config.risk_max_position_pct)
         ):
@@ -122,13 +114,14 @@ class RiskGuard:
                 f"{self.config.risk_max_position_pct}%)."
             )
 
-        if market_after_pct > Decimal(
-            str(self.config.risk_max_market_exposure_pct)
+        if (
+            intent.position_quantity <= 0
+            and intent.open_position_count >= self.config.risk_max_open_positions
         ):
             reasons.append(
-                "Market exposure after order exceeds limit "
-                f"({market_after_pct:.2f}% > "
-                f"{self.config.risk_max_market_exposure_pct}%)."
+                "Maximum open position count reached "
+                f"({intent.open_position_count} >= "
+                f"{self.config.risk_max_open_positions})."
             )
 
         reserve_required = equity * (
