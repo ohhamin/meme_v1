@@ -19,21 +19,36 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
 class PaperAutoCycleService:
-    """LLM -> Position Sizer -> Risk Guard -> Paper Broker.
+    """LLM -> Position Sizer -> Risk Guard -> separated Paper accounts.
 
-    This is the first end-to-end automatic trading path.
-    It never calls a live broker.
+    Stocks and crypto use different account equity/cash, matching
+    Toss (stocks) and Upbit (crypto). Live brokers are never called here.
     """
 
     def __init__(self):
         self.runtime = RuntimeSettingsService()
         self.decisions = DecisionCycleService()
         self.store = DecisionMarkdownStore()
-        self.broker = PaperBroker()
+        self.brokers = {
+            "stock": PaperBroker("stock"),
+            "crypto": PaperBroker("crypto"),
+        }
         self.sizer = PositionSizer()
         self.risk = RiskGuard()
         self.audit = AuditLogger()
         self.push = PushService()
+
+    def _portfolios(self) -> dict:
+        return {
+            market: broker.portfolio()
+            for market, broker in self.brokers.items()
+        }
+
+    def _total_open_positions(self) -> int:
+        return sum(
+            len(broker.portfolio().positions)
+            for broker in self.brokers.values()
+        )
 
     async def run(
         self,
@@ -48,23 +63,33 @@ class PaperAutoCycleService:
                 reason="Paper auto cycle only runs in Paper mode.",
             )
 
-        # Save LLM tokens: when no automatic order can possibly pass, do not call the LLM.
         if runtime.kill_switch:
             return PaperCycleResponse(
                 status="blocked",
                 reason="Kill switch is enabled.",
-                portfolio=self.broker.portfolio(),
+                portfolios=self._portfolios(),
             )
 
         if not instruments:
             return PaperCycleResponse(
                 status="blocked",
                 reason="No market instruments supplied.",
-                portfolio=self.broker.portfolio(),
+                portfolios=self._portfolios(),
             )
 
-        self.broker.update_prices(instruments)
-        account_snapshot = self.broker.account_snapshot()
+        for broker in self.brokers.values():
+            broker.update_prices(instruments)
+
+        account_snapshot = {
+            "stock": self.brokers["stock"].account_snapshot(),
+            "crypto": self.brokers["crypto"].account_snapshot(),
+            "portfolio_policy": {
+                "accounts_are_separate": True,
+                "max_open_positions_total": self.risk.config.risk_max_open_positions,
+                "minimum_open_positions": 0,
+                "all_cash_allowed": True,
+            },
+        }
         market_snapshot = {
             "instruments": [
                 instrument.model_dump(mode="json")
@@ -80,7 +105,7 @@ class PaperAutoCycleService:
             return PaperCycleResponse(
                 status="blocked",
                 reason=preview.reason or "Decision cycle unavailable.",
-                portfolio=self.broker.portfolio(),
+                portfolios=self._portfolios(),
             )
 
         result = preview.result
@@ -105,19 +130,25 @@ class PaperAutoCycleService:
                             symbol=decision.symbol,
                             action=decision.action,
                             score=decision.score,
-                            reason="Decision symbol is missing from the supplied market snapshot.",
+                            reason=(
+                                "Decision symbol is missing from the supplied "
+                                "market snapshot."
+                            ),
                         ),
                         risk=RiskGuardResult(
                             status="BLOCK",
                             symbol=decision.symbol,
                             action=decision.action,
-                            reasons=["Missing market snapshot for decision symbol."],
+                            reasons=[
+                                "Missing market snapshot for decision symbol."
+                            ],
                         ),
                     )
                 )
                 continue
 
-            portfolio = self.broker.portfolio()
+            broker = self.brokers[decision.market]
+            portfolio = broker.portfolio()
             sizing = self.sizer.size(
                 decision=decision,
                 instrument=instrument,
@@ -140,15 +171,7 @@ class PaperAutoCycleService:
                 seen.add(key)
                 continue
 
-            current_position = next(
-                (
-                    p
-                    for p in portfolio.positions
-                    if p.market == decision.market
-                    and p.symbol == decision.symbol
-                ),
-                None,
-            )
+            current_position = broker.position(decision.symbol)
 
             intent = RiskOrderIntent(
                 source="auto",
@@ -170,9 +193,7 @@ class PaperAutoCycleService:
                     if current_position is not None
                     else Decimal("0")
                 ),
-                market_exposure_value=self.broker.market_exposure_value(
-                    decision.market
-                ),
+                open_position_count=self._total_open_positions(),
                 daily_pnl_pct=portfolio.daily_pnl_pct,
                 daily_order_count=portfolio.daily_order_count,
                 data_age_seconds=instrument.data_age_seconds,
@@ -185,21 +206,28 @@ class PaperAutoCycleService:
             order = None
             if risk_result.status == "PASS":
                 try:
-                    order = self.broker.execute(
-                        market=decision.market,
+                    order = broker.execute(
                         symbol=decision.symbol,
                         name=decision.name or instrument.name,
-                        side="buy" if decision.action == "BUY" else "sell",
+                        side=(
+                            "buy"
+                            if decision.action == "BUY"
+                            else "sell"
+                        ),
                         quantity=sizing.order_quantity,
                         market_price=instrument.price,
                         decision_score=decision.score,
+                        source="auto",
+                        market_open=instrument.market_open,
                     )
                 except ValueError as exc:
                     risk_result = RiskGuardResult(
                         status="BLOCK",
                         symbol=decision.symbol,
                         action=decision.action,
-                        reasons=[f"Paper broker rejected order: {exc}"],
+                        reasons=[
+                            f"Paper broker rejected order: {exc}"
+                        ],
                     )
 
             if risk_result.status == "BLOCK":
@@ -223,22 +251,26 @@ class PaperAutoCycleService:
             )
 
         self.store.append_execution_cycle(result, items)
-        portfolio = self.broker.portfolio()
+        portfolios = self._portfolios()
 
         self.audit.write(
             "system",
             {
                 "event": "paper_auto_cycle_completed",
                 "decision_count": len(result.decisions),
-                "order_count": sum(1 for item in items if item.order is not None),
+                "order_count": sum(
+                    1 for item in items if item.order is not None
+                ),
                 "blocked_count": sum(
                     1
                     for item in items
-                    if item.risk is not None and item.risk.status == "BLOCK"
+                    if item.risk is not None
+                    and item.risk.status == "BLOCK"
                 ),
+                "open_position_count": self._total_open_positions(),
                 "next_check_minutes": result.next_check_minutes,
-                "equity": str(portfolio.equity),
-                "cash": str(portfolio.cash),
+                "stock_equity": str(portfolios["stock"].equity),
+                "crypto_equity": str(portfolios["crypto"].equity),
             },
         )
 
@@ -247,5 +279,5 @@ class PaperAutoCycleService:
             next_check_minutes=result.next_check_minutes,
             cycle_summary=result.cycle_summary,
             items=items,
-            portfolio=portfolio,
+            portfolios=portfolios,
         )
