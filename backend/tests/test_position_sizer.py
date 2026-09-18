@@ -9,7 +9,7 @@ from backend.app.models.schemas import (
 from backend.app.services.position_sizer import PositionSizer
 
 
-def portfolio(with_position: bool = False) -> PaperPortfolio:
+def portfolio(with_position: bool = False, market: str = "crypto") -> PaperPortfolio:
     positions = []
     if with_position:
         positions.append(
@@ -28,7 +28,7 @@ def portfolio(with_position: bool = False) -> PaperPortfolio:
         )
 
     return PaperPortfolio(
-        market="crypto",
+        market=market,
         date="2026-09-19",
         cash=Decimal("1000000"),
         initial_cash=Decimal("2000000"),
@@ -114,7 +114,7 @@ def test_stock_buy_rounds_down_to_whole_share():
     result = sizer.size(
         decision=decision,
         instrument=instrument("stock"),
-        portfolio=portfolio(),
+        portfolio=portfolio(market="stock"),
     )
     assert result.status == "ORDER"
     assert result.order_quantity == Decimal("1")
