@@ -117,8 +117,8 @@ class RiskOrderIntent(BaseModel):
     available_cash: Decimal = Field(ge=0)
     position_value: Decimal = Field(default=Decimal("0"), ge=0)
     position_quantity: Decimal = Field(default=Decimal("0"), ge=0)
-    market_exposure_value: Decimal = Field(default=Decimal("0"), ge=0)
 
+    open_position_count: int = Field(default=0, ge=0)
     daily_pnl_pct: Decimal = Decimal("0")
     daily_order_count: int = Field(default=0, ge=0)
     data_age_seconds: int = Field(default=0, ge=0)
@@ -170,6 +170,7 @@ class PaperPosition(BaseModel):
 
 
 class PaperPortfolio(BaseModel):
+    market: Literal["stock", "crypto"]
     date: str
     cash: Decimal = Field(ge=0)
     initial_cash: Decimal = Field(gt=0)
@@ -210,9 +211,10 @@ class PaperCycleResponse(BaseModel):
     next_check_minutes: int | None = None
     cycle_summary: str | None = None
     items: list[CycleExecutionItem] = Field(default_factory=list)
-    portfolio: PaperPortfolio | None = None
+    portfolios: dict[str, PaperPortfolio] | None = None
     reason: str | None = None
 
 
 class PaperResetRequest(BaseModel):
+    market: Literal["stock", "crypto", "all"] = "all"
     initial_cash: Decimal | None = Field(default=None, gt=0)
