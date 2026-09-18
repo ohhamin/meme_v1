@@ -36,23 +36,22 @@ class ApiClient {
     final uri = Uri.parse('$baseUrl$path');
     late http.Response response;
 
-    switch (method) {
-      case 'GET':
-        response = await http.get(uri, headers: _headers);
-      case 'POST':
-        response = await http.post(
-          uri,
-          headers: _headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-      case 'PUT':
-        response = await http.put(
-          uri,
-          headers: _headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-      default:
-        throw UnsupportedError('Unsupported HTTP method: $method');
+    if (method == 'GET') {
+      response = await http.get(uri, headers: _headers);
+    } else if (method == 'POST') {
+      response = await http.post(
+        uri,
+        headers: _headers,
+        body: jsonEncode(body ?? <String, dynamic>{}),
+      );
+    } else if (method == 'PUT') {
+      response = await http.put(
+        uri,
+        headers: _headers,
+        body: jsonEncode(body ?? <String, dynamic>{}),
+      );
+    } else {
+      throw UnsupportedError('Unsupported HTTP method: $method');
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
