@@ -6,7 +6,7 @@ from backend.app.core.config import get_settings
 from backend.app.services.algorithm_review import AlgorithmReviewService
 from backend.app.services.audit import AuditLogger
 from backend.app.services.news_collector import NewsCollector
-from backend.app.services.upbit_paper_runner import UpbitPaperRunner
+from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
 class AdaptiveDecisionScheduler:
@@ -17,7 +17,7 @@ class AdaptiveDecisionScheduler:
         )
         self.news_collector = NewsCollector()
         self.algorithm_review = AlgorithmReviewService()
-        self.upbit_paper_runner = UpbitPaperRunner()
+        self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
 
     def start(self) -> None:
@@ -93,13 +93,18 @@ class AdaptiveDecisionScheduler:
                 "event": "decision_cycle_scheduled",
                 "run_at": run_at.isoformat(),
                 "minutes": minutes,
-                "markets": self.config.upbit_decision_market_list,
+                "crypto_universe": (
+                    self.combined_paper_runner.upbit_universe.get()
+                ),
+                "stock_universe": (
+                    self.combined_paper_runner.toss_universe.get()
+                ),
             },
         )
         return minutes
 
     async def _run_decision_cycle(self) -> None:
-        result = await self.upbit_paper_runner.run()
+        result = await self.combined_paper_runner.run()
 
         if (
             result.status == "completed"
