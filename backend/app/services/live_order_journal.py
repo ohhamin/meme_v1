@@ -87,7 +87,7 @@ class LiveOrderJournal:
         raw = json.loads(path.read_text(encoding="utf-8"))
         return LiveOrderRecord.model_validate(raw)
 
-    def list(
+    def list_records(
         self,
         *,
         statuses: set[str] | None = None,
@@ -109,7 +109,7 @@ class LiveOrderJournal:
         return records[: max(1, min(limit, 500))]
 
     def unresolved(self, limit: int = 100) -> list[LiveOrderRecord]:
-        return self.list(
+        return self.list_records(
             statuses={"SUBMITTING", "SUBMITTED", "UNKNOWN"},
             limit=limit,
         )
@@ -121,7 +121,7 @@ class LiveOrderJournal:
     ) -> int:
         today = datetime.now(self.tz).date()
         count = 0
-        for record in self.list(limit=500):
+        for record in self.list_records(limit=500):
             if record.created_at.astimezone(self.tz).date() != today:
                 continue
             if broker and record.broker != broker:
