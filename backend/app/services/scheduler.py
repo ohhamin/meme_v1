@@ -7,6 +7,8 @@ from backend.app.services.algorithm_review import AlgorithmReviewService
 from backend.app.services.audit import AuditLogger
 from backend.app.services.news_collector import NewsCollector
 from backend.app.services.live_order_reconciler import LiveOrderReconciler
+from backend.app.services.live_auto_cycle import LiveAutoCycleService
+from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
@@ -19,6 +21,8 @@ class AdaptiveDecisionScheduler:
         self.news_collector = NewsCollector()
         self.algorithm_review = AlgorithmReviewService()
         self.live_order_reconciler = LiveOrderReconciler()
+        self.live_auto_cycle = LiveAutoCycleService()
+        self.runtime = RuntimeSettingsService()
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
 
@@ -119,7 +123,11 @@ class AdaptiveDecisionScheduler:
         return minutes
 
     async def _run_decision_cycle(self) -> None:
-        result = await self.combined_paper_runner.run()
+        runtime = self.runtime.get()
+        if runtime.mode == "live":
+            result = await self.live_auto_cycle.run()
+        else:
+            result = await self.combined_paper_runner.run()
 
         if (
             result.status == "completed"
@@ -135,6 +143,7 @@ class AdaptiveDecisionScheduler:
             "system",
             {
                 "event": "scheduled_decision_cycle_finished",
+                "mode": runtime.mode,
                 "status": result.status,
                 "reason": result.reason,
                 "next_check_minutes": next_minutes,
