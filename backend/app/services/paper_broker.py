@@ -66,6 +66,8 @@ class PaperBroker:
             key = self._key(instrument.market, instrument.symbol)
             if key in positions:
                 positions[key]["last_price"] = str(instrument.price)
+                positions[key]["last_price_at"] = datetime.now(self.tz).isoformat()
+                positions[key]["last_market_open"] = instrument.market_open
                 if instrument.name:
                     positions[key]["name"] = instrument.name
 
@@ -97,6 +99,14 @@ class PaperBroker:
             else:
                 return_rate = Decimal("0")
 
+            last_price_at = None
+            raw_last_price_at = raw.get("last_price_at")
+            if raw_last_price_at:
+                try:
+                    last_price_at = datetime.fromisoformat(raw_last_price_at)
+                except ValueError:
+                    last_price_at = None
+
             positions.append(
                 PaperPosition(
                     market=raw["market"],
@@ -105,6 +115,8 @@ class PaperBroker:
                     quantity=quantity,
                     average_price=average_price,
                     last_price=last_price,
+                    last_price_at=last_price_at,
+                    last_market_open=bool(raw.get("last_market_open", True)),
                     invested_amount=invested,
                     market_value=market_value,
                     return_rate=return_rate,
@@ -157,6 +169,8 @@ class PaperBroker:
                     "quantity": str(p.quantity),
                     "average_price": str(p.average_price),
                     "last_price": str(p.last_price),
+                    "last_price_at": p.last_price_at.isoformat() if p.last_price_at else None,
+                    "market_open": p.last_market_open,
                     "market_value": str(p.market_value),
                     "return_rate": str(p.return_rate),
                     "decision_score": p.decision_score,
@@ -239,6 +253,7 @@ class PaperBroker:
                 existing["quantity"] = str(new_qty)
                 existing["average_price"] = str(new_avg)
                 existing["last_price"] = str(fill_price)
+                existing["last_price_at"] = datetime.now(self.tz).isoformat()
                 existing["name"] = name or existing.get("name") or symbol
                 existing["decision_score"] = decision_score
             else:
@@ -249,6 +264,8 @@ class PaperBroker:
                     "quantity": str(quantity),
                     "average_price": str((notional + fee) / quantity),
                     "last_price": str(fill_price),
+                    "last_price_at": datetime.now(self.tz).isoformat(),
+                    "last_market_open": True,
                     "realized_pnl": "0",
                     "decision_score": decision_score,
                 }
@@ -275,6 +292,7 @@ class PaperBroker:
             else:
                 existing["quantity"] = str(remaining)
                 existing["last_price"] = str(fill_price)
+                existing["last_price_at"] = datetime.now(self.tz).isoformat()
                 existing["realized_pnl"] = str(realized)
                 existing["decision_score"] = decision_score
 
