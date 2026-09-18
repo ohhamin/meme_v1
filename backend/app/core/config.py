@@ -17,6 +17,7 @@ class AppSettings(BaseSettings):
     decision_default_interval_minutes: int = 60
     decision_min_interval_minutes: int = 30
     decision_max_interval_minutes: int = 120
+    news_collection_interval_hours: int = 6
     scheduler_enabled: bool = False
 
     openai_api_key: str = ""
