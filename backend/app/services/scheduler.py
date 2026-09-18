@@ -3,23 +3,40 @@ from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from backend.app.core.config import get_settings
+from backend.app.services.news_collector import NewsCollector
 
 
 class AdaptiveDecisionScheduler:
     def __init__(self):
         self.config = get_settings()
         self.scheduler = AsyncIOScheduler(timezone=self.config.app_timezone)
+        self.news_collector = NewsCollector()
 
     def start(self) -> None:
         if not self.config.scheduler_enabled:
             return
+
         if not self.scheduler.running:
             self.scheduler.start()
+
+        self.schedule_news_collection()
         self.schedule_next(self.config.decision_default_interval_minutes)
 
     def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+
+    def schedule_news_collection(self) -> None:
+        """뉴스 수집은 전체 판단 주기와 별개로 6시간 간격으로 실행한다."""
+        self.scheduler.add_job(
+            self.news_collector.run,
+            trigger="interval",
+            hours=self.config.news_collection_interval_hours,
+            id="news-collector",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
 
     def schedule_next(self, proposed_minutes: int) -> int:
         minutes = self.config.clamp_decision_interval(proposed_minutes)
