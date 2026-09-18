@@ -274,3 +274,55 @@ class UpbitAccountAsset(BaseModel):
 class UpbitAccountStatus(BaseModel):
     configured: bool
     assets: list[UpbitAccountAsset] = Field(default_factory=list)
+
+
+class TossStockInfo(BaseModel):
+    symbol: str
+    name: str
+    english_name: str | None = None
+    market: str
+    security_type: str
+    status: str
+    currency: str
+    nxt_supported: bool = False
+    trading_suspended: bool = False
+
+
+class TossQuote(BaseModel):
+    symbol: str
+    last_price: Decimal = Field(gt=0)
+    currency: str
+    timestamp: datetime | None = None
+    data_age_seconds: int = Field(ge=0)
+
+
+class TossAccount(BaseModel):
+    account_seq: int
+    account_type: str
+
+
+class TossHolding(BaseModel):
+    symbol: str
+    name: str
+    quantity: Decimal = Field(ge=0)
+    last_price: Decimal = Field(ge=0)
+    average_purchase_price: Decimal = Field(ge=0)
+    purchase_amount: Decimal = Field(ge=0)
+    market_value: Decimal = Field(ge=0)
+    return_rate: Decimal = Decimal("0")
+
+
+class TossAccountStatus(BaseModel):
+    configured: bool
+    account_seq: int | None = None
+    cash_buying_power: Decimal = Decimal("0")
+    holdings: list[TossHolding] = Field(default_factory=list)
+
+
+class TossUniverseUpdate(BaseModel):
+    symbols: list[str] = Field(default_factory=list, max_length=200)
+
+
+class TossUniverseResponse(BaseModel):
+    symbols: list[str]
+    count: int = Field(ge=0)
