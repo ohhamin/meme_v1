@@ -7,13 +7,14 @@
 Flutter 앱 하단 탭:
 
 ```text
-[주식] [코인] [뉴스] [판단] [세팅]
+[주식] [코인] [뉴스] [판단] [알고리즘] [세팅]
 ```
 
 - **주식**: 보유 종목, 투자금/수량/이익률/판단점수, 수동 매수·매도
 - **코인**: 보유 코인, 투자금/수량/이익률/판단점수, KRW 금액 기준 수동 매수·매도
 - **뉴스**: 하루 1회 수집한 경제/시장 뉴스 최근 7일
 - **판단**: BUY/SELL/HOLD, 판단점수, 판단근거, Risk Guard 결과 최근 7일
+- **알고리즘**: 현재 적용 규칙 확인 + 개선 제안 카드 적용/취소
 - **세팅**: Paper/Live mode, Kill switch
 
 ## 자동 판단
@@ -61,12 +62,12 @@ meme_v1/
 
 ## 개발 순서
 
-- [ ] Backend foundation
-- [ ] Flutter 하단 5탭 UI
+- [x] Backend foundation
+- [x] Flutter 하단 6탭 UI 골격
 - [ ] Firebase/FCM 연결
 - [ ] Upbit adapter
 - [ ] 국내주식 broker adapter
-- [ ] 수동 매수/매도 API
+- [x] 수동 매수/매도 API 골격
 - [ ] 하루 1회 news collector
 - [ ] adaptive decision scheduler (30~120분)
 - [ ] 판단 Markdown 저장/조회
@@ -74,3 +75,12 @@ meme_v1/
 - [ ] AWS EC2 + Elastic IP 배포
 
 상세 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 기준으로 계속 발전시킨다.
+
+
+## 알고리즘 변경 흐름
+
+알고리즘 개선 제안은 `data/algorithm/proposals/pending/*.md`로 저장한다.
+앱의 **알고리즘 > 제안**에서 사용자가 적용해야만 현재 규칙에 반영된다.
+취소한 제안은 화면에서는 사라지고 감사 목적으로 cancelled archive로 이동한다.
+
+현재 단계에서는 Broker/LLM을 실제 연결하지 않았으므로 Live 주문은 실행되지 않는다.
