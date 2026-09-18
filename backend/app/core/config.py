@@ -13,6 +13,12 @@ class AppSettings(BaseSettings):
     paper_trading: bool = True
     trading_enabled: bool = False
     kill_switch: bool = True
+    live_manual_order_enabled: bool = False
+    live_auto_order_enabled: bool = False
+    upbit_live_order_enabled: bool = False
+    toss_live_order_enabled: bool = False
+    live_order_reconcile_attempts: int = 3
+    live_order_reconcile_interval_seconds: float = 1.0
 
     # Deterministic Risk Guard hard limits.
     # Risk Guard does not decide BUY/SELL; it only permits or blocks an order intent.
