@@ -10,6 +10,7 @@ from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.live_order_journal import LiveOrderJournal
 from backend.app.services.live_order_service import LiveOrderService
+from backend.app.services.device_tokens import DeviceTokenService
 
 
 router = APIRouter(tags=["system"])
@@ -40,6 +41,7 @@ async def status():
                 LiveOrderJournal().unresolved(limit=200)
             ),
         },
+        "push": DeviceTokenService().status(),
         "upbit": {
             "decision_universe": UpbitUniverseService().get(),
             "public_market_data": True,
