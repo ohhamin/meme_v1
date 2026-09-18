@@ -17,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _settings;
   Map<String, dynamic>? _status;
+  Map<String, dynamic>? _paper;
   bool _loading = true;
   String? _error;
 
@@ -31,12 +32,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final results = await Future.wait([
         ApiClient.instance.getSettings(),
         ApiClient.instance.getStatus(),
+        ApiClient.instance.getPaperPortfolio(),
       ]);
 
       if (!mounted) return;
       setState(() {
         _settings = results[0];
         _status = results[1];
+        _paper = results[2];
         _loading = false;
         _error = null;
       });
@@ -142,6 +145,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _resetPaper() async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Paper 계좌를 초기화할까요?',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '보유 종목과 Paper 주문 이력이 초기 상태로 돌아가요. '
+                  '실제 계좌에는 아무 영향이 없습니다.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('취소'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('초기화'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ApiClient.instance.resetPaperPortfolio();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paper 계좌를 초기화했어요.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _resumeLlm() async {
     try {
       await ApiClient.instance.resumeLlm();
@@ -174,6 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final settings = _settings ?? <String, dynamic>{};
     final status = _status ?? <String, dynamic>{};
+    final paper = _paper ?? <String, dynamic>{};
     final live = settings['mode'] == 'live';
     final killSwitch = settings['kill_switch'] == true;
     final liveAllowed = settings['live_order_allowed'] == true;
@@ -197,6 +283,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         : null;
 
     final number = NumberFormat('#,###');
+    final paperEquity = num.tryParse(paper['equity']?.toString() ?? '0') ?? 0;
+    final paperCash = num.tryParse(paper['cash']?.toString() ?? '0') ?? 0;
+    final paperPnl =
+        num.tryParse(paper['daily_pnl_pct']?.toString() ?? '0') ?? 0;
+    final paperOrders = (paper['daily_order_count'] as num?)?.toInt() ?? 0;
     final aiBlocked = runtimeMode != 'normal' || budgetMode == 'paused';
     final aiConserve = budgetMode == 'conserve';
 
@@ -247,6 +338,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          if (!live) ...[
+            const SizedBox(height: 20),
+            const SectionTitle('Paper 계좌'),
+            const SizedBox(height: 12),
+            AppSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '평가금액',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    number.format(paperEquity) + '원',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _UsageMetric(
+                          label: '현금',
+                          value: number.format(paperCash) + '원',
+                        ),
+                      ),
+                      Expanded(
+                        child: _UsageMetric(
+                          label: '오늘 손익률',
+                          value: paperPnl.toStringAsFixed(2) + '%',
+                        ),
+                      ),
+                      Expanded(
+                        child: _UsageMetric(
+                          label: '오늘 주문',
+                          value: paperOrders.toString() + '회',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _resetPaper,
+                      icon: const Icon(Icons.restart_alt_rounded),
+                      label: const Text('Paper 계좌 초기화'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           const SectionTitle('AI 사용량'),
           const SizedBox(height: 12),
