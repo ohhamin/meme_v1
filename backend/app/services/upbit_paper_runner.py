@@ -6,6 +6,7 @@ from backend.app.brokers.upbit_market_data import (
 )
 from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
+from backend.app.services.upbit_universe import UpbitUniverseService
 
 
 class UpbitPaperRunner:
@@ -15,20 +16,21 @@ class UpbitPaperRunner:
         self.config = get_settings()
         self.market_data = UpbitMarketDataAdapter()
         self.paper_cycle = PaperAutoCycleService()
+        self.universe = UpbitUniverseService()
         self.audit = AuditLogger()
 
     async def run(
         self,
         markets: list[str] | None = None,
     ) -> PaperCycleResponse:
-        selected = markets or self.config.upbit_decision_market_list
+        selected = markets if markets is not None else self.universe.get()
 
         if not selected:
             return PaperCycleResponse(
                 status="blocked",
                 reason=(
                     "No Upbit decision markets configured. "
-                    "Set UPBIT_DECISION_MARKETS or supply markets explicitly."
+                    "Choose markets in the app or set UPBIT_DECISION_MARKETS."
                 ),
                 portfolios=self.paper_cycle._portfolios(),
             )
