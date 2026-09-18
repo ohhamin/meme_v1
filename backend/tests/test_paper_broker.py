@@ -63,7 +63,6 @@ def test_sell_reduces_position_and_increases_cash(tmp_path):
 def test_update_prices_marks_portfolio_to_market(tmp_path):
     broker = make_broker(tmp_path)
     broker.execute(
-        market="crypto",
         symbol="BTC",
         name="Bitcoin",
         side="buy",
