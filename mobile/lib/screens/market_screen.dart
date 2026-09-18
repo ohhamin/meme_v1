@@ -22,6 +22,7 @@ class MarketScreen extends StatefulWidget {
 class _MarketScreenState extends State<MarketScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   int? _upbitUniverseCount;
+  int? _tossUniverseCount;
 
   String get _market => widget.isStock ? 'stocks' : 'crypto';
   String get _title => widget.isStock ? '주식' : '코인';
@@ -30,7 +31,9 @@ class _MarketScreenState extends State<MarketScreen> {
   void initState() {
     super.initState();
     _reload();
-    if (!widget.isStock) {
+    if (widget.isStock) {
+      _loadTossUniverseCount();
+    } else {
       _loadUniverseCount();
     }
   }
@@ -49,10 +52,22 @@ class _MarketScreenState extends State<MarketScreen> {
     }
   }
 
+  Future<void> _loadTossUniverseCount() async {
+    try {
+      final symbols = await ApiClient.instance.getTossUniverse();
+      if (!mounted) return;
+      setState(() => _tossUniverseCount = symbols.length);
+    } catch (_) {
+      // Positions should still be usable even when universe loading fails.
+    }
+  }
+
   Future<void> _refresh() async {
     setState(_reload);
     await _future;
-    if (!widget.isStock) {
+    if (widget.isStock) {
+      await _loadTossUniverseCount();
+    } else {
       await _loadUniverseCount();
     }
   }
@@ -179,6 +194,153 @@ class _MarketScreenState extends State<MarketScreen> {
         ),
       );
       await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  Future<void> _openTossUniverse() async {
+    try {
+      final current = await ApiClient.instance.getTossUniverse();
+      if (!mounted) return;
+
+      final controller = TextEditingController(
+        text: current.join(', '),
+      );
+
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '주식 판단 대상',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '국내주식 6자리 종목코드를 쉼표로 입력해 주세요. '
+                      '판단 대상 수와 실제 보유 0~10종목은 별개예요.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        hintText: '005930, 000660',
+                        labelText: '종목코드',
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('취소'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () async {
+                              final values = controller.text
+                                  .split(RegExp(r'[,\s]+'))
+                                  .map((value) => value.trim())
+                                  .where((value) => value.isNotEmpty)
+                                  .toSet()
+                                  .toList();
+
+                              final invalid = values.where(
+                                (value) =>
+                                    value.length != 6 ||
+                                    int.tryParse(value) == null,
+                              );
+
+                              if (invalid.isNotEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      '국내주식 종목코드는 6자리 숫자로 입력해 주세요.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                final result = await ApiClient.instance
+                                    .updateTossUniverse(values);
+                                if (!context.mounted) return;
+                                Navigator.pop(context, true);
+                                if (mounted) {
+                                  setState(() {
+                                    _tossUniverseCount = result.length;
+                                  });
+                                }
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            },
+                            child: const Text('저장'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+
+      controller.dispose();
+
+      if (saved == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('주식 판단 대상을 저장했어요.')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -445,14 +607,16 @@ class _MarketScreenState extends State<MarketScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
               children: [
-                if (!widget.isStock) ...[
-                  _UniverseBanner(
-                    count: _upbitUniverseCount,
-                    onManage: _openUpbitUniverse,
-                  ),
-                  const SizedBox(height: 90),
-                ] else
-                  const SizedBox(height: 90),
+                _UniverseBanner(
+                  count: widget.isStock
+                      ? _tossUniverseCount
+                      : _upbitUniverseCount,
+                  isStock: widget.isStock,
+                  onManage: widget.isStock
+                      ? _openTossUniverse
+                      : _openUpbitUniverse,
+                ),
+                const SizedBox(height: 90),
                 AppEmptyState(
                   icon: widget.isStock
                       ? Icons.show_chart_rounded
@@ -476,13 +640,16 @@ class _MarketScreenState extends State<MarketScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
             children: [
-              if (!widget.isStock) ...[
-                _UniverseBanner(
-                  count: _upbitUniverseCount,
-                  onManage: _openUpbitUniverse,
-                ),
-                const SizedBox(height: 12),
-              ],
+              _UniverseBanner(
+                count: widget.isStock
+                    ? _tossUniverseCount
+                    : _upbitUniverseCount,
+                isStock: widget.isStock,
+                onManage: widget.isStock
+                    ? _openTossUniverse
+                    : _openUpbitUniverse,
+              ),
+              const SizedBox(height: 12),
               AppSurface(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,10 +703,12 @@ class _MarketScreenState extends State<MarketScreen> {
 class _UniverseBanner extends StatelessWidget {
   const _UniverseBanner({
     required this.count,
+    required this.isStock,
     required this.onManage,
   });
 
   final int? count;
+  final bool isStock;
   final VoidCallback onManage;
 
   @override
@@ -573,8 +742,10 @@ class _UniverseBanner extends StatelessWidget {
                   count == null
                       ? '불러오는 중'
                       : count == 0
-                          ? '선택 없음 · 자동 코인 판단은 대기'
-                          : '$count개 코인을 현재가 기준으로 판단',
+                          ? '선택 없음 · 자동 판단은 대기'
+                          : isStock
+                              ? '$count개 주식을 현재가 기준으로 판단'
+                              : '$count개 코인을 현재가 기준으로 판단',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
