@@ -12,6 +12,7 @@ from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
+from backend.app.services.toss_live_portfolio import TossLivePortfolioService
 
 
 class TradingService:
@@ -36,7 +37,7 @@ class TradingService:
             for broker in self.paper.values()
         )
 
-    def stock_positions(self) -> list[dict]:
+    async def stock_positions(self) -> list[dict]:
         runtime = self.runtime.get()
         if runtime.mode == "paper":
             return [
@@ -51,8 +52,7 @@ class TradingService:
                 for p in self.paper["stock"].portfolio().positions
             ]
 
-        # TODO: Toss stock adapter connection.
-        return []
+        return await TossLivePortfolioService().positions()
 
     async def crypto_positions(self) -> list[dict]:
         runtime = self.runtime.get()
