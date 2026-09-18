@@ -27,7 +27,7 @@ async def list_orders(
     limit: int = Query(50, ge=1, le=200),
 ):
     return {
-        "items": LiveOrderJournal().list(limit=limit),
+        "items": LiveOrderJournal().list_records(limit=limit),
     }
 
 
