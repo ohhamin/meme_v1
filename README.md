@@ -66,12 +66,12 @@ meme_v1/
 
 - [x] Backend foundation
 - [x] Flutter 하단 6탭 UI 골격
-- [ ] Firebase/FCM 연결
+- [x] Firebase/FCM 기기 토큰 등록 + Backend Push 연결
 - [x] Upbit public market-data adapter
 - [x] Upbit read-only account adapter
-- [ ] Upbit Live order adapter
+- [x] Upbit Live order adapter (기본 비활성)
 - [x] Toss OAuth/시세/계좌 read-only adapter
-- [ ] Toss Live order adapter
+- [x] Toss Live order adapter (기본 비활성)
 - [x] 수동 매수/매도 API 골격
 - [x] 6시간 간격 OpenAI web search news collector
 - [x] adaptive 주식+코인 통합 Paper scheduler (30~120분)
@@ -79,7 +79,8 @@ meme_v1/
 - [x] 일일 알고리즘 개선 review → 제안 MD 생성
 - [x] Deterministic Risk Guard + preview API
 - [x] Position Sizer + Paper 자동주문 엔진
-- [ ] AWS EC2 + Elastic IP 배포
+- [x] AWS EC2용 Docker/Reverse Proxy 배포 골격
+- [ ] 실제 AWS EC2 + Elastic IP 배포
 
 상세 설계는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 기준으로 계속 발전시킨다.
 
@@ -90,7 +91,7 @@ meme_v1/
 앱의 **알고리즘 > 제안**에서 사용자가 적용해야만 현재 규칙에 반영된다.
 취소한 제안은 화면에서는 사라지고 감사 목적으로 cancelled archive로 이동한다.
 
-현재 단계에서는 Broker/LLM을 실제 연결하지 않았으므로 Live 주문은 실행되지 않는다.
+LLM과 Broker adapter는 연결되어 있지만 Live 주문은 여러 환경변수 게이트가 기본 `false`이고 Kill switch 기본값이 ON이라 명시적으로 단계별 활성화하기 전에는 실행되지 않는다.
 
 
 ## LLM 비용 제어
@@ -180,8 +181,12 @@ Paper 계좌도 주식(Toss 역할)과 코인(Upbit 역할)을 분리한다. 각
    - Live mode의 코인 보유종목 화면은 실제 Upbit 잔고 + 현재가를 읽어 표시
    - 주문 API는 호출하지 않음
 3. **Live 주문**
-   - 아직 구현하지 않음
-   - 현재 Live 수동/자동 주문 요청은 계속 fail-closed
+   - 실제 주문 adapter와 주문 조회/reconcile 코드까지 구현
+   - Upbit `/orders/test` 사전 검증 후 실제 주문
+   - 주문 요청 전에 로컬 durable intent journal 저장
+   - timeout/5xx 등 결과가 애매하면 자동 재주문하지 않고 UNKNOWN 처리
+   - 같은 종목에 미확인 주문이 있으면 새 Live 주문 차단
+   - 기본 환경변수는 모두 비활성이라 실제 주문은 실행되지 않음
 
 자동 Paper 코인 사이클은 선택한 universe의 Upbit 실제 현재가를 읽은 뒤:
 
@@ -217,7 +222,60 @@ Upbit public quote
 - 실제 Toss 시세를 이용한 Paper 판단/체결
 - 주식+코인을 한 번의 LLM Decision Cycle에 함께 전달
 
-실제 주문 endpoint는 아직 연결하지 않았고 계속 fail-closed 상태다.
+실제 주문 endpoint adapter도 구현했지만 `TRADING_ENABLED`, 수동/자동 Live gate, broker별 gate, Kill switch를 모두 통과해야 하며 기본값에서는 fail-closed다.
 
 주식 판단 대상은 앱 주식 탭에서 6자리 종목코드로 관리하며
 `data/state/toss_universe.json`에 저장한다.
+
+
+## Live 주문 안전 계층
+
+Live 주문은 Paper와 별도로 다음 안전 계층을 통과한다.
+
+```text
+LLM / Manual Intent
+        ↓
+Position Sizer (자동)
+        ↓
+Risk Guard
+        ↓
+Broker Preflight
+        ↓
+Live Order Journal: CREATED → PREFLIGHTED → SUBMITTING
+        ↓
+Broker Submit
+        ↓
+SUBMITTED / CONFIRMED / REJECTED / UNKNOWN
+        ↓
+5분 간격 상태 Reconcile
+```
+
+핵심 원칙:
+
+- 주문 mutation 전에 intent를 디스크에 먼저 저장
+- Upbit 주문은 실제 주문 전 dry-run endpoint로 검증
+- transport timeout/5xx처럼 체결 여부가 불명확하면 **같은 주문을 자동 재전송하지 않음**
+- SUBMITTING/SUBMITTED/UNKNOWN 주문이 남아 있는 종목은 새 Live 주문 차단
+- 서버 재시작 시 미확인 주문을 조회하여 상태만 복구하고 신규 주문은 만들지 않음
+- Toss 1억원 이상 주문은 별도 명시적 확인 gate가 필요
+- Live 자동 주문은 수동 주문과 별도 환경변수로 마지막에 활성화
+
+기본값:
+
+```env
+TRADING_ENABLED=false
+LIVE_MANUAL_ORDER_ENABLED=false
+LIVE_AUTO_ORDER_ENABLED=false
+UPBIT_LIVE_ORDER_ENABLED=false
+TOSS_LIVE_ORDER_ENABLED=false
+KILL_SWITCH=true
+```
+
+## 운영/배포
+
+Backend Docker 이미지는 Uvicorn **1 worker**만 사용한다.
+현재 Scheduler와 로컬 JSON state가 단일 프로세스 구조이므로 worker를 여러 개 띄우면 안 된다.
+
+`deploy/`에 EC2 배포용 Compose와 Nginx 예제가 있으며 `data/`는 영속 volume으로 유지한다.
+서버 재시작 후 adaptive scheduler의 다음 판단 시각도 `data/state/scheduler.json`에서 복구한다.
+news/decisions Markdown은 기본 최근 7일만 유지한다.
