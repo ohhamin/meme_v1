@@ -4,6 +4,7 @@ from backend.app.models.schemas import PaperCycleResponse
 from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.toss_universe import TossUniverseService
+from backend.app.services.decision_universe import merge_decision_universe
 
 
 class TossPaperRunner:
@@ -19,10 +20,18 @@ class TossPaperRunner:
         self,
         symbols: list[str] | None = None,
     ) -> PaperCycleResponse:
-        selected = (
+        portfolio = self.paper_cycle._portfolios()["stock"]
+        configured = (
             symbols
             if symbols is not None
             else self.universe.get()
+        )
+        selected = merge_decision_universe(
+            configured,
+            [
+                position.symbol
+                for position in portfolio.positions
+            ],
         )
 
         if not selected:
