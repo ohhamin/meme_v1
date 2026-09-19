@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -32,26 +33,41 @@ class ApiClient {
     String method,
     String path, {
     Map<String, dynamic>? body,
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     final uri = Uri.parse('$baseUrl$path');
     late http.Response response;
 
-    if (method == 'GET') {
-      response = await http.get(uri, headers: _headers);
-    } else if (method == 'POST') {
-      response = await http.post(
-        uri,
-        headers: _headers,
-        body: jsonEncode(body ?? <String, dynamic>{}),
+    try {
+      if (method == 'GET') {
+        response = await http
+            .get(uri, headers: _headers)
+            .timeout(timeout);
+      } else if (method == 'POST') {
+        response = await http
+            .post(
+              uri,
+              headers: _headers,
+              body: jsonEncode(body ?? <String, dynamic>{}),
+            )
+            .timeout(timeout);
+      } else if (method == 'PUT') {
+        response = await http
+            .put(
+              uri,
+              headers: _headers,
+              body: jsonEncode(body ?? <String, dynamic>{}),
+            )
+            .timeout(timeout);
+      } else {
+        throw UnsupportedError('Unsupported HTTP method: $method');
+      }
+    } on TimeoutException {
+      throw Exception(
+        '서버 응답 시간이 초과됐어요. Backend 연결 상태를 확인해 주세요.',
       );
-    } else if (method == 'PUT') {
-      response = await http.put(
-        uri,
-        headers: _headers,
-        body: jsonEncode(body ?? <String, dynamic>{}),
-      );
-    } else {
-      throw UnsupportedError('Unsupported HTTP method: $method');
+    } on http.ClientException catch (e) {
+      throw Exception('Backend 연결에 실패했어요: ${e.message}');
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -192,6 +208,7 @@ class ApiClient {
     return (await _request(
       'POST',
       '/decisions/market-paper-cycle',
+      timeout: const Duration(seconds: 90),
     )) as Map<String, dynamic>;
   }
 
