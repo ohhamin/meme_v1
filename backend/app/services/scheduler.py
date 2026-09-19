@@ -220,7 +220,7 @@ class AdaptiveDecisionScheduler:
 
     async def _run_decision_cycle(self) -> None:
         runtime = self.runtime.get()
-        if not runtime.scheduler_enabled:
+        if not getattr(runtime, "scheduler_enabled", True):
             return
         next_minutes = (
             self.config.decision_default_interval_minutes
