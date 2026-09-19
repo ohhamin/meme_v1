@@ -31,6 +31,7 @@ class PaperOrderJournal:
         created_at: datetime,
         realized_pnl: Decimal | None = None,
         entry_score: Decimal | None = None,
+        candidate_score: Decimal | None = None,
         realized_return_pct: Decimal | None = None,
     ) -> Path:
         day = created_at.astimezone(self.tz).date().isoformat()
@@ -54,6 +55,11 @@ class PaperOrderJournal:
             "entry_score": (
                 str(entry_score)
                 if entry_score is not None
+                else None
+            ),
+            "candidate_score": (
+                str(candidate_score)
+                if candidate_score is not None
                 else None
             ),
             "realized_return_pct": (
