@@ -34,7 +34,8 @@ class CombinedPaperRunner:
         if upbit_markets:
             try:
                 crypto = await self.upbit.snapshots(
-                    upbit_markets
+                    upbit_markets,
+                    with_features=True,
                 )
                 requested = set(upbit_markets)
                 received = {
@@ -60,7 +61,8 @@ class CombinedPaperRunner:
             else:
                 try:
                     stock = await self.toss.snapshots(
-                        toss_symbols
+                        toss_symbols,
+                        with_features=True,
                     )
                     requested = set(toss_symbols)
                     received = {
