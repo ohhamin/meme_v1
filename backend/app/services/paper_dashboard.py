@@ -43,7 +43,23 @@ class PaperDashboardService:
                 })
         positions.sort(key=lambda item: Decimal(item["market_value"]), reverse=True)
 
-        journal = self.orders.recent(limit=500, days=30)
+        stock_journal = self.orders.recent(
+            limit=500,
+            days=7,
+            market="stock",
+            session_id=PaperBroker("stock").session_id,
+        )
+        crypto_journal = self.orders.recent(
+            limit=500,
+            days=7,
+            market="crypto",
+            session_id=PaperBroker("crypto").session_id,
+        )
+        journal = sorted(
+            stock_journal + crypto_journal,
+            key=lambda item: str(item.get("created_at") or ""),
+            reverse=True,
+        )
         trading = self._trading_stats(journal)
         score_performance = self._score_performance(journal)
         recent_orders = journal[:10]
@@ -66,8 +82,8 @@ class PaperDashboardService:
                 "crypto": self._account(crypto),
             },
             "positions": positions,
-            "trading_30d": trading,
-            "score_performance_30d": score_performance,
+            "trading_7d": trading,
+            "score_performance_7d": score_performance,
             "recent_orders": recent_orders,
         }
 
