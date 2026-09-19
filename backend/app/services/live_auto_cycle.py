@@ -27,6 +27,7 @@ from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.cycle_metrics import CycleMetricsStore
 
 
 class LiveAutoCycleService:
@@ -46,6 +47,7 @@ class LiveAutoCycleService:
         self.upbit_universe = UpbitUniverseService()
         self.toss_universe = TossUniverseService()
         self.audit = AuditLogger()
+        self.metrics = CycleMetricsStore()
 
     async def run(self) -> LiveAutoCycleResponse:
         gate_reasons = self._gate_reasons()
@@ -315,17 +317,41 @@ class LiveAutoCycleService:
             items,
         )
 
+        submitted_count = sum(
+            1
+            for item in items
+            if item.message
+            and item.message.startswith("Live order submitted")
+        )
+        blocked_count = sum(
+            1
+            for item in items
+            if item.risk is not None
+            and item.risk.status == "BLOCK"
+        )
+        self.metrics.append(
+            mode="live",
+            accounts={
+                market: {
+                    "equity": str(portfolio.equity),
+                    "cash": str(portfolio.cash),
+                    "daily_pnl_pct": str(portfolio.daily_pnl_pct),
+                    "position_count": len(portfolio.positions),
+                }
+                for market, portfolio in portfolio_by_market.items()
+            },
+            decision_count=len(result.decisions),
+            order_count=submitted_count,
+            blocked_count=blocked_count,
+            next_check_minutes=result.next_check_minutes,
+        )
+
         self.audit.write(
             "system",
             {
                 "event": "live_auto_cycle_completed",
                 "decision_count": len(result.decisions),
-                "submitted_count": sum(
-                    1
-                    for item in items
-                    if item.message
-                    and item.message.startswith("Live order submitted")
-                ),
+                "submitted_count": submitted_count,
                 "next_check_minutes": result.next_check_minutes,
             },
         )
