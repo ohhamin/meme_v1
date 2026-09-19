@@ -16,6 +16,7 @@ from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 from backend.app.services.live_auto_cycle import LiveAutoCycleService
 from backend.app.services.latest_decision import LatestDecisionService
+from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
 router = APIRouter(
@@ -32,13 +33,19 @@ async def dates():
 
 @router.get("/latest", response_model=LatestDecisionResponse | None)
 async def latest():
-    return LatestDecisionService().get()
+    mode = RuntimeSettingsService().get().mode
+    return LatestDecisionService().get(mode=mode)
 
 
 @router.get("/{day}", response_model=DailyMarkdown)
 async def by_date(day: str):
     store = DailyMarkdownStore("decisions")
-    return DailyMarkdown(date=day, markdown=store.read(day))
+    mode = RuntimeSettingsService().get().mode
+    markdown = LatestDecisionService().filter_markdown(
+        store.read(day),
+        mode,
+    )
+    return DailyMarkdown(date=day, markdown=markdown)
 
 
 @router.post("/preview", response_model=DecisionPreviewResponse)
