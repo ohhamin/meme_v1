@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from backend.app.core.security import require_api_token
 from backend.app.models.schemas import (
@@ -31,8 +31,10 @@ async def dates():
 
 
 @router.get("/latest", response_model=LatestDecisionResponse | None)
-async def latest():
-    return LatestDecisionService().get()
+async def latest(
+    mode: str | None = Query(None, pattern="^(paper|live)$"),
+):
+    return LatestDecisionService().get(mode)
 
 
 @router.get("/{day}", response_model=DailyMarkdown)
