@@ -517,6 +517,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = _settings ?? <String, dynamic>{};
     final status = _status ?? <String, dynamic>{};
     final paper = _paper ?? <String, dynamic>{};
+    final readiness = _readiness ?? <String, dynamic>{};
     final live = settings['mode'] == 'live';
     final killSwitch = settings['kill_switch'] == true;
     final liveAllowed = settings['live_order_allowed'] == true;
