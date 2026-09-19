@@ -241,6 +241,13 @@ class AdaptiveDecisionScheduler:
                     "next_check_minutes": next_minutes,
                 },
             )
+
+            if result.status == "completed":
+                self._send_cycle_summary(
+                    result=result,
+                    mode=runtime.mode,
+                    next_minutes=next_minutes,
+                )
         except Exception as exc:
             self.state.save_last_run(
                 {
@@ -277,6 +284,47 @@ class AdaptiveDecisionScheduler:
             )
         finally:
             self.schedule_next(next_minutes)
+
+    def _send_cycle_summary(
+        self,
+        *,
+        result,
+        mode: str,
+        next_minutes: int,
+    ) -> None:
+        items = list(getattr(result, "items", []) or [])
+        counts = {"BUY": 0, "SELL": 0, "HOLD": 0}
+        for item in items:
+            action = getattr(
+                getattr(item, "decision", None),
+                "action",
+                None,
+            )
+            if action in counts:
+                counts[action] += 1
+
+        order_count = sum(
+            1
+            for item in items
+            if getattr(item, "order", None) is not None
+        )
+        self.push.send(
+            title="자동 판단 완료",
+            body=(
+                f"BUY {counts['BUY']} / SELL {counts['SELL']} / "
+                f"HOLD {counts['HOLD']} · 주문 {order_count}건 · "
+                f"다음 판단 {next_minutes}분 후"
+            ),
+            data={
+                "type": "decision_cycle_completed",
+                "mode": mode,
+                "buy_count": str(counts["BUY"]),
+                "sell_count": str(counts["SELL"]),
+                "hold_count": str(counts["HOLD"]),
+                "order_count": str(order_count),
+                "next_check_minutes": str(next_minutes),
+            },
+        )
 
     def next_run_at(self, proposed_minutes: int) -> datetime:
         minutes = self.config.clamp_decision_interval(
