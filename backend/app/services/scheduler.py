@@ -9,6 +9,7 @@ from backend.app.services.news_collector import NewsCollector
 from backend.app.services.live_order_reconciler import LiveOrderReconciler
 from backend.app.services.live_auto_cycle import LiveAutoCycleService
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.data_retention import DataRetentionService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
@@ -23,6 +24,7 @@ class AdaptiveDecisionScheduler:
         self.live_order_reconciler = LiveOrderReconciler()
         self.live_auto_cycle = LiveAutoCycleService()
         self.runtime = RuntimeSettingsService()
+        self.retention = DataRetentionService()
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
 
@@ -36,6 +38,7 @@ class AdaptiveDecisionScheduler:
         self.schedule_news_collection()
         self.schedule_algorithm_review()
         self.schedule_live_order_reconciliation()
+        self.schedule_retention()
         self.schedule_next(
             self.config.decision_default_interval_minutes
         )
@@ -75,6 +78,18 @@ class AdaptiveDecisionScheduler:
             trigger="interval",
             minutes=5,
             id="live-order-reconciler",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+
+    def schedule_retention(self) -> None:
+        self.scheduler.add_job(
+            self.retention.run,
+            trigger="cron",
+            hour=3,
+            minute=10,
+            id="data-retention",
             replace_existing=True,
             coalesce=True,
             max_instances=1,
