@@ -289,6 +289,11 @@ class _MarketScreenState extends State<MarketScreen> {
       final saved = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
+        // Keep this stateful sheet alive until its own buttons close it.
+        // Dismissing it with a downward drag while async auto-selection is
+        // rebuilding the sheet can dispose inherited dependencies mid-frame.
+        enableDrag: false,
+        isDismissible: false,
         backgroundColor: Colors.transparent,
         builder: (context) {
           final bottomInset = MediaQuery.of(context).viewInsets.bottom;
