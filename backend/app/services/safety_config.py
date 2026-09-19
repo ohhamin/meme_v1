@@ -24,9 +24,9 @@ class SafetyConfigValidator:
         result = SafetyValidationResult()
 
         env = c.app_env.strip().lower()
-        production_like = env in {"prod", "production"}
+        non_local = env != "local"
 
-        if production_like and (
+        if non_local and (
             not c.api_token
             or c.api_token == "change-me"
             or len(c.api_token) < 24
@@ -83,7 +83,7 @@ class SafetyConfigValidator:
                 "Decision interval below 30 minutes conflicts with current operating policy."
             )
 
-        if not production_like and c.api_token == "change-me":
+        if not non_local and c.api_token == "change-me":
             result.warnings.append(
                 "API_TOKEN is still the local development default."
             )
