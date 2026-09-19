@@ -69,8 +69,8 @@ class AppBackdrop extends StatelessWidget {
 class BrandMark extends StatelessWidget {
   const BrandMark({
     super.key,
-    this.size = 36,
-    this.showBackground = true,
+    this.size = 52,
+    this.showBackground = false,
   });
 
   final double size;
@@ -78,51 +78,29 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mark = CustomPaint(
-      size: Size.square(size),
-      painter: const _BrandMarkPainter(),
+    final logo = Image.asset(
+      'assets/brand/meme_app_logo.png',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
     );
 
     if (!showBackground) {
       return SizedBox.square(
         dimension: size,
-        child: mark,
+        child: logo,
       );
     }
 
     return Container(
       width: size,
       height: size,
-      padding: EdgeInsets.all(size * 0.10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0D3764),
-            Color(0xFF08152B),
-            Color(0xFF080C1D),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(size * 0.25),
-        border: Border.all(
-          color: AppColors.primaryBlue.withOpacity(0.48),
-          width: 0.9,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.20),
-            blurRadius: size * 0.50,
-            spreadRadius: -size * 0.22,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.28),
-            blurRadius: size * 0.30,
-            offset: Offset(0, size * 0.10),
-          ),
-        ],
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(size * 0.22),
       ),
-      child: mark,
+      child: logo,
     );
   }
 }
@@ -140,44 +118,10 @@ class BrandLockup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final markSize = compact ? 36.0 : 52.0;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BrandMark(
-          size: markSize,
-          showBackground: false,
-        ),
-        SizedBox(width: compact ? 9 : 12),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'MEME',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: compact ? 18 : 25,
-                height: 0.95,
-                fontWeight: FontWeight.w900,
-                letterSpacing: compact ? 0.5 : 0.9,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle ?? 'AI INVEST',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: compact ? 8.0 : 10.0,
-                height: 1,
-                fontWeight: FontWeight.w600,
-                letterSpacing: compact ? 2.8 : 3.6,
-              ),
-            ),
-          ],
-        ),
-      ],
+    final size = compact ? 54.0 : 78.0;
+    return BrandMark(
+      size: size,
+      showBackground: false,
     );
   }
 }
