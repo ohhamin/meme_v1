@@ -7,6 +7,7 @@ from backend.app.brokers.upbit_market_data import (
 from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.decision_universe import merge_decision_universe
 
 
 class UpbitPaperRunner:
@@ -23,7 +24,19 @@ class UpbitPaperRunner:
         self,
         markets: list[str] | None = None,
     ) -> PaperCycleResponse:
-        selected = markets if markets is not None else self.universe.get()
+        portfolio = self.paper_cycle._portfolios()["crypto"]
+        configured = (
+            markets
+            if markets is not None
+            else self.universe.get()
+        )
+        selected = merge_decision_universe(
+            configured,
+            [
+                position.symbol
+                for position in portfolio.positions
+            ],
+        )
 
         if not selected:
             return PaperCycleResponse(
