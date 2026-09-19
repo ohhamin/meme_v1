@@ -26,7 +26,7 @@ class AppSurface extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
+            color: Colors.black.withOpacity(0.18),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
