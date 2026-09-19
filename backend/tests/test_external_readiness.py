@@ -59,10 +59,27 @@ def test_external_readiness_never_reports_mutation(monkeypatch):
     async def fake_toss_account():
         return {"status": "not_configured", "configured": False}
 
+    async def fake_krx_market():
+        return {"status": "not_configured", "configured": False}
+
     monkeypatch.setattr(service, "_upbit_public", fake_upbit_public)
     monkeypatch.setattr(service, "_upbit_account", fake_upbit_account)
     monkeypatch.setattr(service, "_toss_account", fake_toss_account)
+    monkeypatch.setattr(service, "_krx_market", fake_krx_market)
 
     result = asyncio.run(service.check())
 
     assert result["mutation_performed"] is False
+
+
+
+def test_external_readiness_krx_unconfigured():
+    service = ExternalReadinessService()
+    old_key = service.config.krx_api_key
+    try:
+        service.config.krx_api_key = ""
+        result = asyncio.run(service._krx_market())
+        assert result["status"] == "not_configured"
+        assert result["configured"] is False
+    finally:
+        service.config.krx_api_key = old_key

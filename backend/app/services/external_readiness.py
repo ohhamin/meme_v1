@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import httpx
+
 from backend.app.brokers.toss_account import TossAccountAdapter
 from backend.app.brokers.toss_client import TossApiError
 from backend.app.brokers.upbit_account import (
@@ -31,6 +33,7 @@ class ExternalReadinessService:
             "upbit_public_market": await self._upbit_public(),
             "upbit_account": await self._upbit_account(),
             "toss_account": await self._toss_account(),
+            "krx_market": await self._krx_market(),
             "mutation_performed": False,
         }
 
@@ -93,6 +96,40 @@ class ExternalReadinessService:
             }
         except TossApiError as exc:
             return self._failed(str(exc), configured=True)
+
+    async def _krx_market(self) -> dict:
+        if not self.config.krx_api_key:
+            return self._not_configured()
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.config.krx_http_timeout_seconds,
+            ) as client:
+                response = await client.get(
+                    f"{self.config.krx_api_base_url}/idx/kospi_dd_trd",
+                    params={"basDd": "20260918"},
+                    headers={"AUTH_KEY": self.config.krx_api_key},
+                )
+                response.raise_for_status()
+                rows = response.json().get("OutBlock_1", [])
+                if not rows:
+                    return self._failed(
+                        "KRX authentication succeeded but no index rows were returned.",
+                        configured=True,
+                    )
+                return {
+                    "status": "ok",
+                    "configured": True,
+                    "detail": (
+                        "Authenticated KRX index read succeeded "
+                        f"({len(rows)} rows)."
+                    ),
+                }
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            return self._failed(
+                f"KRX read failed: {type(exc).__name__}: {exc}",
+                configured=True,
+            )
 
     def _firebase(self) -> dict:
         raw = self.config.firebase_credentials_path.strip()

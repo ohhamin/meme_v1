@@ -398,6 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'upbit_public_market': 'Upbit 공개 시세',
         'upbit_account': 'Upbit 계좌',
         'toss_account': 'Toss 계좌',
+        'krx_market': 'KRX 지수 API',
       };
 
       await showModalBottomSheet<void>(
