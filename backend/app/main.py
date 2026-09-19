@@ -12,6 +12,7 @@ from backend.app.routers import (
     news,
     paper,
     risk,
+    scheduler_status,
     settings,
     stocks,
 )
@@ -64,4 +65,5 @@ app.include_router(decisions.router)
 app.include_router(algorithm.router)
 app.include_router(paper.router)
 app.include_router(risk.router)
+app.include_router(scheduler_status.router)
 app.include_router(settings.router)
