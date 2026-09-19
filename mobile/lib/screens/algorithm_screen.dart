@@ -17,6 +17,7 @@ class AlgorithmScreen extends StatefulWidget {
 class _AlgorithmScreenState extends State<AlgorithmScreen> {
   late Future<String> _current;
   late Future<List<Map<String, dynamic>>> _proposals;
+  bool _reviewing = false;
 
   @override
   void initState() {
@@ -27,6 +28,35 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
   void _reload() {
     _current = ApiClient.instance.getCurrentAlgorithm();
     _proposals = ApiClient.instance.getAlgorithmProposals();
+  }
+
+  Future<void> _reviewNow() async {
+    if (_reviewing) return;
+    setState(() => _reviewing = true);
+    try {
+      final result = await ApiClient.instance.reviewAlgorithmNow();
+      if (!mounted) return;
+      setState(_reload);
+      final created = result['proposal_created'] == true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            created
+                ? '성과를 바탕으로 새 알고리즘 제안을 만들었어요.'
+                : '검토를 마쳤지만 지금은 변경 제안이 필요하지 않아요.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _reviewing = false);
+      }
+    }
   }
 
   Future<void> _apply(String id) async {
@@ -173,10 +203,37 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
             child: TabBarView(
               children: [
                 _CurrentAlgorithm(future: _current),
-                _ProposalList(
-                  future: _proposals,
-                  onApply: _apply,
-                  onCancel: _cancel,
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _reviewing ? null : _reviewNow,
+                          icon: _reviewing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.analytics_outlined),
+                          label: Text(
+                            _reviewing ? '성과 검토 중...' : '최근 성과로 개선안 검토',
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: _ProposalList(
+                        future: _proposals,
+                        onApply: _apply,
+                        onCancel: _cancel,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
