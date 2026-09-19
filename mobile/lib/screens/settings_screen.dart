@@ -18,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _settings;
   Map<String, dynamic>? _status;
   Map<String, dynamic>? _paper;
+  Map<String, dynamic>? _readiness;
   bool _loading = true;
   String? _error;
 
@@ -33,6 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ApiClient.instance.getSettings(),
         ApiClient.instance.getStatus(),
         ApiClient.instance.getPaperPortfolio(),
+        ApiClient.instance.getReadiness(),
       ]);
 
       if (!mounted) return;
@@ -40,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _settings = results[0];
         _status = results[1];
         _paper = results[2];
+        _readiness = results[3];
         _loading = false;
         _error = null;
       });
@@ -537,6 +540,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             <String, dynamic>{};
     final pushRegistered = pushStatus['registered'] == true;
     final nextDecisionAt = status['next_decision_at']?.toString();
+    final paperReadiness =
+        (readiness['paper_auto'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final liveManualReadiness =
+        (readiness['live_manual'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final liveAutoReadiness =
+        (readiness['live_auto'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
 
     final budgetMode = llmBudget['mode']?.toString() ?? 'unknown';
     final runtimeMode = llmRuntime['mode']?.toString() ?? 'unknown';
@@ -602,6 +614,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const SectionTitle('준비 상태'),
+          const SizedBox(height: 12),
+          AppSurface(
+            child: Column(
+              children: [
+                _ReadinessRow(
+                  label: 'Paper 자동매매',
+                  data: paperReadiness,
+                ),
+                const Divider(height: 24),
+                _ReadinessRow(
+                  label: 'Live 수동매매',
+                  data: liveManualReadiness,
+                ),
+                const Divider(height: 24),
+                _ReadinessRow(
+                  label: 'Live 자동매매',
+                  data: liveAutoReadiness,
                 ),
               ],
             ),
@@ -963,6 +998,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return '남은 예산이 적어 과거 context를 더 짧게 사용하고 있어요.';
     }
     return '판단 사이클에서 토큰 예산을 확인하며 사용하고 있어요.';
+  }
+}
+
+
+class _ReadinessRow extends StatelessWidget {
+  const _ReadinessRow({
+    required this.label,
+    required this.data,
+  });
+
+  final String label;
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = data['ready'] == true;
+    final missing = (data['missing'] as List<dynamic>? ?? <dynamic>[])
+        .map((item) => item.toString())
+        .toList();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              if (!ready && missing.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '남은 조건: ' + missing.join(', '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: ready
+                ? AppColors.positiveSoft
+                : AppColors.negativeSoft,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            ready ? '준비됨' : '대기',
+            style: TextStyle(
+              color: ready
+                  ? AppColors.positive
+                  : AppColors.negative,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
