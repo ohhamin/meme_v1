@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
@@ -87,15 +87,18 @@ class PaperBroker:
     ) -> None:
         state = self._load()
         positions = state["positions"]
-        now = datetime.now(self.tz).isoformat()
+        now = datetime.now(self.tz)
 
         for instrument in instruments:
             if instrument.market != self.market:
                 continue
             key = instrument.symbol
             if key in positions:
+                observed_at = now - timedelta(
+                    seconds=instrument.data_age_seconds
+                )
                 positions[key]["last_price"] = str(instrument.price)
-                positions[key]["last_price_at"] = now
+                positions[key]["last_price_at"] = observed_at.isoformat()
                 positions[key]["last_market_open"] = instrument.market_open
                 if instrument.name:
                     positions[key]["name"] = instrument.name
