@@ -55,6 +55,9 @@ class AppSettings(BaseSettings):
     news_collection_interval_hours: int = 6
     news_web_search_enabled: bool = True
     news_max_output_tokens: int = 2500
+    fred_api_key: str = ""
+    fred_api_base_url: str = "https://api.stlouisfed.org/fred"
+    macro_context_max_age_hours: int = 48
     scheduler_enabled: bool = False
     data_retention_days: int = 7
     idempotency_retention_days: int = 30
