@@ -138,11 +138,6 @@ class LiveRiskSnapshotService:
             if target_asset is not None
             else Decimal("0")
         )
-        position_available = (
-            target_asset.balance
-            if target_asset is not None
-            else Decimal("0")
-        )
         position_value = (
             position_total * target_quote.trade_price
         )
@@ -157,7 +152,7 @@ class LiveRiskSnapshotService:
             "portfolio_equity": equity,
             "available_cash": available_cash,
             "position_value": position_value,
-            "position_quantity": position_available,
+            "position_quantity": position_total,
             "open_position_count": await self.total_open_positions(),
             "daily_pnl_pct": self.baselines.daily_pnl_pct(
                 broker="upbit",
