@@ -13,6 +13,7 @@ from backend.app.services.live_order_service import LiveOrderService
 from backend.app.services.device_tokens import DeviceTokenService
 from backend.app.services.scheduler_state import SchedulerStateService
 from backend.app.services.readiness import ReadinessService
+from backend.app.services.external_readiness import ExternalReadinessService
 
 
 router = APIRouter(tags=["system"])
@@ -77,3 +78,13 @@ async def status():
 @router.get("/readiness", dependencies=[Depends(require_api_token)])
 async def readiness():
     return ReadinessService().status()
+
+
+
+@router.get(
+    "/readiness/external",
+    dependencies=[Depends(require_api_token)],
+)
+async def external_readiness():
+    """Read-only broker/connectivity checks. Never submits an order."""
+    return await ExternalReadinessService().check()
