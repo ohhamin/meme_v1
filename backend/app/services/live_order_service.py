@@ -368,6 +368,33 @@ class LiveOrderService:
             record.intent_id,
             status="PREFLIGHTED",
         )
+
+        # Broker preflight can take network time. Re-read runtime safety state
+        # immediately before the first real mutation so enabling Kill switch or
+        # leaving Live mode during preflight still blocks submission.
+        try:
+            if source == "auto":
+                self._require_live_auto(broker)
+            else:
+                self._require_live_manual(broker)
+        except HTTPException as exc:
+            record = self.journal.update(
+                record.intent_id,
+                status="REJECTED",
+                reason="Safety gates changed after broker preflight.",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail={
+                    "message": (
+                        "Live order canceled because safety gates changed "
+                        "after broker preflight."
+                    ),
+                    "intent_id": record.intent_id,
+                    "gate_detail": exc.detail,
+                },
+            ) from exc
+
         self.journal.update(
             record.intent_id,
             status="SUBMITTING",
