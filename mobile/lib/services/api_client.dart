@@ -178,6 +178,13 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> runPaperMarketCycle() async {
+    return (await _request(
+      'POST',
+      '/decisions/market-paper-cycle',
+    )) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getPaperPortfolio() async {
     return (await _request('GET', '/paper/portfolio'))
         as Map<String, dynamic>;
