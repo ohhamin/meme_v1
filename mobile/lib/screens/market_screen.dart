@@ -21,6 +21,7 @@ class MarketScreen extends StatefulWidget {
 
 class _MarketScreenState extends State<MarketScreen> {
   late Future<List<Map<String, dynamic>>> _future;
+  late Future<Map<String, dynamic>> _performanceFuture;
   int? _upbitUniverseCount;
   int? _tossUniverseCount;
 
@@ -40,6 +41,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
   void _reload() {
     _future = ApiClient.instance.getPositions(_market);
+    _performanceFuture = ApiClient.instance.getMarketPerformance(_market);
   }
 
   Future<void> _loadUniverseCount() async {
@@ -64,7 +66,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _refresh() async {
     setState(_reload);
-    await _future;
+    await Future.wait([_future, _performanceFuture]);
     if (widget.isStock) {
       await _loadTossUniverseCount();
     } else {
@@ -665,6 +667,8 @@ class _MarketScreenState extends State<MarketScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
               children: [
+                _PerformanceSummary(future: _performanceFuture),
+                const SizedBox(height: 12),
                 _UniverseBanner(
                   count: widget.isStock
                       ? _tossUniverseCount
@@ -753,6 +757,148 @@ class _MarketScreenState extends State<MarketScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+
+class _PerformanceSummary extends StatelessWidget {
+  const _PerformanceSummary({required this.future});
+
+  final Future<Map<String, dynamic>> future;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = NumberFormat('#,###');
+    return FutureBuilder<Map<String, dynamic>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return AppSurface(
+            child: Text(
+              '최근 7일 성과를 불러오는 중이에요.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          );
+        }
+
+        final data = snapshot.data!;
+        final mode = data['mode']?.toString().toUpperCase() ?? '-';
+        final returnPct =
+            num.tryParse(data['return_pct']?.toString() ?? '');
+        final drawdown =
+            num.tryParse(data['max_drawdown_pct']?.toString() ?? '');
+        final realized =
+            num.tryParse(data['realized_pnl']?.toString() ?? '');
+        final winRate =
+            num.tryParse(data['win_rate_pct']?.toString() ?? '');
+        final orders = (data['order_count'] as num?)?.toInt() ?? 0;
+        final samples = (data['sample_count'] as num?)?.toInt() ?? 0;
+
+        String pct(num? value) =>
+            value == null ? '-' : value.toStringAsFixed(2) + '%';
+
+        return AppSurface(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '최근 7일 성과',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  Text(
+                    mode,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PerformanceMetric(
+                      label: '수익률',
+                      value: pct(returnPct),
+                    ),
+                  ),
+                  Expanded(
+                    child: _PerformanceMetric(
+                      label: 'MDD',
+                      value: pct(drawdown),
+                    ),
+                  ),
+                  Expanded(
+                    child: _PerformanceMetric(
+                      label: '주문',
+                      value: orders.toString() + '회',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (mode == 'PAPER')
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PerformanceMetric(
+                        label: '실현손익',
+                        value: realized == null
+                            ? '-'
+                            : money.format(realized) + '원',
+                      ),
+                    ),
+                    Expanded(
+                      child: _PerformanceMetric(
+                        label: '승률',
+                        value: pct(winRate),
+                      ),
+                    ),
+                    Expanded(
+                      child: _PerformanceMetric(
+                        label: '측정',
+                        value: samples.toString() + '회',
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  samples == 0
+                      ? 'Live 성과 데이터가 아직 없어요.'
+                      : 'Live 계좌 평가금액 기준 성과예요.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+class _PerformanceMetric extends StatelessWidget {
+  const _PerformanceMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
+        Text(value, style: Theme.of(context).textTheme.titleMedium),
+      ],
     );
   }
 }
