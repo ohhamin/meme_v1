@@ -1,17 +1,17 @@
 services:
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: backend/Dockerfile
     container_name: meme-v1-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ../.env
     environment:
       DATA_DIR: /app/data
     volumes:
-      - ./data:/app/data
-      - ./secrets:/app/secrets:ro
+      - ../data:/app/data
+      - ../secrets:/app/secrets:ro
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
