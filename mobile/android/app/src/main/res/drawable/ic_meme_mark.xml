@@ -5,43 +5,75 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Blue/cyan left ribbon -->
+    <!--
+      MEME AI INVEST launcher artwork.
+      Matches the approved top-left reference icon:
+      large glossy ribbon M + upward arrow + MEME / AI INVEST lockup.
+      Artwork stays inside the adaptive-icon safe zone.
+    -->
+
+    <!-- M: cyan/blue left stroke -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#079BFF"
-        android:strokeWidth="13"
+        android:strokeColor="#0A9CFF"
+        android:strokeWidth="9.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M20,72 C25,61 30,45 37,39 C43,34 48,38 53,46 L62,61" />
+        android:pathData="M24,52 C29,42 33,31 39,29 C45,27 49,35 54,44" />
 
-    <!-- Purple folded middle ribbon -->
+    <!-- M: violet/pink center fold -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#7654FF"
-        android:strokeWidth="13"
+        android:strokeColor="#6D55FF"
+        android:strokeWidth="9.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M47,39 C52,44 57,55 62,61 C67,68 72,64 77,55" />
+        android:pathData="M40,29 C46,32 50,40 54,45 C58,51 63,49 67,42" />
 
-    <!-- Cyan rising stroke -->
+    <!-- rising cyan arrow stroke -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#19DFF4"
-        android:strokeWidth="13"
+        android:strokeColor="#19DDF4"
+        android:strokeWidth="9.5"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M72,62 C78,57 82,49 86,42 L92,31" />
+        android:pathData="M62,47 C67,44 72,37 77,31 L84,23" />
 
-    <!-- Upward arrow -->
+    <!-- arrow head -->
     <path
-        android:fillColor="#20E2F4"
-        android:pathData="M80,29 L98,21 Q100,20 99,24 L98,43 L91,36 Z" />
+        android:fillColor="#1DE1F3"
+        android:pathData="M76,22 L90,17 Q92,16 91,19 L90,33 L84,28 Z" />
 
-    <!-- Subtle highlight -->
+    <!-- subtle glossy ribbon highlight -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#44FFFFFF"
-        android:strokeWidth="1.5"
+        android:strokeColor="#55FFFFFF"
+        android:strokeWidth="1.2"
         android:strokeLineCap="round"
-        android:pathData="M22,67 C29,51 33,41 39,39" />
+        android:pathData="M26,48 C31,37 34,30 39,29" />
+
+    <!-- MEME wordmark, vectorized block letters -->
+    <!-- M -->
+    <path android:fillColor="#F7F9FD"
+        android:pathData="M24,64 L28,64 L32,70 L36,64 L40,64 L40,78 L36,78 L36,70 L33,75 L31,75 L28,70 L28,78 L24,78 Z" />
+    <!-- E -->
+    <path android:fillColor="#F7F9FD"
+        android:pathData="M43,64 L54,64 L54,67 L47,67 L47,69.5 L53,69.5 L53,72.5 L47,72.5 L47,75 L54,75 L54,78 L43,78 Z" />
+    <!-- M -->
+    <path android:fillColor="#F7F9FD"
+        android:pathData="M57,64 L61,64 L65,70 L69,64 L73,64 L73,78 L69,78 L69,70 L66,75 L64,75 L61,70 L61,78 L57,78 Z" />
+    <!-- E -->
+    <path android:fillColor="#F7F9FD"
+        android:pathData="M76,64 L87,64 L87,67 L80,67 L80,69.5 L86,69.5 L86,72.5 L80,72.5 L80,75 L87,75 L87,78 L76,78 Z" />
+
+    <!-- AI INVEST: small spaced bars approximating the approved lockup at launcher size -->
+    <path android:fillColor="#9AAECB"
+        android:pathData="M34,84 L36,84 L36,86 L34,86 Z
+                          M39,84 L41,84 L41,86 L39,86 Z
+                          M46,84 L48,84 L48,86 L46,86 Z
+                          M51,84 L53,84 L53,86 L51,86 Z
+                          M56,84 L58,84 L58,86 L56,86 Z
+                          M61,84 L63,84 L63,86 L61,86 Z
+                          M66,84 L68,84 L68,86 L66,86 Z
+                          M71,84 L73,84 L73,86 L71,86 Z" />
 </vector>
