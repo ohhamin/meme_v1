@@ -10,6 +10,7 @@ def context():
         algorithm_markdown="test",
         news_context="",
         decision_context="",
+        macro_context={},
         market_snapshot={
             "instruments": [
                 {
