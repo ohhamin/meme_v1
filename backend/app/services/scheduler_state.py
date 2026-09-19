@@ -17,6 +17,18 @@ class SchedulerStateService:
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
+    def enabled(self, default: bool) -> bool:
+        data = self._read()
+        value = data.get("enabled")
+        return bool(value) if isinstance(value, bool) else bool(default)
+
+    def save_enabled(self, enabled: bool) -> None:
+        data = self._read()
+        data["enabled"] = bool(enabled)
+        if not enabled:
+            data.pop("next_decision_at", None)
+        self._write(data)
+
     def next_decision_at(self) -> datetime | None:
         data = self._read()
         raw = data.get("next_decision_at")
