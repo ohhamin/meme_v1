@@ -7,6 +7,8 @@ from backend.app.services.paper_broker import PaperBroker
 def make_broker(tmp_path) -> PaperBroker:
     broker = PaperBroker("crypto")
     broker.path = tmp_path / "paper_portfolio.json"
+    broker.journal.base_dir = tmp_path / "paper_orders"
+    broker.journal.base_dir.mkdir(parents=True, exist_ok=True)
     broker.audit.write = lambda *args, **kwargs: None
     broker.push.send = lambda *args, **kwargs: None
     broker.config.paper_crypto_initial_cash_krw = 1000000
@@ -122,3 +124,30 @@ def test_update_prices_preserves_snapshot_age(tmp_path):
         (now - position.last_price_at).total_seconds()
     )
     assert 598 <= observed_age <= 602
+
+
+
+def test_sell_journal_keeps_entry_score_and_realized_return(tmp_path):
+    broker = make_broker(tmp_path)
+    broker.execute(
+        symbol="BTC",
+        name="Bitcoin",
+        side="buy",
+        quantity=Decimal("0.001"),
+        market_price=Decimal("100000000"),
+        decision_score=68,
+    )
+    broker.execute(
+        symbol="BTC",
+        name="Bitcoin",
+        side="sell",
+        quantity=Decimal("0.001"),
+        market_price=Decimal("110000000"),
+        decision_score=35,
+    )
+
+    records = broker.journal.recent(limit=10, days=1)
+    sell = next(item for item in records if item["side"] == "sell")
+    assert sell["entry_score"] == "68"
+    assert Decimal(sell["realized_pnl"]) == Decimal("10000.000")
+    assert Decimal(sell["realized_return_pct"]) == Decimal("10.0")
