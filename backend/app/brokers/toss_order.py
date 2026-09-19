@@ -138,7 +138,13 @@ class TossOrderAdapter:
             "orderType": "MARKET",
             "quantity": str(qty),
         }
-        if self.config.toss_confirm_high_value_orders:
+        if (
+            notional
+            >= Decimal(
+                str(self.config.toss_high_value_order_threshold_krw)
+            )
+            and self.config.toss_confirm_high_value_orders
+        ):
             body["confirmHighValueOrder"] = True
 
         return await self.client.post(
