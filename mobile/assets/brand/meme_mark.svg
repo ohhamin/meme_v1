@@ -1,12 +1,44 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="meme" x1="36" y1="210" x2="224" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2F7BFF"/>
-      <stop offset="0.52" stop-color="#8B5CFF"/>
-      <stop offset="1" stop-color="#2FD8FF"/>
+    <linearGradient id="bg" x1="30" y1="18" x2="224" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E3B69"/>
+      <stop offset="0.42" stop-color="#08172C"/>
+      <stop offset="1" stop-color="#07091B"/>
     </linearGradient>
+    <linearGradient id="left" x1="38" y1="189" x2="115" y2="73" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087EFF"/>
+      <stop offset="0.58" stop-color="#13D8F5"/>
+      <stop offset="1" stop-color="#315CFF"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="104" y1="78" x2="147" y2="183" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#315CFF"/>
+      <stop offset="0.48" stop-color="#704FFF"/>
+      <stop offset="1" stop-color="#D74DF2"/>
+    </linearGradient>
+    <linearGradient id="rise" x1="142" y1="178" x2="219" y2="47" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8351FF"/>
+      <stop offset="0.46" stop-color="#079BFF"/>
+      <stop offset="1" stop-color="#22E5F3"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
   </defs>
-  <rect x="8" y="8" width="240" height="240" rx="58" fill="#0B1A31"/>
-  <path d="M42 177L82 91L132 174L201 68" stroke="url(#meme)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M166 69L216 43L209 101Z" fill="#2FD8FF"/>
+
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#bg)"/>
+  <rect x="9" y="9" width="238" height="238" rx="57" stroke="#1E62AA" stroke-opacity=".55" stroke-width="2"/>
+
+  <path d="M43 178C57 149 68 108 83 89C96 73 110 82 123 105L139 137"
+        stroke="#087EFF" stroke-opacity=".24" stroke-width="36" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M43 178C57 149 68 108 83 89C96 73 110 82 123 105L139 137"
+        stroke="url(#left)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M104 86C118 100 126 124 139 143C150 159 161 153 173 133"
+        stroke="url(#fold)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M162 148C176 137 184 119 192 102L211 69"
+        stroke="url(#rise)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M188 66L226 48C230 46 233 49 232 54L230 94L213 77Z" fill="#22E3F3"/>
+  <path d="M48 164C61 137 69 105 84 91" stroke="white" stroke-opacity=".15" stroke-width="3" stroke-linecap="round"/>
 </svg>
