@@ -106,6 +106,8 @@ class LiveOrderReconciler:
                 "CANCELED",
                 "REJECTED",
                 "REPLACED",
+                "CANCEL_REJECTED",
+                "REPLACE_REJECTED",
             }:
                 status = "CONFIRMED"
             else:
