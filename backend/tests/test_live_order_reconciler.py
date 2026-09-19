@@ -113,3 +113,15 @@ def test_reconciler_keeps_unknown_toss_order_when_not_found(
     assert result.updated == 0
     assert result.unresolved == 1
     assert result.records[0].status == "UNKNOWN"
+
+
+
+def test_toss_status_mapping_is_conservative():
+    reconciler = LiveOrderReconciler()
+
+    assert reconciler._toss_journal_status("FILLED") == "CONFIRMED"
+    assert reconciler._toss_journal_status("CANCELED") == "CONFIRMED"
+    assert reconciler._toss_journal_status("REJECTED") == "REJECTED"
+    assert reconciler._toss_journal_status("PARTIAL_FILLED") == "SUBMITTED"
+    assert reconciler._toss_journal_status("CANCEL_REJECTED") == "UNKNOWN"
+    assert reconciler._toss_journal_status("REPLACED") == "UNKNOWN"
