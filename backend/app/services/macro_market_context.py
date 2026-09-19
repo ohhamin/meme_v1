@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -94,6 +94,7 @@ class MacroMarketContextService:
             if previous_value not in {None, 0}
             else None
         )
+        freshness = self._observation_freshness(latest_date)
         return {
             "series_id": series_id,
             "value": latest_value,
@@ -101,6 +102,16 @@ class MacroMarketContextService:
             "change_pct": round(change_pct, 4) if change_pct is not None else None,
             "observation_date": latest_date,
             "unit": unit,
+            **freshness,
+        }
+
+    def _observation_freshness(self, observation_date: str) -> dict:
+        observed = date.fromisoformat(observation_date)
+        age_days = max(0, (datetime.now(timezone.utc).date() - observed).days)
+        max_days = max(1, (self.config.macro_context_max_age_hours + 23) // 24)
+        return {
+            "age_days": age_days,
+            "status": "stale" if age_days > max_days else "ok",
         }
 
     def read(self) -> dict:
@@ -114,12 +125,18 @@ class MacroMarketContextService:
             age_hours = (
                 datetime.now(timezone.utc) - collected.astimezone(timezone.utc)
             ).total_seconds() / 3600
+            payload["age_hours"] = round(max(0.0, age_hours), 2)
+            indicators = payload.get("indicators", {})
+            for indicator in indicators.values():
+                observed = indicator.get("observation_date")
+                if observed:
+                    indicator.update(self._observation_freshness(observed))
+            statuses = [item.get("status") for item in indicators.values()]
             payload["status"] = (
                 "stale"
-                if age_hours > self.config.macro_context_max_age_hours
+                if age_hours > self.config.macro_context_max_age_hours or "stale" in statuses
                 else "ok"
             )
-            payload["age_hours"] = round(max(0.0, age_hours), 2)
             return payload
         except (OSError, ValueError, KeyError, json.JSONDecodeError):
             return {"status": "unavailable", "reason": "invalid_cache"}
