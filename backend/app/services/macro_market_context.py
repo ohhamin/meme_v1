@@ -6,6 +6,7 @@ import httpx
 
 from backend.app.core.config import get_settings
 from backend.app.services.audit import AuditLogger
+from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter, UpbitMarketDataError
 
 
 class MacroMarketContextService:
@@ -22,23 +23,33 @@ class MacroMarketContextService:
     def __init__(self):
         self.config = get_settings()
         self.audit = AuditLogger()
+        self.upbit = UpbitMarketDataAdapter()
         self.path: Path = self.config.data_path / "context" / "market_context.json"
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     async def refresh(self) -> dict:
-        if not self.config.fred_api_key:
-            return self.read()
-
         indicators: dict[str, dict] = {}
         failures: list[str] = []
         async with httpx.AsyncClient(timeout=10.0) as client:
-            for name, spec in self.SERIES.items():
-                try:
-                    indicators[name] = await self._fetch_series(
-                        client, spec["series_id"], spec["unit"]
-                    )
-                except (httpx.HTTPError, ValueError, KeyError) as exc:
-                    failures.append(f"{name}:{type(exc).__name__}")
+            if self.config.fred_api_key:
+                for name, spec in self.SERIES.items():
+                    try:
+                        indicators[name] = await self._fetch_series(client, spec["series_id"], spec["unit"])
+                    except (httpx.HTTPError, ValueError, KeyError) as exc:
+                        failures.append(f"{name}:{type(exc).__name__}")
+            if self.config.krx_api_key:
+                for name, endpoint, index_name in (("kospi", "kospi_dd_trd", "코스피"), ("kosdaq", "kosdaq_dd_trd", "코스닥")):
+                    try:
+                        indicators[name] = await self._fetch_krx_index(client, endpoint, index_name)
+                    except (httpx.HTTPError, ValueError, KeyError) as exc:
+                        failures.append(f"{name}:{type(exc).__name__}")
+        try:
+            quotes = await self.upbit.quotes(["KRW-BTC", "KRW-ETH"])
+            for quote in quotes:
+                key = "btc_krw" if quote.market == "KRW-BTC" else "eth_krw"
+                indicators[key] = {"source": "Upbit", "symbol": quote.market, "value": float(quote.trade_price), "change_pct": round(float(quote.signed_change_rate) * 100, 4) if quote.signed_change_rate is not None else None, "observed_at": quote.timestamp.isoformat(), "age_seconds": quote.data_age_seconds, "unit": "krw", "status": "ok" if quote.data_age_seconds <= 300 else "stale"}
+        except (UpbitMarketDataError, ValueError) as exc:
+            failures.append(f"upbit_btc_eth:{type(exc).__name__}")
 
         if not indicators:
             self.audit.write("system", {"event": "macro_context_refresh_failed", "failures": failures})
@@ -46,7 +57,7 @@ class MacroMarketContextService:
 
         payload = {
             "collected_at": datetime.now(timezone.utc).isoformat(),
-            "source": "FRED",
+            "source": "structured_market_data",
             "indicators": indicators,
             "partial_failures": failures,
         }
@@ -63,6 +74,21 @@ class MacroMarketContextService:
             },
         )
         return payload
+
+    async def _fetch_krx_index(self, client: httpx.AsyncClient, endpoint: str, index_name: str) -> dict:
+        today = datetime.now(timezone.utc).date()
+        for offset in range(0, 8):
+            target = date.fromordinal(today.toordinal() - offset)
+            response = await client.get(f"{self.config.krx_api_base_url}/idx/{endpoint}", params={"basDd": target.strftime("%Y%m%d")}, headers={"AUTH_KEY": self.config.krx_api_key}, timeout=self.config.krx_http_timeout_seconds)
+            response.raise_for_status()
+            rows = response.json().get("OutBlock_1", [])
+            row = next((item for item in rows if str(item.get("IDX_NM") or "").replace(" ", "") == index_name), None)
+            if row is None:
+                continue
+            raw_date = str(row["BAS_DD"])
+            observed = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
+            return {"source": "KRX", "value": float(str(row["CLSPRC_IDX"]).replace(",", "")), "change": float(str(row["CMPPREVDD_IDX"]).replace(",", "")), "change_pct": float(str(row["FLUC_RT"]).replace(",", "")), "observation_date": observed, "unit": "index", **self._observation_freshness(observed)}
+        raise ValueError(f"No recent KRX data for {index_name}")
 
     async def _fetch_series(
         self, client: httpx.AsyncClient, series_id: str, unit: str
