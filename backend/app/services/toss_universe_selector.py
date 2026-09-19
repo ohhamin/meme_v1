@@ -6,6 +6,7 @@ from statistics import fmean, pstdev
 from zoneinfo import ZoneInfo
 
 from backend.app.brokers.toss_market_data import TossMarketDataAdapter
+from backend.app.core.config import get_settings
 from backend.app.services.toss_universe import TossUniverseService
 
 
@@ -32,7 +33,7 @@ class TossUniverseSelector:
     ):
         self.market_data = market_data or TossMarketDataAdapter()
         self.universe = universe or TossUniverseService()
-        self.config = self.market_data.client.config
+        self.config = get_settings()
         self.tz = ZoneInfo(self.config.app_timezone)
         self.state_path: Path = (
             self.config.data_path / "state" / "toss_universe_selector.json"
