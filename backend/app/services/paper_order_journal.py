@@ -29,6 +29,7 @@ class PaperOrderJournal:
         fee: Decimal,
         source: str,
         created_at: datetime,
+        session_id: str | None = None,
         realized_pnl: Decimal | None = None,
         entry_score: Decimal | None = None,
         realized_return_pct: Decimal | None = None,
@@ -46,6 +47,7 @@ class PaperOrderJournal:
             "fee": str(fee),
             "source": source,
             "created_at": created_at.isoformat(),
+            "session_id": session_id,
             "realized_pnl": (
                 str(realized_pnl)
                 if realized_pnl is not None
@@ -77,7 +79,9 @@ class PaperOrderJournal:
         self,
         *,
         limit: int = 50,
-        days: int = 30,
+        days: int = 7,
+        market: str | None = None,
+        session_id: str | None = None,
     ) -> list[dict]:
         cutoff = datetime.now(self.tz).date() - timedelta(
             days=max(1, days) - 1
@@ -105,6 +109,10 @@ class PaperOrderJournal:
                 except json.JSONDecodeError:
                     continue
                 if isinstance(raw, dict):
+                    if market is not None and raw.get("market") != market:
+                        continue
+                    if session_id is not None and raw.get("session_id") != session_id:
+                        continue
                     records.append(raw)
                     if len(records) >= limit:
                         return records
