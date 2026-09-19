@@ -5,6 +5,7 @@ from backend.app.core.config import get_settings
 from backend.app.services.file_store import DailyMarkdownStore
 from backend.app.services.live_order_journal import LiveOrderJournal
 from backend.app.services.paper_broker import PaperBroker
+from backend.app.services.cycle_metrics import CycleMetricsStore
 
 
 class AlgorithmMetricsService:
@@ -17,6 +18,7 @@ class AlgorithmMetricsService:
         self.config = get_settings()
         self.decisions = DailyMarkdownStore("decisions")
         self.live_orders = LiveOrderJournal()
+        self.cycle_metrics = CycleMetricsStore()
 
     def build(self) -> dict:
         action_counts: Counter[str] = Counter()
@@ -124,7 +126,69 @@ class AlgorithmMetricsService:
                     self.live_orders.unresolved(limit=500)
                 ),
             },
+            "performance": self._performance_summary(),
         }
+
+    def _performance_summary(self) -> dict:
+        records = self.cycle_metrics.recent(limit_days=7)
+        result: dict[str, dict] = {}
+
+        for market in ("stock", "crypto"):
+            series: list[float] = []
+            for record in records:
+                accounts = record.get("accounts")
+                if not isinstance(accounts, dict):
+                    continue
+                account = accounts.get(market)
+                if not isinstance(account, dict):
+                    continue
+                try:
+                    equity = float(account.get("equity"))
+                except (TypeError, ValueError):
+                    continue
+                if equity > 0:
+                    series.append(equity)
+
+            if not series:
+                result[market] = {
+                    "samples": 0,
+                    "change_pct": None,
+                    "max_drawdown_pct": None,
+                }
+                continue
+
+            start = series[0]
+            end = series[-1]
+            change_pct = (
+                (end - start) / start * 100
+                if start > 0
+                else 0.0
+            )
+
+            peak = series[0]
+            max_drawdown = 0.0
+            for value in series:
+                peak = max(peak, value)
+                if peak > 0:
+                    drawdown = (
+                        (value - peak)
+                        / peak
+                        * 100
+                    )
+                    max_drawdown = min(
+                        max_drawdown,
+                        drawdown,
+                    )
+
+            result[market] = {
+                "samples": len(series),
+                "start_equity": str(start),
+                "end_equity": str(end),
+                "change_pct": round(change_pct, 4),
+                "max_drawdown_pct": round(max_drawdown, 4),
+            }
+
+        return result
 
     @staticmethod
     def _paper_summary(market: str) -> dict:
