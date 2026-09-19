@@ -278,6 +278,9 @@ class _MarketScreenState extends State<MarketScreen> {
       );
       var selectionMode =
           status['selection_mode']?.toString() ?? 'manual';
+      var ranking = (status['ranking'] as List<dynamic>? ?? <dynamic>[])
+          .map((item) => (item as Map).cast<String, dynamic>())
+          .toList();
       var autoRunning = false;
 
       final saved = await showModalBottomSheet<bool>(
@@ -369,6 +372,17 @@ class _MarketScreenState extends State<MarketScreen> {
                                           .autoSelectTossUniverse(limit: 15);
                                       controller.text = symbols.join(', ');
                                       selectionMode = 'auto';
+                                      final refreshed = await ApiClient.instance
+                                          .getTossUniverseStatus();
+                                      ranking = (
+                                        refreshed['ranking'] as List<dynamic>? ??
+                                            <dynamic>[]
+                                      )
+                                          .map(
+                                            (item) => (item as Map)
+                                                .cast<String, dynamic>(),
+                                          )
+                                          .toList();
                                       if (mounted) {
                                         setState(() {
                                           _tossUniverseCount = symbols.length;
@@ -412,6 +426,17 @@ class _MarketScreenState extends State<MarketScreen> {
                             ),
                           ),
                         ),
+                        if (ranking.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: () => _showStockRanking(ranking),
+                              icon: const Icon(Icons.leaderboard_rounded),
+                              label: const Text('자동선정 점수·근거 보기'),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         TextField(
                           controller: controller,
@@ -509,6 +534,207 @@ class _MarketScreenState extends State<MarketScreen> {
         SnackBar(content: Text(e.toString())),
       );
     }
+  }
+  Future<void> _showStockRanking(
+    List<Map<String, dynamic>> ranking,
+  ) async {
+    final selected = ranking
+        .where((item) => item['selected'] == true)
+        .toList();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.82,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '자동선정 Top ${selected.length}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      Text(
+                        '후보 점수 ≠ 매수 점수',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '유동성 45% · 20일 추세 20% · 5일 추세 10% · '
+                    '거래활성도 15% · 변동성 안정성 10%',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+                    itemCount: selected.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = selected[index];
+                      final components = (
+                        item['score_components'] as Map? ??
+                            <dynamic, dynamic>{}
+                      ).cast<String, dynamic>();
+                      final score =
+                          num.tryParse(item['score']?.toString() ?? '0') ?? 0;
+                      final turnover = num.tryParse(
+                            item['avg_turnover_20d']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final return5 = num.tryParse(
+                            item['return_5d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final return20 = num.tryParse(
+                            item['return_20d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final volatility = num.tryParse(
+                            item['volatility_20d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final penalty =
+                          int.tryParse(item['penalty_total']?.toString() ?? '0') ??
+                              0;
+                      final money = NumberFormat.compact(locale: 'ko_KR');
+
+                      return AppSurface(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name']?.toString() ??
+                                            item['symbol']?.toString() ??
+                                            '-',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                      Text(
+                                        item['symbol']?.toString() ?? '',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  score.toStringAsFixed(1),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              item['selection_reason']?.toString() ?? '',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 8,
+                              children: [
+                                _SelectorMetric(
+                                  label: '유동성',
+                                  value: components['liquidity'],
+                                ),
+                                _SelectorMetric(
+                                  label: '20일추세',
+                                  value: components['momentum_20d'],
+                                ),
+                                _SelectorMetric(
+                                  label: '5일추세',
+                                  value: components['momentum_5d'],
+                                ),
+                                _SelectorMetric(
+                                  label: '거래활성',
+                                  value: components['activity'],
+                                ),
+                                _SelectorMetric(
+                                  label: '안정성',
+                                  value: components['stability'],
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Text(
+                              '20일 평균 거래대금 ${money.format(turnover)}원'
+                              ' · 5일 ${return5 >= 0 ? '+' : ''}${return5.toStringAsFixed(1)}%'
+                              ' · 20일 ${return20 >= 0 ? '+' : ''}${return20.toStringAsFixed(1)}%'
+                              ' · 변동성 ${volatility.toStringAsFixed(1)}%'
+                              '${penalty > 0 ? ' · 감점 -$penalty' : ''}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
   Future<void> _openUpbitUniverse() async {
     try {
@@ -870,6 +1096,32 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 }
 
+
+class _SelectorMetric extends StatelessWidget {
+  const _SelectorMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final dynamic value;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = num.tryParse(value?.toString() ?? '0') ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.chip,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label ${score.toStringAsFixed(0)}',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+}
 
 class _PerformanceSummary extends StatelessWidget {
   const _PerformanceSummary({
