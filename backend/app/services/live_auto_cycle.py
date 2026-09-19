@@ -26,6 +26,7 @@ from backend.app.services.position_sizer import PositionSizer
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.toss_universe import TossUniverseService
+from backend.app.services.toss_universe_selector import TossUniverseSelector
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.cycle_metrics import CycleMetricsStore
 from backend.app.services.decision_universe import merge_decision_universe
@@ -48,6 +49,10 @@ class LiveAutoCycleService:
         self.toss_market = TossMarketDataAdapter()
         self.upbit_universe = UpbitUniverseService()
         self.toss_universe = TossUniverseService()
+        self.toss_universe_selector = TossUniverseSelector(
+            market_data=self.toss_market,
+            universe=self.toss_universe,
+        )
         self.audit = AuditLogger()
         self.metrics = CycleMetricsStore()
         self.auto_activity = AutoTradeActivityService()
@@ -107,6 +112,7 @@ class LiveAutoCycleService:
 
         if self.config.toss_live_order_enabled:
             try:
+                await self.toss_universe_selector.refresh_if_auto()
                 portfolio = await self.portfolios.toss()
                 symbols = merge_decision_universe(
                     self.toss_universe.get(),
