@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from backend.app.core.security import require_api_token
 from backend.app.models.schemas import (
     DailyMarkdown,
+    LatestDecisionResponse,
     DecisionPreviewRequest,
     DecisionPreviewResponse,
     PaperCycleRequest,
@@ -14,6 +15,7 @@ from backend.app.services.decision_cycle import DecisionCycleService
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 from backend.app.services.live_auto_cycle import LiveAutoCycleService
+from backend.app.services.latest_decision import LatestDecisionService
 
 
 router = APIRouter(
@@ -26,6 +28,11 @@ router = APIRouter(
 @router.get("/dates")
 async def dates():
     return {"dates": DailyMarkdownStore("decisions").available_dates(limit=7)}
+
+
+@router.get("/latest", response_model=LatestDecisionResponse | None)
+async def latest():
+    return LatestDecisionService().get()
 
 
 @router.get("/{day}", response_model=DailyMarkdown)

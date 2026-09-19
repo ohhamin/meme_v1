@@ -130,6 +130,14 @@ class ApiClient {
     return data['markdown']?.toString() ?? '';
   }
 
+  Future<Map<String, dynamic>?> getLatestDecision() async {
+    final data = await _request('GET', '/decisions/latest');
+    if (data == null) {
+      return null;
+    }
+    return (data as Map).cast<String, dynamic>();
+  }
+
   Future<String> getCurrentAlgorithm() async {
     final data =
         await _request('GET', '/algorithm/current') as Map<String, dynamic>;
