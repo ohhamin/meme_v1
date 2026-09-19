@@ -32,14 +32,6 @@ class LiveRiskSnapshotService:
 
     async def total_open_positions(self) -> int:
         upbit = await self.upbit_accounts.balances()
-        crypto_count = sum(
-            1
-            for asset in upbit.assets
-            if asset.currency != "KRW"
-            and asset.unit_currency == "KRW"
-            and asset.total > 0
-        )
-
         toss = await self.toss_accounts.status()
         held_keys = {
             (
