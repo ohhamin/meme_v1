@@ -18,6 +18,7 @@ class DecisionScreen extends StatefulWidget {
 class _DecisionScreenState extends State<DecisionScreen> {
   DateTime _selected = DateTime.now();
   late Future<String> _future;
+  late Future<Map<String, dynamic>?> _latestFuture;
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _DecisionScreenState extends State<DecisionScreen> {
 
   void _load() {
     _future = ApiClient.instance.getDailyMarkdown('decisions', _selected);
+    _latestFuture = ApiClient.instance.getLatestDecision();
   }
 
   void _changeDate(DateTime value) {
@@ -38,7 +40,10 @@ class _DecisionScreenState extends State<DecisionScreen> {
 
   Future<void> _refresh() async {
     setState(_load);
-    await _future;
+    await Future.wait([
+      _future,
+      _latestFuture,
+    ]);
   }
 
   @override
@@ -99,10 +104,23 @@ class _DecisionScreenState extends State<DecisionScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return _LatestCycleSummary(
-                        time: latestTime,
-                        cards: latestCards,
-                        summary: latestSummary,
+                      return FutureBuilder<Map<String, dynamic>?>(
+                        future: _latestFuture,
+                        builder: (context, latestSnapshot) {
+                          final latest = latestSnapshot.data;
+                          final structuredCards = latest == null
+                              ? <_DecisionCardData>[]
+                              : _DecisionParser.fromLatestApi(latest);
+                          return _LatestCycleSummary(
+                            time: latest?['time']?.toString() ?? latestTime,
+                            cards: structuredCards.isNotEmpty
+                                ? structuredCards
+                                : latestCards,
+                            summary:
+                                latest?['cycle_summary']?.toString() ??
+                                    latestSummary,
+                          );
+                        },
                       );
                     }
                     return _DecisionCard(data: displayCards[index - 1]);
@@ -213,6 +231,30 @@ class _DecisionCardData {
 
 
 class _DecisionParser {
+  static List<_DecisionCardData> fromLatestApi(
+    Map<String, dynamic> data,
+  ) {
+    final rawItems = data['items'] as List<dynamic>? ?? <dynamic>[];
+    return rawItems.map((raw) {
+      final item = (raw as Map).cast<String, dynamic>();
+      return _DecisionCardData(
+        time: item['time']?.toString() ?? '',
+        symbol: item['symbol']?.toString() ?? '',
+        action: item['action']?.toString() ?? 'HOLD',
+        score: item['score']?.toString() ?? '',
+        reason: item['reason']?.toString() ?? '',
+        risk: item['risk']?.toString() ?? '',
+        blockReason: item['block_reason']?.toString(),
+        nextCheck: item['next_check']?.toString(),
+        orderSide: item['order_side']?.toString(),
+        orderQuantity: item['order_quantity']?.toString(),
+        orderNotional: item['order_notional']?.toString(),
+        executionMode:
+            item['execution_mode']?.toString().toUpperCase() ?? 'PAPER',
+      );
+    }).where((item) => item.symbol.isNotEmpty).toList();
+  }
+
   static String latestSummary(String markdown) {
     const prefix = '> Cycle Summary:';
     String summary = '';
