@@ -1,11 +1,11 @@
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 from backend.app.services.data_retention import DataRetentionService
 
 
 def test_retention_deletes_only_old_date_files(tmp_path, monkeypatch):
     service = DataRetentionService()
-    service.config.data_path = tmp_path
+    service.config.data_dir = str(tmp_path)
     service.config.data_retention_days = 7
     service.audit.write = lambda *args, **kwargs: None
 
@@ -16,7 +16,7 @@ def test_retention_deletes_only_old_date_files(tmp_path, monkeypatch):
     decisions.mkdir()
     context.mkdir()
 
-    today = date.today()
+    today = datetime.now(service.tz).date()
     old = today - timedelta(days=8)
     keep = today - timedelta(days=6)
 
