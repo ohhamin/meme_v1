@@ -1,4 +1,3 @@
-from math import sqrt
 from statistics import fmean, pstdev
 
 
