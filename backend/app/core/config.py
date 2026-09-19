@@ -30,6 +30,7 @@ class AppSettings(BaseSettings):
     risk_max_data_age_seconds: int = 300
     risk_min_cash_reserve_pct: float = 10.0
     risk_max_open_positions: int = 10
+    risk_auto_symbol_cooldown_minutes: int = 60
 
     # Deterministic position sizing. The sizer never overrides Risk Guard.
     position_buy_min_score: int = 60
