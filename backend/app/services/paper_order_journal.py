@@ -30,6 +30,8 @@ class PaperOrderJournal:
         source: str,
         created_at: datetime,
         realized_pnl: Decimal | None = None,
+        entry_score: Decimal | None = None,
+        realized_return_pct: Decimal | None = None,
     ) -> Path:
         day = created_at.astimezone(self.tz).date().isoformat()
         path = self.base_dir / f"{day}.jsonl"
@@ -47,6 +49,16 @@ class PaperOrderJournal:
             "realized_pnl": (
                 str(realized_pnl)
                 if realized_pnl is not None
+                else None
+            ),
+            "entry_score": (
+                str(entry_score)
+                if entry_score is not None
+                else None
+            ),
+            "realized_return_pct": (
+                str(realized_return_pct)
+                if realized_return_pct is not None
                 else None
             ),
         }
