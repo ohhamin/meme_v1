@@ -29,7 +29,13 @@ class RuntimeSettingsService:
             raw = json.loads(
                 self.path.read_text(encoding="utf-8")
             )
+            migrated = False
+            if "scheduler_enabled" not in raw:
+                raw["scheduler_enabled"] = self.config.scheduler_enabled
+                migrated = True
             state = RuntimeSettings(**raw)
+            if migrated:
+                self._write(state)
         except (
             OSError,
             json.JSONDecodeError,
