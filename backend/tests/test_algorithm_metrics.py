@@ -53,6 +53,24 @@ def test_algorithm_metrics_summarizes_decisions_and_churn(monkeypatch):
         },
     )
     monkeypatch.setattr(
+        service.paper_orders,
+        "recent",
+        lambda limit=1000, days=30: [
+            {
+                "side": "sell",
+                "entry_score": "65",
+                "realized_pnl": "-1000",
+                "realized_return_pct": "-1.5",
+            },
+            {
+                "side": "sell",
+                "entry_score": "75",
+                "realized_pnl": "2000",
+                "realized_return_pct": "2.0",
+            },
+        ],
+    )
+    monkeypatch.setattr(
         service.live_orders,
         "list_records",
         lambda limit=500: [
@@ -81,3 +99,18 @@ def test_algorithm_metrics_summarizes_decisions_and_churn(monkeypatch):
     assert result["direction_reversals"][0]["count"] == 1
     assert result["top_block_reasons"][0]["count"] == 1
     assert result["live_order_journal"]["unresolved"] == 1
+
+
+    assert result["score_performance_30d"]["total_closed_trades"] == 2
+    assert (
+        result["score_performance_30d"]["buckets"]["60-69"]["closed_trades"]
+        == 1
+    )
+    assert (
+        result["score_performance_30d"]["buckets"]["70-79"]["win_rate_pct"]
+        == 100.0
+    )
+    assert (
+        result["score_performance_30d"]["buckets"]["60-69"]["sample_sufficient"]
+        is False
+    )

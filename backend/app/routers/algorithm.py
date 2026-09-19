@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, status
 from backend.app.core.security import require_api_token
 from backend.app.models.schemas import AlgorithmProposalCreate
 from backend.app.services.algorithm import AlgorithmService
+from backend.app.services.algorithm_review import AlgorithmReviewService
 
 
 router = APIRouter(
@@ -20,6 +21,15 @@ async def current():
 @router.get("/proposals")
 async def proposals():
     return {"items": AlgorithmService().list_pending()}
+
+
+@router.post("/review")
+async def review_now():
+    created = await AlgorithmReviewService().review()
+    return {
+        "status": "completed",
+        "proposal_created": created,
+    }
 
 
 @router.post("/proposals", status_code=status.HTTP_201_CREATED)
