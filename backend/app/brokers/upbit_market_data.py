@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Iterable
@@ -10,6 +11,7 @@ from backend.app.models.schemas import (
     UpbitMarketInfo,
     UpbitQuote,
 )
+from backend.app.services.technical_features import TechnicalFeatureService
 
 
 class UpbitMarketDataError(RuntimeError):
@@ -130,22 +132,108 @@ class UpbitMarketDataAdapter:
             if market in by_market
         ]
 
+    async def candles(
+        self,
+        market: str,
+        *,
+        unit: int = 60,
+        count: int = 25,
+    ) -> list[dict]:
+        normalized = self._normalize_markets([market])[0]
+        if unit not in {1, 3, 5, 10, 15, 30, 60, 240}:
+            raise ValueError("Unsupported Upbit minute candle unit.")
+
+        raw = await self._get(
+            f"/candles/minutes/{unit}",
+            params={
+                "market": normalized,
+                "count": str(max(2, min(count, 200))),
+            },
+        )
+
+        candles: list[dict] = []
+        for item in raw:
+            try:
+                close = float(item.get("trade_price") or 0)
+                open_price = float(item.get("opening_price") or 0)
+                high = float(item.get("high_price") or 0)
+                low = float(item.get("low_price") or 0)
+                volume = float(
+                    item.get("candle_acc_trade_volume") or 0
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if close <= 0:
+                continue
+
+            candles.append(
+                {
+                    "timestamp": str(
+                        item.get("candle_date_time_utc")
+                        or item.get("timestamp")
+                        or ""
+                    ),
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume,
+                }
+            )
+
+        return candles
+
     async def snapshots(
         self,
         markets: Iterable[str],
+        *,
+        with_features: bool = False,
     ) -> list[MarketInstrumentSnapshot]:
         quotes = await self.quotes(markets)
-        return [
-            MarketInstrumentSnapshot(
-                market="crypto",
-                symbol=quote.market,
-                name=quote.korean_name or quote.market,
-                price=quote.trade_price,
-                data_age_seconds=quote.data_age_seconds,
-                market_open=True,
+        snapshots: list[MarketInstrumentSnapshot] = []
+
+        for index, quote in enumerate(quotes):
+            features: dict[str, float | int | str | None] = {}
+            if with_features:
+                try:
+                    candles = await self.candles(
+                        quote.market,
+                        unit=60,
+                        count=25,
+                    )
+                    features = TechnicalFeatureService.compute(
+                        candles=candles,
+                        current_price=float(quote.trade_price),
+                        short_period=1,
+                        medium_period=6,
+                        long_period=24,
+                        interval_label="60m",
+                    )
+                except Exception:
+                    features = {
+                        "features_available": 0,
+                        "feature_interval": "60m",
+                        "feature_samples": 0,
+                    }
+
+                # Public candle group is currently limited per IP.
+                if index < len(quotes) - 1:
+                    await asyncio.sleep(0.11)
+
+            snapshots.append(
+                MarketInstrumentSnapshot(
+                    market="crypto",
+                    symbol=quote.market,
+                    name=quote.korean_name or quote.market,
+                    price=quote.trade_price,
+                    data_age_seconds=quote.data_age_seconds,
+                    market_open=True,
+                    features=features,
+                )
             )
-            for quote in quotes
-        ]
+
+        return snapshots
 
     async def _market_names(self) -> dict[str, UpbitMarketInfo]:
         if self._market_cache is None:
