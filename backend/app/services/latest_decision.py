@@ -13,29 +13,79 @@ class LatestDecisionService:
     def __init__(self):
         self.store = DailyMarkdownStore("decisions")
 
-    def get(self) -> LatestDecisionResponse | None:
-        dates = self.store.available_dates(limit=1)
-        if not dates:
-            return None
+    def get(self, mode: str | None = None) -> LatestDecisionResponse | None:
+        wanted = mode.upper() if mode else None
+        for day in self.store.available_dates(limit=7):
+            markdown = self.store.read(day)
+            cycles = self._cycles(markdown)
+            if wanted is not None:
+                cycles = [
+                    cycle for cycle in cycles
+                    if cycle["execution_mode"] == wanted
+                ]
+            if not cycles:
+                continue
+            cycle = cycles[-1]
+            items = cycle["items"]
+            return LatestDecisionResponse(
+                date=day,
+                time=cycle["time"],
+                execution_mode=cycle["execution_mode"],
+                cycle_summary=cycle["cycle_summary"],
+                buy_count=sum(1 for item in items if item.action == "BUY"),
+                sell_count=sum(1 for item in items if item.action == "SELL"),
+                hold_count=sum(1 for item in items if item.action == "HOLD"),
+                items=items,
+            )
+        return None
 
-        day = dates[0]
-        markdown = self.store.read(day)
-        cycles = self._cycles(markdown)
-        if not cycles:
-            return None
+    def filter_markdown(self, markdown: str, mode: str) -> str:
+        wanted = mode.upper()
+        lines = markdown.splitlines()
+        header: list[str] = []
+        blocks: list[list[str]] = []
+        current: list[str] | None = None
 
-        cycle = cycles[-1]
-        items = cycle["items"]
-        return LatestDecisionResponse(
-            date=day,
-            time=cycle["time"],
-            execution_mode=cycle["execution_mode"],
-            cycle_summary=cycle["cycle_summary"],
-            buy_count=sum(1 for item in items if item.action == "BUY"),
-            sell_count=sum(1 for item in items if item.action == "SELL"),
-            hold_count=sum(1 for item in items if item.action == "HOLD"),
-            items=items,
-        )
+        for line in lines:
+            if line.startswith("## ") and "Decision Cycle" in line:
+                if current is not None:
+                    blocks.append(current)
+                current = [line]
+            elif current is None:
+                header.append(line)
+            else:
+                current.append(line)
+
+        if current is not None:
+            blocks.append(current)
+
+        kept: list[str] = []
+        for block in blocks:
+            execution_mode = "PAPER"
+            for line in block:
+                stripped = line.strip()
+                if stripped.startswith("- Execution Mode:"):
+                    execution_mode = (
+                        stripped.split(":", 1)[1].strip().upper()
+                        or "PAPER"
+                    )
+                    break
+            if execution_mode == wanted:
+                kept.extend(block)
+                if kept and kept[-1] != "":
+                    kept.append("")
+
+        if not kept:
+            return ""
+        prefix = [line for line in header if line.strip()]
+        return "\n".join(prefix + [""] + kept).strip() + "\n"
+
+    def available_dates(self, mode: str, limit: int = 7) -> list[str]:
+        result: list[str] = []
+        for day in self.store.available_dates(limit=limit):
+            if self.filter_markdown(self.store.read(day), mode).strip():
+                result.append(day)
+        return result
 
     def _cycles(self, markdown: str) -> list[dict]:
         cycles: list[dict] = []
