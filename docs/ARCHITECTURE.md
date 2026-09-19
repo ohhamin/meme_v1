@@ -570,7 +570,11 @@ data/
 │     └─ cancelled/*.md
 ├─ state/
 │  ├─ settings.json
-│  └─ idempotency.json
+│  ├─ idempotency.json
+│  ├─ scheduler.json
+│  ├─ live_daily_baselines.json
+│  ├─ device_tokens.json
+│  └─ live_orders/*.json
 └─ logs/
    ├─ orders-YYYY-MM-DD.jsonl
    └─ system-YYYY-MM-DD.jsonl
@@ -646,8 +650,10 @@ BrokerAdapter
 
 - 6시간마다: 경제/시장 뉴스 수집
 - 판단: 30~120분 사이에서 **전체 Decision Cycle** 단위 adaptive scheduling
-- 서버 부팅 시: 헬스체크 + Scheduler 복구 + FCM 시작 알림
+- 서버 부팅 시: 안전 설정 검증 + 미확인 Live 주문 상태 조회 + Scheduler 다음 시각 복구
+- 5분마다: 미확인 Live 주문 상태 조회(조회만 수행, 재주문 금지)
 - 매일: 7일보다 오래된 news/decisions 파일 정리
+- 서버 시작 FCM은 환경변수로 선택 가능
 
 기본 뉴스 수집 간격은 6시간이며 `NEWS_COLLECTION_INTERVAL_HOURS=6`으로 설정한다. 수집 주기와 매매 판단 주기는 서로 독립적이다.
 
@@ -947,7 +953,11 @@ Upbit Private Read-only
   -> Live mode 코인 보유 화면
 
 Upbit Live Order
-  -> 아직 미구현 / fail-closed
+  -> /orders/test preflight
+  -> durable intent journal
+  -> POST /orders
+  -> identifier/uuid 상태 조회
+  -> 기본 비활성 / fail-closed
 ```
 
 코인 탭에서 사용자가 선택한 판단 대상은
@@ -974,7 +984,7 @@ POST /crypto/upbit/paper-run
 GET  /crypto/upbit/accounts
 ```
 
-현재 실제 주문 API는 연결하지 않는다.
+실제 주문 adapter는 구현되어 있지만 환경변수/Runtime/Kill switch의 다중 gate 기본값이 모두 차단 상태다.
 
 
 ## 20. Toss 증권 Open API
@@ -1025,7 +1035,7 @@ GET /api/v1/buying-power?currency=KRW
 
 계좌가 하나면 자동 선택한다.
 여러 계좌가 있으면 `TOSS_ACCOUNT_SEQ`를 명시해야 한다.
-Live mode 주식 탭은 이 read-only holdings를 표시하지만 실제 주문은 아직 연결하지 않는다.
+Live mode 주식 탭은 이 holdings를 표시한다. 실제 주문 adapter도 구현되어 있으나 기본 환경에서는 주문 gate가 비활성이다.
 
 ### 주식 Decision Universe
 
@@ -1069,4 +1079,160 @@ POST /stocks/toss/paper-run
 POST /decisions/market-paper-cycle
 ```
 
-실제 주문 API는 다음 단계에서 별도 adapter로 구현한다.
+실제 주문 adapter는 별도 안전 계층을 통해 연결하며 기본값에서는 실행되지 않는다.
+
+
+## 21. Live 주문 안전 계층
+
+Live 주문은 LLM 출력에서 Broker API로 바로 가지 않는다.
+
+```text
+Manual Action / LLM Decision
+          |
+          v
+    Position Sizer
+      (자동만)
+          |
+          v
+      Risk Guard
+          |
+          v
+  Broker Preflight
+          |
+          v
+Live Order Journal
+ CREATED
+   |
+ PREFLIGHTED
+   |
+ SUBMITTING
+   |
+   +---- 성공 응답 ----> SUBMITTED ----> CONFIRMED
+   |
+   +---- 명확한 거절 --> REJECTED
+   |
+   +---- timeout/5xx --> UNKNOWN
+```
+
+### 21.1 환경변수 Gate
+
+Live mode 하나만 켠다고 실제 주문이 실행되지 않는다.
+
+```text
+TRADING_ENABLED
+      +
+LIVE_MANUAL_ORDER_ENABLED 또는 LIVE_AUTO_ORDER_ENABLED
+      +
+UPBIT_LIVE_ORDER_ENABLED / TOSS_LIVE_ORDER_ENABLED
+      +
+Runtime mode=live
+      +
+Kill switch=OFF
+      |
+      v
+주문 경로 진입 가능
+```
+
+기본값은 모든 Live order gate가 false이고 Kill switch는 true다.
+
+Production 시작 시 설정 검증을 수행한다.
+
+- Production API token이 기본값/짧은 값이면 서버 시작 실패
+- Live gate인데 `TRADING_ENABLED=false`면 서버 시작 실패
+- broker Live gate인데 credential이 없으면 서버 시작 실패
+- Auto Live인데 broker gate가 하나도 없으면 서버 시작 실패
+
+### 21.2 Upbit
+
+실주문 직전 `POST /v1/orders/test`로 주문 가능 여부를 검사한다.
+Dry-run identifier와 실제 주문 identifier는 서로 분리한다.
+
+실제 주문의 `identifier`는 주문 intent마다 고유하게 생성한다.
+주문 응답이 timeout/5xx 등으로 불명확한 경우 동일 주문을 자동으로 다시 POST하지 않는다.
+
+Upbit은 identifier로 개별 주문을 조회할 수 있으므로 UNKNOWN 발생 직후와
+주기적 reconciliation에서 실제 주문 존재 여부를 조회한다.
+
+### 21.3 Toss
+
+국내주식 시장가 주문은 수량 기반으로 생성한다.
+
+사전 검증:
+
+- 계좌 선택
+- BUY: KRW 매수 가능 금액
+- SELL: 종목별 판매 가능 수량
+- 정수 주 여부
+- Live gate
+
+Toss의 `clientOrderId`는 broker 멱등성 키로 함께 전달한다.
+단, transport 결과가 불명확하다고 주문 POST를 자동 재시도하지 않고,
+orderId를 확보한 주문만 주문 상세 API로 상태를 조회한다.
+
+1억원 이상 주문은 Toss API 자체의 착오주문 확인 플래그가 필요하므로
+`TOSS_CONFIRM_HIGH_VALUE_ORDERS=true`를 별도로 켜야 한다.
+
+### 21.4 미확인 주문 중복 방지
+
+`SUBMITTING / SUBMITTED / UNKNOWN` 주문이 존재하는 broker+symbol에는
+새 Live 주문을 생성하지 않는다.
+
+이는 다음 Decision Cycle에서 같은 종목을 다시 BUY/SELL로 판단하더라도
+기존 주문 결과가 확인되기 전에 중복 주문이 나가는 것을 막는다.
+
+### 21.5 서버 재시작
+
+Live 주문 상태는 다음에 저장한다.
+
+```text
+data/state/live_orders/{intent_id}.json
+```
+
+Broker mutation 전에 파일을 먼저 기록한다.
+서버 시작 시 unresolved 주문을 조회하고 상태만 복구한다.
+이 startup recovery는 신규 주문을 생성하지 않는다.
+
+### 21.6 Adaptive Scheduler 복구
+
+다음 판단 시각은:
+
+```text
+data/state/scheduler.json
+```
+
+에 저장한다.
+
+서버가 계획된 판단 시각 전에 재시작되면 기존 다음 시각을 복구한다.
+이미 시각이 지나간 경우에는 기본 판단 간격으로 새 사이클을 예약한다.
+
+### 21.7 Runtime 데이터 보존
+
+`news/YYYY-MM-DD.md`와 `decisions/YYYY-MM-DD.md`는
+기본 `DATA_RETENTION_DAYS=7` 정책으로 매일 정리한다.
+정리 후 rolling LLM context도 다시 생성한다.
+
+Live order journal과 감사 로그는 이 7일 Markdown 정리 대상에 포함하지 않는다.
+
+## 22. 배포 원칙
+
+초기 운영은 AWS EC2 한 대 + Elastic IP + 단일 FastAPI process다.
+
+```text
+Flutter
+  |
+ HTTPS
+  v
+Reverse Proxy
+  |
+127.0.0.1:8000
+  v
+FastAPI / Uvicorn (1 worker)
+  |
+Persistent data/
+```
+
+현재 Scheduler와 JSON runtime state가 단일 프로세스를 전제로 하므로
+Uvicorn worker를 여러 개 실행하지 않는다.
+
+`deploy/`에 Docker Compose와 Nginx 예제를 둔다.
+Broker credential, OpenAI key, Firebase Service Account는 이미지/Git에 포함하지 않는다.
