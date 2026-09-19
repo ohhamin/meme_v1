@@ -60,6 +60,33 @@ class DailyMarkdown(BaseModel):
     markdown: str
 
 
+class LatestDecisionItem(BaseModel):
+    time: str
+    market: str | None = None
+    symbol: str
+    action: Literal["BUY", "SELL", "HOLD"]
+    score: int = Field(ge=0, le=100)
+    reason: str
+    risk: str | None = None
+    block_reason: str | None = None
+    next_check: str | None = None
+    order_side: str | None = None
+    order_quantity: str | None = None
+    order_notional: str | None = None
+    execution_mode: str = "PAPER"
+
+
+class LatestDecisionResponse(BaseModel):
+    date: str
+    time: str
+    execution_mode: str
+    cycle_summary: str = ""
+    buy_count: int = Field(default=0, ge=0)
+    sell_count: int = Field(default=0, ge=0)
+    hold_count: int = Field(default=0, ge=0)
+    items: list[LatestDecisionItem] = Field(default_factory=list)
+
+
 class AlgorithmProposalCreate(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     reason: str = Field(min_length=1, max_length=2000)
