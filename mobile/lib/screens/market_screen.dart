@@ -264,12 +264,21 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _openTossUniverse() async {
     try {
-      final current = await ApiClient.instance.getTossUniverse();
+      final results = await Future.wait([
+        ApiClient.instance.getTossUniverse(),
+        ApiClient.instance.getTossUniverseStatus(),
+      ]);
       if (!mounted) return;
 
+      final current = results[0] as List<String>;
+      final status =
+          (results[1] as Map).cast<String, dynamic>();
       final controller = TextEditingController(
         text: current.join(', '),
       );
+      var selectionMode =
+          status['selection_mode']?.toString() ?? 'manual';
+      var autoRunning = false;
 
       final saved = await showModalBottomSheet<bool>(
         context: context,
@@ -277,119 +286,212 @@ class _MarketScreenState extends State<MarketScreen> {
         backgroundColor: Colors.transparent,
         builder: (context) {
           final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-          return Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(26),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 38,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.divider,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: bottomInset),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(26),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      '주식 판단 대상',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '국내주식 6자리 종목코드를 쉼표로 입력해 주세요. '
-                      '판단 대상 수와 실제 보유 0~10종목은 별개예요.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: '005930, 000660',
-                        labelText: '종목코드',
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
+                  ),
+                  padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('취소'),
+                        Center(
+                          child: Container(
+                            width: 38,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.divider,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () async {
-                              final values = controller.text
-                                  .split(RegExp(r'[,\s]+'))
-                                  .map((value) => value.trim())
-                                  .where((value) => value.isNotEmpty)
-                                  .toSet()
-                                  .toList();
-
-                              final invalid = values.where(
-                                (value) =>
-                                    value.length != 6 ||
-                                    int.tryParse(value) == null,
-                              );
-
-                              if (invalid.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      '국내주식 종목코드는 6자리 숫자로 입력해 주세요.',
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '주식 판단 대상',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selectionMode == 'auto'
+                                    ? AppColors.primarySoft
+                                    : AppColors.chip,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                selectionMode == 'auto' ? '자동선정' : '수동',
+                                style: TextStyle(
+                                  color: selectionMode == 'auto'
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          selectionMode == 'auto'
+                              ? '유동성·추세·거래활성도·변동성을 합산해 최대 15개 후보를 자동 갱신해요.'
+                              : '국내주식 6자리 종목코드를 직접 입력할 수 있어요.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: autoRunning
+                                ? null
+                                : () async {
+                                    setSheetState(() => autoRunning = true);
+                                    try {
+                                      final symbols = await ApiClient.instance
+                                          .autoSelectTossUniverse(limit: 15);
+                                      controller.text = symbols.join(', ');
+                                      selectionMode = 'auto';
+                                      if (mounted) {
+                                        setState(() {
+                                          _tossUniverseCount = symbols.length;
+                                        });
+                                      }
+                                      setSheetState(() {});
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '자동으로 ${symbols.length}개 후보를 선정했어요.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(e.toString())),
+                                        );
+                                      }
+                                    } finally {
+                                      if (context.mounted) {
+                                        setSheetState(() => autoRunning = false);
+                                      }
+                                    }
+                                  },
+                            icon: autoRunning
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              try {
-                                final result = await ApiClient.instance
-                                    .updateTossUniverse(values);
-                                if (!context.mounted) return;
-                                Navigator.pop(context, true);
-                                if (mounted) {
-                                  setState(() {
-                                    _tossUniverseCount = result.length;
-                                  });
-                                }
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(e.toString())),
-                                );
-                              }
-                            },
-                            child: const Text('저장'),
+                                  )
+                                : const Icon(Icons.auto_awesome_rounded),
+                            label: Text(
+                              autoRunning
+                                  ? '후보 분석 중...'
+                                  : '알고리즘으로 15개 자동 선정',
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: controller,
+                          autofocus: false,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            hintText: '005930, 000660',
+                            labelText: '현재 판단 대상',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '직접 저장하면 자동선정이 해제되고 수동 모드로 전환돼요.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('닫기'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () async {
+                                  final values = controller.text
+                                      .split(RegExp(r'[,\s]+'))
+                                      .map((value) => value.trim())
+                                      .where((value) => value.isNotEmpty)
+                                      .toSet()
+                                      .toList();
+
+                                  final invalid = values.where(
+                                    (value) =>
+                                        value.length != 6 ||
+                                        int.tryParse(value) == null,
+                                  );
+                                  if (invalid.isNotEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          '국내주식 종목코드는 6자리 숫자로 입력해 주세요.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    final result = await ApiClient.instance
+                                        .updateTossUniverse(values);
+                                    if (!context.mounted) return;
+                                    Navigator.pop(context, true);
+                                    if (mounted) {
+                                      setState(() {
+                                        _tossUniverseCount = result.length;
+                                      });
+                                    }
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(e.toString())),
+                                    );
+                                  }
+                                },
+                                child: const Text('수동 저장'),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       );
@@ -398,7 +500,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
       if (saved == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('주식 판단 대상을 저장했어요.')),
+          const SnackBar(content: Text('주식 판단 대상을 수동 저장했어요.')),
         );
       }
     } catch (e) {
@@ -408,7 +510,6 @@ class _MarketScreenState extends State<MarketScreen> {
       );
     }
   }
-
   Future<void> _openUpbitUniverse() async {
     try {
       final results = await Future.wait([
