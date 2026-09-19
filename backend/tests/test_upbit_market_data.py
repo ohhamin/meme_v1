@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 
 from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter
 
@@ -143,3 +144,49 @@ def test_non_krw_market_is_rejected():
         raised = True
 
     assert raised is True
+
+
+
+def test_upbit_snapshots_include_hourly_features(monkeypatch):
+    adapter = UpbitMarketDataAdapter()
+
+    async def fake_quotes(markets):
+        return [
+            SimpleNamespace(
+                market="KRW-BTC",
+                korean_name="비트코인",
+                trade_price=Decimal("124"),
+                data_age_seconds=1,
+            )
+        ]
+
+    async def fake_candles(market, *, unit=60, count=25):
+        assert market == "KRW-BTC"
+        assert unit == 60
+        assert count == 25
+        return [
+            {
+                "timestamp": f"2026-09-18T{index:02d}:00:00",
+                "open": 99 + index,
+                "high": 101 + index,
+                "low": 98 + index,
+                "close": 100 + index,
+                "volume": 1000 + index,
+            }
+            for index in range(25)
+        ]
+
+    monkeypatch.setattr(adapter, "quotes", fake_quotes)
+    monkeypatch.setattr(adapter, "candles", fake_candles)
+
+    snapshots = asyncio.run(
+        adapter.snapshots(
+            ["KRW-BTC"],
+            with_features=True,
+        )
+    )
+
+    assert len(snapshots) == 1
+    assert snapshots[0].features["features_available"] == 1
+    assert snapshots[0].features["feature_interval"] == "60m"
+    assert snapshots[0].features["return_long_pct"] == 24.0
