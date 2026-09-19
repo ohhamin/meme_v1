@@ -63,7 +63,7 @@ class AdaptiveDecisionScheduler:
             self.scheduler.shutdown(wait=False)
 
     def schedule_news_collection(self) -> None:
-        """뉴스 수집은 전체 판단 주기와 별개로 6시간 간격으로 실행한다."""
+        """뉴스는 시작 시 즉시 1회 확인하고 이후 설정된 간격으로 수집한다."""
         self.scheduler.add_job(
             self.news_collector.run,
             trigger="interval",
@@ -72,6 +72,7 @@ class AdaptiveDecisionScheduler:
             replace_existing=True,
             coalesce=True,
             max_instances=1,
+            next_run_time=datetime.now(timezone.utc),
         )
 
     def schedule_algorithm_review(self) -> None:
