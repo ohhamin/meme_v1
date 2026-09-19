@@ -66,21 +66,27 @@ def test_buy_score_85_sizes_three_percent_of_equity():
     assert result.order_notional == Decimal("60000.00000000")
 
 
-def test_buy_below_threshold_creates_no_order():
+def test_buy_below_configured_sizing_threshold_creates_no_order():
     sizer = PositionSizer()
-    decision = SymbolDecision(
-        market="crypto",
-        symbol="BTC",
-        action="BUY",
-        score=55,
-        reason="test",
-    )
-    result = sizer.size(
-        decision=decision,
-        instrument=instrument(),
-        portfolio=portfolio(),
-    )
-    assert result.status == "NO_ORDER"
+    old_threshold = sizer.config.position_buy_min_score
+
+    try:
+        sizer.config.position_buy_min_score = 70
+        decision = SymbolDecision(
+            market="crypto",
+            symbol="BTC",
+            action="BUY",
+            score=65,
+            reason="test",
+        )
+        result = sizer.size(
+            decision=decision,
+            instrument=instrument(),
+            portfolio=portfolio(),
+        )
+        assert result.status == "NO_ORDER"
+    finally:
+        sizer.config.position_buy_min_score = old_threshold
 
 
 def test_sell_very_low_score_sells_sixty_percent():
