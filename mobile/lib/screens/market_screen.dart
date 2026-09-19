@@ -474,6 +474,17 @@ class _MarketScreenState extends State<MarketScreen> {
                             ),
                           ),
                         ],
+                        if (ranking.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: () => _showStockRanking(ranking),
+                              icon: const Icon(Icons.leaderboard_rounded),
+                              label: const Text('자동선정 점수·근거 보기'),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         TextField(
                           controller: controller,
@@ -941,6 +952,32 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 }
 
+
+class _SelectorMetric extends StatelessWidget {
+  const _SelectorMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final dynamic value;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = num.tryParse(value?.toString() ?? '0') ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.chip,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label ${score.toStringAsFixed(0)}',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+}
 
 class _PerformanceSummary extends StatelessWidget {
   const _PerformanceSummary({
