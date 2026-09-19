@@ -70,6 +70,7 @@ class PaperBroker:
             "day_start_equity": str(cash),
             "daily_order_count": 0,
             "positions": {},
+            "session_id": uuid4().hex,
         }
         self._write(state)
         self.audit.write(
@@ -179,6 +180,10 @@ class PaperBroker:
             daily_order_count=int(state["daily_order_count"]),
             positions=sorted(positions, key=lambda p: p.symbol),
         )
+
+    def session_id(self) -> str:
+        state = self._load()
+        return str(state.get("session_id") or "")
 
     def account_snapshot(self) -> dict:
         portfolio = self.portfolio()
@@ -415,6 +420,7 @@ class PaperBroker:
             fee=fee,
             source=source,
             created_at=now_dt,
+            session_id=str(state.get("session_id") or ""),
             realized_pnl=realized_delta,
             entry_score=entry_score,
             realized_return_pct=realized_return_pct,
@@ -470,6 +476,10 @@ class PaperBroker:
             state = json.loads(
                 self.path.read_text(encoding="utf-8")
             )
+
+        if not state.get("session_id"):
+            state["session_id"] = uuid4().hex
+            self._write(state)
 
         self._roll_day_if_needed(state)
         return state
