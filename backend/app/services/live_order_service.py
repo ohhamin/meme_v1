@@ -30,10 +30,9 @@ from backend.app.services.auto_trade_activity import AutoTradeActivityService
 class LiveOrderService:
     """Live-order orchestration with serialized broker mutation safety."""
 
-    _broker_locks = {
-        "upbit": asyncio.Lock(),
-        "toss": asyncio.Lock(),
-    }
+    # The max-open-position rule spans both broker accounts, so all live
+    # mutations share one process-level lock. Single-user + one-worker runtime.
+    _order_lock = asyncio.Lock()
 
     def __init__(self):
         self.runtime = RuntimeSettingsService()
@@ -67,7 +66,7 @@ class LiveOrderService:
     ) -> OrderResult:
         self._require_live_manual("toss")
 
-        async with self._broker_locks["toss"]:
+        async with self._order_lock:
             self.idempotency.ensure_new(idempotency_key)
             try:
                 snap = await self.snapshots.toss(symbol)
@@ -100,7 +99,7 @@ class LiveOrderService:
     ) -> OrderResult:
         self._require_live_manual("upbit")
 
-        async with self._broker_locks["upbit"]:
+        async with self._order_lock:
             self.idempotency.ensure_new(idempotency_key)
             try:
                 snap = await self.snapshots.upbit(symbol)
@@ -162,7 +161,7 @@ class LiveOrderService:
         broker = "upbit" if market == "crypto" else "toss"
         self._require_live_auto(broker)
 
-        async with self._broker_locks[broker]:
+        async with self._order_lock:
             try:
                 snapshot = (
                     await self.snapshots.upbit(symbol)
