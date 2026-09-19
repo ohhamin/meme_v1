@@ -34,3 +34,7 @@ mobile/ios/Runner/GoogleService-Info.plist
 
 # Firebase Admin
 firebase-adminsdk*.json
+
+# Deployment secrets
+secrets/*
+!secrets/.gitkeep
