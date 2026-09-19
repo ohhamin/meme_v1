@@ -17,6 +17,7 @@ from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.cycle_metrics import CycleMetricsStore
+from backend.app.services.auto_trade_activity import AutoTradeActivityService
 
 
 class PaperAutoCycleService:
@@ -39,6 +40,7 @@ class PaperAutoCycleService:
         self.audit = AuditLogger()
         self.push = PushService()
         self.metrics = CycleMetricsStore()
+        self.auto_activity = AutoTradeActivityService()
 
     def _portfolios(self) -> dict:
         return {
@@ -201,6 +203,13 @@ class PaperAutoCycleService:
                 data_age_seconds=instrument.data_age_seconds,
                 market_open=instrument.market_open,
                 same_cycle_duplicate=key in seen,
+                seconds_since_last_auto_order=(
+                    self.auto_activity.seconds_since_last(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                    )
+                ),
             )
             risk_result = self.risk.evaluate(intent)
             seen.add(key)
@@ -221,6 +230,12 @@ class PaperAutoCycleService:
                         decision_score=decision.score,
                         source="auto",
                         market_open=instrument.market_open,
+                    )
+                    self.auto_activity.record(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                        at=order.created_at,
                     )
                 except ValueError as exc:
                     risk_result = RiskGuardResult(
