@@ -47,3 +47,26 @@ def test_invalid_runtime_settings_fail_closed(tmp_path):
     assert state.mode == "paper"
     assert state.kill_switch is True
     assert state.live_order_allowed is False
+
+
+
+def test_entering_live_forces_kill_switch_on(tmp_path):
+    service = make_service(tmp_path)
+    service.set_kill_switch(False)
+
+    state = service.set_mode("live")
+
+    assert state.mode == "live"
+    assert state.kill_switch is True
+    assert state.live_order_allowed is False
+
+
+def test_switching_back_to_paper_keeps_kill_switch_state(tmp_path):
+    service = make_service(tmp_path)
+    live = service.set_mode("live")
+    assert live.kill_switch is True
+
+    paper = service.set_mode("paper")
+
+    assert paper.mode == "paper"
+    assert paper.kill_switch is True
