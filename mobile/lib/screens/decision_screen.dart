@@ -36,6 +36,11 @@ class _DecisionScreenState extends State<DecisionScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    setState(_load);
+    await _future;
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -68,6 +73,13 @@ class _DecisionScreenState extends State<DecisionScreen> {
 
               final markdown = snapshot.data ?? '';
               final cards = _DecisionParser.parse(markdown);
+              final latestTime =
+                  cards.isEmpty ? '' : cards.last.time;
+              final latestCards = latestTime.isEmpty
+                  ? <_DecisionCardData>[]
+                  : cards.where((item) => item.time == latestTime).toList();
+              final latestSummary =
+                  _DecisionParser.latestSummary(markdown);
 
               if (cards.isEmpty) {
                 return Padding(
@@ -78,18 +90,92 @@ class _DecisionScreenState extends State<DecisionScreen> {
                 );
               }
 
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                itemCount: cards.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  return _DecisionCard(data: cards[index]);
-                },
+              final displayCards = cards.reversed.toList();
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  itemCount: displayCards.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _LatestCycleSummary(
+                        time: latestTime,
+                        cards: latestCards,
+                        summary: latestSummary,
+                      );
+                    }
+                    return _DecisionCard(data: displayCards[index - 1]);
+                  },
+                ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _LatestCycleSummary extends StatelessWidget {
+  const _LatestCycleSummary({
+    required this.time,
+    required this.cards,
+    required this.summary,
+  });
+
+  final String time;
+  final List<_DecisionCardData> cards;
+  final String summary;
+
+  @override
+  Widget build(BuildContext context) {
+    int count(String action) => cards
+        .where((item) => item.action.toUpperCase() == action)
+        .length;
+
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '최근 판단 1회',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              Text(
+                time.isEmpty ? '-' : time,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _Metric(label: 'BUY', value: count('BUY').toString())),
+              Expanded(child: _Metric(label: 'HOLD', value: count('HOLD').toString())),
+              Expanded(child: _Metric(label: 'SELL', value: count('SELL').toString())),
+            ],
+          ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(),
+            const SizedBox(height: 12),
+            Text('사이클 요약', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 6),
+            Text(summary, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            '아래에는 최신 판단부터 표시돼요. 아래로 당겨 새로고침할 수 있어요.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -127,6 +213,18 @@ class _DecisionCardData {
 
 
 class _DecisionParser {
+  static String latestSummary(String markdown) {
+    const prefix = '> Cycle Summary:';
+    String summary = '';
+    for (final raw in markdown.split('\n')) {
+      final line = raw.trim();
+      if (line.startsWith(prefix)) {
+        summary = line.substring(prefix.length).trim();
+      }
+    }
+    return summary;
+  }
+
   static List<_DecisionCardData> parse(String markdown) {
     final result = <_DecisionCardData>[];
 
