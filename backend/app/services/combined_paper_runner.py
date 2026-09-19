@@ -9,6 +9,7 @@ from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.upbit_universe_selector import UpbitUniverseSelector
 from backend.app.services.decision_universe import merge_decision_universe
 
 
@@ -24,6 +25,10 @@ class CombinedPaperRunner:
         self.upbit = UpbitMarketDataAdapter()
         self.toss = TossMarketDataAdapter()
         self.upbit_universe = UpbitUniverseService()
+        self.upbit_universe_selector = UpbitUniverseSelector(
+            market_data=self.upbit,
+            universe=self.upbit_universe,
+        )
         self.toss_universe = TossUniverseService()
         self.audit = AuditLogger()
 
@@ -32,6 +37,10 @@ class CombinedPaperRunner:
         failures: list[str] = []
 
         portfolios = self.paper_cycle._portfolios()
+        try:
+            await self.upbit_universe_selector.select(limit=10)
+        except (UpbitMarketDataError, ValueError) as exc:
+            failures.append(f"Upbit universe refresh: {exc}")
         upbit_markets = merge_decision_universe(
             self.upbit_universe.get(),
             [
