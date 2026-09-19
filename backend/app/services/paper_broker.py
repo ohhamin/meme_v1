@@ -44,6 +44,10 @@ class PaperBroker:
         self.journal = PaperOrderJournal()
 
     @property
+    def session_id(self) -> str:
+        return str(self._load().get("session_id") or "")
+
+    @property
     def broker_name(self) -> str:
         return "toss" if self.market == "stock" else "upbit"
 
