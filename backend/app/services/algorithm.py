@@ -19,49 +19,104 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# Current Trading Algorithm
 
-Version: 0.1.0-baseline
+Version: 0.2.0-baseline
 
-이 문서는 Decision Engine이 참조하는 현재 알고리즘 규칙 문서다.
-초기 버전은 실제 매수/매도 공식을 확정하지 않고, 판단 흐름과 안전 제약만 정의한다.
+이 문서는 Decision Engine이 참조하는 승인된 판단 규칙이다.
+주문 실행 안전장치(Risk Guard)는 이 문서와 별도의 deterministic 코드로 동작한다.
+
+## Portfolio Philosophy
+
+- 주식(Toss)과 코인(Upbit)은 서로 다른 계좌로 판단한다.
+- 실제 보유 종목 수는 전체 0~10개다.
+- 10개를 채우는 것이 목표가 아니다.
+- 시장에 매력적인 기회가 없으면 0개 보유 / 현금 100%도 정상이다.
+- 현금 비중이 높다는 이유만으로 BUY하지 않는다.
+- 이미 보유한 종목도 매 사이클 다시 평가한다.
 
 ## Inputs
 
-- 현재 보유 포지션과 손익
-- 현재가/거래량/변동성 등 시장 데이터
-- 최근 7일 뉴스 Markdown
-- 직전 판단과 다음 체크 시각
+- 현재 계좌별 현금/평가금액/보유 포지션/손익
+- 판단 대상 종목의 최신 가격 및 시장 상태
+- 압축된 최근 뉴스/거시경제 Context
+- 최근 판단 Context
+- 사용자가 승인한 Applied Proposal 규칙
 
-## Decision Output
+## Decision Semantics
 
-각 종목마다 다음을 생성한다.
+각 종목마다 하나만 출력한다.
 
-- BUY / SELL / HOLD
-- 판단점수 0~100
-- 판단 근거
-- 다음 판단 간격 30~120분
+- BUY: 신규 또는 추가 매수를 원하는 방향
+- SELL: 기존 포지션의 일부/전부 축소를 원하는 방향
+- HOLD: 지금은 주문을 만들 근거가 충분하지 않음
 
-판단점수는 방향성을 표시하기 위한 값이며, 단독으로 주문을 실행하는 임계값은 아직 정의하지 않는다.
+판단점수는 방향성을 0~100으로 표현한다.
+
+- 0~40: SELL 영역
+- 41~59: HOLD 영역
+- 60~100: BUY 영역
+
+Action과 Score는 반드시 같은 방향이어야 한다.
+데이터가 부족하거나 서로 충돌하면 HOLD를 우선한다.
+
+## Decision Discipline
+
+- 단순히 지난 사이클의 판단을 반복하지 말고 새 정보가 있는지 확인한다.
+- 반대로 작은 가격 움직임만으로 BUY↔SELL을 자주 뒤집지 않는다.
+- 최근 판단 이후 의미 있는 변화가 없으면 HOLD를 선호한다.
+- 뉴스 한 건만으로 강한 결론을 만들지 않고 가격/계좌/시장 Context와 함께 본다.
+- 확인되지 않은 사실이나 제공되지 않은 가격/잔고를 만들어내지 않는다.
+- 이미 발생한 손실을 만회하기 위한 보복성 매수/물타기를 가정하지 않는다.
+- '항상 투자되어 있어야 한다'는 전제를 두지 않는다.
+
+## Position Sizing Boundary
+
+Decision Engine은 주문 금액을 직접 정하지 않는다.
+BUY/SELL/HOLD + Score만 결정하고 실제 주문 후보 크기는 Position Sizer가 계산한다.
+
+초기 실행 기준:
+
+- BUY score 60~69: 계좌 평가금액의 1% 후보
+- BUY score 70~79: 2%
+- BUY score 80~89: 3%
+- BUY score 90~100: 4%
+- SELL score 31~40: 보유수량 25% 후보
+- SELL score 21~30: 40%
+- SELL score 0~20: 60%
+
+이 값은 후보 크기이며 Risk Guard가 최종 PASS/BLOCK한다.
+
+## Risk Boundary
+
+Decision Engine은 Risk Guard를 우회할 수 없다.
+
+현재 hard-risk의 핵심:
+
+- Kill switch
+- stale data 차단
+- 주식 장 운영 여부
+- 일일 손실/주문 횟수 제한
+- 한 종목 최대 40%
+- 전체 보유종목 최대 10개
+- 계좌별 최소 현금 reserve
+- 미확인 Live 주문이 있는 종목의 신규 Live 주문 차단
+
+Risk Guard가 BLOCK한 것을 BUY/SELL 판단의 성공으로 간주하지 않는다.
 
 ## Scheduler
 
-- 기본 판단 간격: 60분
-- 최소: 30분
-- 최대: 120분
-- 변동성, 뉴스 중요도, 포지션 상태에 따라 다음 간격을 조정한다.
-- Backend가 최종적으로 30~120분 범위를 강제한다.
+전체 Decision Cycle에 대해 하나의 next_check_minutes를 제안한다.
 
-## Risk
-
-- Decision Engine의 결과 뒤에 Risk Guard가 별도로 동작한다.
-- Paper mode가 기본이다.
-- Kill switch가 켜져 있으면 신규 주문을 모두 차단한다.
-- 파싱/API 오류가 있으면 자동 주문은 fail-closed 한다.
+- 허용 범위: 30~120분
+- 높은 변동성/중요 이벤트: 30~45분 고려
+- 일반적인 시장: 약 60분 고려
+- 변화가 작고 긴급성이 낮음: 90~120분 고려
+- 단순히 주문을 만들기 위해 짧은 간격을 선택하지 않는다.
 
 ## Algorithm Changes
 
-알고리즘은 실행 중 Python 코드를 스스로 수정하지 않는다.
-승인된 제안은 이 문서의 Applied Proposals 영역에 규칙으로 추가되며,
-Decision Engine은 다음 판단부터 갱신된 문서를 참조한다.
+실행 중 Python/Dart 코드를 스스로 수정하지 않는다.
+운영 데이터를 보고 개선이 필요하면 별도 Proposal을 만들 수 있지만,
+사용자가 Apply한 Markdown 규칙만 다음 Decision Cycle부터 적용된다.
 
 ## Applied Proposals
 
