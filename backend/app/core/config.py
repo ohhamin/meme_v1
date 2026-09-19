@@ -56,6 +56,7 @@ class AppSettings(BaseSettings):
     news_max_output_tokens: int = 2500
     scheduler_enabled: bool = False
     data_retention_days: int = 7
+    idempotency_retention_days: int = 30
     startup_push_enabled: bool = False
 
     openai_api_key: str = ""
