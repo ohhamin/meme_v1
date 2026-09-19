@@ -21,8 +21,16 @@ class AppSurface extends StatelessWidget {
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        gradient: AppGradients.surface,
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: child,
     );
@@ -81,7 +89,7 @@ class AppEmptyState extends StatelessWidget {
               width: 58,
               height: 58,
               decoration: const BoxDecoration(
-                color: AppColors.chip,
+                color: AppColors.surfaceElevated,
                 shape: BoxShape.circle,
               ),
               child: Icon(

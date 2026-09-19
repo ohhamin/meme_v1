@@ -1,0 +1,13 @@
+<svg width="720" height="220" viewBox="0 0 720 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="meme" x1="20" y1="190" x2="200" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F7BFF"/>
+      <stop offset="0.52" stop-color="#8B5CFF"/>
+      <stop offset="1" stop-color="#2FD8FF"/>
+    </linearGradient>
+  </defs>
+  <path d="M40 164L76 88L120 160L184 62" stroke="url(#meme)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M153 63L199 39L193 93Z" fill="#2FD8FF"/>
+  <text x="236" y="120" fill="#F5F8FF" font-family="Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="5">MEME</text>
+  <text x="242" y="164" fill="#A0B2C9" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="11">AI INVEST</text>
+</svg>

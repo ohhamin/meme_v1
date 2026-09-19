@@ -10,6 +10,7 @@ import 'screens/paper_dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/push_registration.dart';
+import 'widgets/brand_logo.dart';
 
 
 void main() {
@@ -25,7 +26,7 @@ class MemeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'meme_v1',
+      title: 'MEME AI INVEST',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       home: const AppShell(),
@@ -85,7 +86,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_index]),
+        title: BrandAppBarTitle(pageTitle: _titles[_index]),
       ),
       body: SafeArea(
         top: false,
