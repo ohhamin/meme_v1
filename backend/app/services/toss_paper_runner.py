@@ -44,7 +44,8 @@ class TossPaperRunner:
 
         try:
             snapshots = await self.market_data.snapshots(
-                selected
+                selected,
+                with_features=True,
             )
         except (TossApiError, ValueError) as exc:
             self.audit.write(
