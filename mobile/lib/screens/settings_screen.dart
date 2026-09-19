@@ -382,6 +382,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _runPaperCycleNow() async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(26),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Paper 판단을 지금 실행할까요?',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '저장된 Toss/Upbit 판단 대상을 실제 시세로 조회한 뒤 '
+                  'AI 판단 → Position Sizer → Risk Guard → Paper 체결을 1회 실행해요.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('취소'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('실행'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final result = await ApiClient.instance.runPaperMarketCycle();
+      await _load();
+      if (!mounted) return;
+
+      final status = result['status']?.toString() ?? 'unknown';
+      final items = result['items'] as List<dynamic>? ?? <dynamic>[];
+      final orderCount = items.where((item) {
+        if (item is! Map) return false;
+        return item['order'] != null;
+      }).length;
+      final reason = result['reason']?.toString();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'completed'
+                ? 'Paper 판단 완료 · ${items.length}개 판단 · $orderCount개 주문'
+                : 'Paper 판단 대기 · ${reason ?? '실행 조건을 확인해 주세요.'}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _resumeLlm() async {
     try {
       await ApiClient.instance.resumeLlm();
@@ -590,31 +689,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SectionTitle('자동 판단'),
           const SizedBox(height: 12),
           AppSurface(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.schedule_rounded,
-                  color: AppColors.primary,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.schedule_rounded,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '다음 판단 예정',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            nextDecisionAt == null
+                                ? 'Scheduler가 꺼져 있거나 아직 예약되지 않았어요.'
+                                : _formatDateTime(nextDecisionAt),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '다음 판단 예정',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        nextDecisionAt == null
-                            ? 'Scheduler가 꺼져 있거나 아직 예약되지 않았어요.'
-                            : nextDecisionAt,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                if (!live) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _runPaperCycleNow,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Paper 판단 지금 1회 실행'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -807,6 +922,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDateTime(String raw) {
+    try {
+      final value = DateTime.parse(raw).toLocal();
+      return DateFormat('MM/dd HH:mm').format(value);
+    } catch (_) {
+      return raw;
+    }
   }
 
   String _aiStatusTitle(String runtimeMode, String budgetMode) {
