@@ -230,6 +230,11 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getPaperDashboard() async {
+    return (await _request('GET', '/paper/dashboard'))
+        as Map<String, dynamic>;
+  }
+
   Future<List<Map<String, dynamic>>> getUpbitMarkets() async {
     final data =
         await _request('GET', '/crypto/upbit/markets') as List<dynamic>;
