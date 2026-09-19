@@ -68,6 +68,29 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
     )
 
     service = PaperDashboardService()
+    service.orders.recent = lambda limit=500, days=30: [
+        {
+            "order_id": "paper-1",
+            "market": "crypto",
+            "symbol": "KRW-BTC",
+            "side": "sell",
+            "realized_pnl": "12000",
+        },
+        {
+            "order_id": "paper-2",
+            "market": "stock",
+            "symbol": "005930",
+            "side": "sell",
+            "realized_pnl": "-4000",
+        },
+        {
+            "order_id": "paper-3",
+            "market": "crypto",
+            "symbol": "KRW-ETH",
+            "side": "buy",
+            "realized_pnl": None,
+        },
+    ]
     service.metrics.recent = lambda limit_days=7: [
         {
             "mode": "paper",
@@ -98,3 +121,12 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
         "005930",
         "KRW-BTC",
     ]
+
+
+    assert result["trading_30d"]["order_count"] == 3
+    assert result["trading_30d"]["sell_count"] == 2
+    assert result["trading_30d"]["win_count"] == 1
+    assert result["trading_30d"]["loss_count"] == 1
+    assert result["trading_30d"]["win_rate_pct"] == "50.00"
+    assert result["trading_30d"]["realized_pnl"] == "8000"
+    assert len(result["recent_orders"]) == 3

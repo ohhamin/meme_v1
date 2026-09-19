@@ -82,6 +82,13 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 <dynamic>[])
             .map((item) => (item as Map).cast<String, dynamic>())
             .toList();
+        final trading =
+            (data['trading_30d'] as Map?)?.cast<String, dynamic>() ??
+                <String, dynamic>{};
+        final recentOrders = (data['recent_orders'] as List<dynamic>? ??
+                <dynamic>[])
+            .map((item) => (item as Map).cast<String, dynamic>())
+            .toList();
 
         final equity = _number(combined['equity']);
         final cash = _number(combined['cash']);
@@ -210,6 +217,88 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 24),
+              const SectionTitle('최근 30일 매매 성과'),
+              const SizedBox(height: 12),
+              AppSurface(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _Metric(
+                            label: '매도 승률',
+                            value:
+                                '${_number(trading['win_rate_pct']).toStringAsFixed(1)}%',
+                          ),
+                        ),
+                        Expanded(
+                          child: _Metric(
+                            label: '실현손익',
+                            value: _signedMoney(trading['realized_pnl']),
+                            valueColor:
+                                _pnlColor(_number(trading['realized_pnl'])),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _Metric(
+                            label: '익절',
+                            value: '${trading['win_count'] ?? 0}회',
+                          ),
+                        ),
+                        Expanded(
+                          child: _Metric(
+                            label: '손절',
+                            value: '${trading['loss_count'] ?? 0}회',
+                          ),
+                        ),
+                        Expanded(
+                          child: _Metric(
+                            label: '체결',
+                            value: '${trading['order_count'] ?? 0}회',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '승률은 실현손익이 기록된 매도 체결 기준이에요.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SectionTitle(
+                '최근 체결',
+                trailing: Text(
+                  '${recentOrders.length}건',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (recentOrders.isEmpty)
+                const AppSurface(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      '새 주문 원장에 기록된 체결이 아직 없어요.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                ...recentOrders.take(5).map(
+                  (order) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _OrderCard(data: order, money: _money),
+                  ),
+                ),
               const SizedBox(height: 24),
               SectionTitle(
                 '보유 종목',
@@ -417,6 +506,71 @@ class _PositionCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class _OrderCard extends StatelessWidget {
+  const _OrderCard({
+    required this.data,
+    required this.money,
+  });
+
+  final Map<String, dynamic> data;
+  final NumberFormat money;
+
+  num _number(dynamic value) =>
+      num.tryParse(value?.toString() ?? '0') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final side = data['side']?.toString().toUpperCase() ?? '-';
+    final symbol = data['symbol']?.toString() ?? '-';
+    final market = data['market']?.toString() == 'stock' ? '주식' : '코인';
+    final notional = _number(data['notional']);
+    final realizedRaw = data['realized_pnl'];
+    final realized = realizedRaw == null ? null : _number(realizedRaw);
+    final sideColor =
+        side == 'BUY' ? AppColors.primary : AppColors.negative;
+
+    return AppSurface(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$symbol · $side',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: sideColor,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$market · ${money.format(notional)}원',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          if (realized != null)
+            Text(
+              '${realized > 0 ? '+' : ''}${money.format(realized)}원',
+              style: TextStyle(
+                color: realized > 0
+                    ? AppColors.positive
+                    : realized < 0
+                        ? AppColors.negative
+                        : AppColors.textSecondary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
         ],
       ),
     );
