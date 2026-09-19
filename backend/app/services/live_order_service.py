@@ -242,6 +242,21 @@ class LiveOrderService:
         snapshot: dict,
         idempotency_key: str,
     ) -> OrderResult:
+        if self.journal.has_unresolved(
+            broker=broker,
+            symbol=symbol,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail={
+                    "message": (
+                        "Another unresolved live order exists for this symbol."
+                    ),
+                    "broker": broker,
+                    "symbol": symbol,
+                },
+            )
+
         action = "BUY" if side == "buy" else "SELL"
 
         intent = RiskOrderIntent(
