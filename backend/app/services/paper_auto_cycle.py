@@ -16,6 +16,7 @@ from backend.app.services.position_sizer import PositionSizer
 from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.cycle_metrics import CycleMetricsStore
 
 
 class PaperAutoCycleService:
@@ -37,6 +38,7 @@ class PaperAutoCycleService:
         self.risk = RiskGuard()
         self.audit = AuditLogger()
         self.push = PushService()
+        self.metrics = CycleMetricsStore()
 
     def _portfolios(self) -> dict:
         return {
@@ -252,6 +254,35 @@ class PaperAutoCycleService:
 
         self.store.append_execution_cycle(result, items)
         portfolios = self._portfolios()
+
+        order_count = sum(
+            1
+            for item in items
+            if item.order is not None
+        )
+        blocked_count = sum(
+            1
+            for item in items
+            if item.risk is not None
+            and item.risk.status == "BLOCK"
+        )
+
+        self.metrics.append(
+            mode="paper",
+            accounts={
+                market: {
+                    "equity": str(portfolio.equity),
+                    "cash": str(portfolio.cash),
+                    "daily_pnl_pct": str(portfolio.daily_pnl_pct),
+                    "position_count": len(portfolio.positions),
+                }
+                for market, portfolio in portfolios.items()
+            },
+            decision_count=len(result.decisions),
+            order_count=order_count,
+            blocked_count=blocked_count,
+            next_check_minutes=result.next_check_minutes,
+        )
 
         self.audit.write(
             "system",
