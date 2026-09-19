@@ -6,6 +6,7 @@ import 'screens/algorithm_screen.dart';
 import 'screens/daily_markdown_screen.dart';
 import 'screens/decision_screen.dart';
 import 'screens/market_screen.dart';
+import 'screens/paper_dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/push_registration.dart';
@@ -45,6 +46,7 @@ class _AppShellState extends State<AppShell> {
   int _index = 0;
 
   static const _titles = [
+    'Paper 대시보드',
     '주식',
     '코인',
     '뉴스',
@@ -54,6 +56,7 @@ class _AppShellState extends State<AppShell> {
   ];
 
   final _screens = const [
+    PaperDashboardScreen(),
     MarketScreen(isStock: true),
     MarketScreen(isStock: false),
     DailyMarkdownScreen(kind: 'news'),
@@ -91,6 +94,11 @@ class _AppShellState extends State<AppShell> {
             setState(() => _index = value);
           },
           destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.space_dashboard_outlined),
+              selectedIcon: Icon(Icons.space_dashboard_rounded),
+              label: '홈',
+            ),
             NavigationDestination(
               icon: Icon(Icons.show_chart_rounded),
               selectedIcon: Icon(Icons.show_chart_rounded),

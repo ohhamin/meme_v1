@@ -9,6 +9,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.position_sizer import PositionSizer
+from backend.app.services.paper_dashboard import PaperDashboardService
 
 
 router = APIRouter(
@@ -28,6 +29,11 @@ def _accounts() -> PaperAccountsResponse:
 @router.get("/portfolio", response_model=PaperAccountsResponse)
 async def portfolio():
     return _accounts()
+
+
+@router.get("/dashboard")
+async def dashboard():
+    return PaperDashboardService().build()
 
 
 @router.post("/reset", response_model=PaperAccountsResponse)
