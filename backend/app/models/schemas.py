@@ -146,6 +146,10 @@ class RiskOrderIntent(BaseModel):
     data_age_seconds: int = Field(default=0, ge=0)
     market_open: bool = True
     same_cycle_duplicate: bool = False
+    seconds_since_last_auto_order: int | None = Field(
+        default=None,
+        ge=0,
+    )
 
 
 class RiskGuardResult(BaseModel):
