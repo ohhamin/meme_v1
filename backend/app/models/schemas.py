@@ -228,6 +228,11 @@ class PaperPosition(BaseModel):
     return_rate: Decimal = Decimal("0")
     realized_pnl: Decimal = Decimal("0")
     decision_score: int | None = Field(default=None, ge=0, le=100)
+    candidate_score: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+    )
 
 
 class PaperPortfolio(BaseModel):
