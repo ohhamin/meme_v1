@@ -23,6 +23,13 @@ class LiveRiskSnapshotService:
         self.baselines = LiveDailyBaselineService()
         self.journal = LiveOrderJournal()
 
+    def _pending_buy_records(self):
+        return [
+            record
+            for record in self.journal.unresolved(limit=500)
+            if record.side == "buy"
+        ]
+
     async def total_open_positions(self) -> int:
         upbit = await self.upbit_accounts.balances()
         crypto_count = sum(
@@ -34,14 +41,34 @@ class LiveRiskSnapshotService:
         )
 
         toss = await self.toss_accounts.status()
-        stock_count = len(
-            [
-                item
-                for item in toss.holdings
-                if item.quantity > 0
-            ]
+        held_keys = {
+            (
+                "crypto",
+                f"KRW-{asset.currency}",
+            )
+            for asset in upbit.assets
+            if asset.currency != "KRW"
+            and asset.unit_currency == "KRW"
+            and asset.total > 0
+        }
+        held_keys.update(
+            (
+                "stock",
+                item.symbol,
+            )
+            for item in toss.holdings
+            if item.quantity > 0
         )
-        return crypto_count + stock_count
+
+        pending_keys = {
+            (
+                record.market,
+                record.symbol.strip().upper(),
+            )
+            for record in self._pending_buy_records()
+        }
+
+        return len(held_keys | pending_keys)
 
     async def upbit(
         self,
@@ -141,6 +168,23 @@ class LiveRiskSnapshotService:
         position_value = (
             position_total * target_quote.trade_price
         )
+        pending_buy_notional = sum(
+            (
+                record.notional
+                for record in self._pending_buy_records()
+                if record.broker == "upbit"
+                and record.symbol.strip().upper() == market
+            ),
+            Decimal("0"),
+        )
+        reserved_cash = sum(
+            (
+                record.notional
+                for record in self._pending_buy_records()
+                if record.broker == "upbit"
+            ),
+            Decimal("0"),
+        )
 
         return {
             "broker": "upbit",
@@ -150,8 +194,11 @@ class LiveRiskSnapshotService:
             "data_age_seconds": target_quote.data_age_seconds,
             "market_open": True,
             "portfolio_equity": equity,
-            "available_cash": available_cash,
-            "position_value": position_value,
+            "available_cash": max(
+                Decimal("0"),
+                available_cash - reserved_cash,
+            ),
+            "position_value": position_value + pending_buy_notional,
             "position_quantity": position_total,
             "open_position_count": await self.total_open_positions(),
             "daily_pnl_pct": self.baselines.daily_pnl_pct(
@@ -204,6 +251,24 @@ class LiveRiskSnapshotService:
             None,
         )
 
+        pending_buy_notional = sum(
+            (
+                record.notional
+                for record in self._pending_buy_records()
+                if record.broker == "toss"
+                and record.symbol.strip().upper() == normalized
+            ),
+            Decimal("0"),
+        )
+        reserved_cash = sum(
+            (
+                record.notional
+                for record in self._pending_buy_records()
+                if record.broker == "toss"
+            ),
+            Decimal("0"),
+        )
+
         return {
             "broker": "toss",
             "market": "stock",
@@ -212,11 +277,17 @@ class LiveRiskSnapshotService:
             "data_age_seconds": instrument.data_age_seconds,
             "market_open": instrument.market_open,
             "portfolio_equity": equity,
-            "available_cash": status.cash_buying_power,
+            "available_cash": max(
+                Decimal("0"),
+                status.cash_buying_power - reserved_cash,
+            ),
             "position_value": (
-                holding.market_value
-                if holding is not None
-                else Decimal("0")
+                (
+                    holding.market_value
+                    if holding is not None
+                    else Decimal("0")
+                )
+                + pending_buy_notional
             ),
             "position_quantity": (
                 holding.quantity
