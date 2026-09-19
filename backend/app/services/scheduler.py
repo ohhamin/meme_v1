@@ -13,6 +13,7 @@ from backend.app.services.data_retention import DataRetentionService
 from backend.app.services.scheduler_state import SchedulerStateService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 from backend.app.services.push import PushService
+from backend.app.services.macro_market_context import MacroMarketContextService
 
 
 class AdaptiveDecisionScheduler:
@@ -31,6 +32,7 @@ class AdaptiveDecisionScheduler:
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
         self.push = PushService()
+        self.macro_context = MacroMarketContextService()
 
     def start(self) -> None:
         if not self.config.scheduler_enabled:
@@ -40,6 +42,7 @@ class AdaptiveDecisionScheduler:
             self.scheduler.start()
 
         self.schedule_news_collection()
+        self.schedule_macro_context()
         self.schedule_algorithm_review()
         self.schedule_live_order_reconciliation()
         self.schedule_retention()
@@ -69,6 +72,19 @@ class AdaptiveDecisionScheduler:
             trigger="interval",
             hours=self.config.news_collection_interval_hours,
             id="news-collector",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            next_run_time=datetime.now(timezone.utc),
+        )
+
+    def schedule_macro_context(self) -> None:
+        """Refresh deterministic macro observations at startup and every 6 hours."""
+        self.scheduler.add_job(
+            self.macro_context.refresh,
+            trigger="interval",
+            hours=6,
+            id="macro-market-context",
             replace_existing=True,
             coalesce=True,
             max_instances=1,

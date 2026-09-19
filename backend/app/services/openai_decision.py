@@ -236,6 +236,7 @@ class LLMDecisionClient:
             "current_algorithm": context.algorithm_markdown,
             "rolling_news_context": context.news_context,
             "rolling_decision_context": context.decision_context,
+            "macro_market_context": context.macro_context,
             "market_snapshot": context.market_snapshot,
             "account_snapshot": context.account_snapshot,
             "budget_mode": context.budget_mode,
