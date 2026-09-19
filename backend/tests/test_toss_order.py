@@ -132,3 +132,88 @@ def test_toss_market_order_payload_and_high_value_flag():
     finally:
         adapter.config.toss_confirm_high_value_orders = old_confirm
         adapter.config.toss_high_value_order_threshold_krw = old_threshold
+
+
+
+def test_find_toss_order_by_client_order_id_from_open(monkeypatch):
+    adapter = TossOrderAdapter()
+
+    async def fake_seq():
+        return 7
+
+    async def fake_get(path, *, params=None, account_seq=None):
+        assert path == "/api/v1/orders"
+        assert account_seq == 7
+        assert params["symbol"] == "005930"
+        if params["status"] == "OPEN":
+            return {
+                "result": [
+                    {
+                        "orderId": "order-123",
+                        "clientOrderId": "meme-abc",
+                        "symbol": "005930",
+                        "status": "PENDING",
+                    }
+                ]
+            }
+        raise AssertionError("CLOSED lookup should not be needed")
+
+    monkeypatch.setattr(
+        adapter.accounts,
+        "selected_account_seq",
+        fake_seq,
+    )
+    monkeypatch.setattr(adapter.client, "get", fake_get)
+
+    found = asyncio.run(
+        adapter.find_order_by_client_order_id(
+            symbol="005930",
+            client_order_id="meme-abc",
+        )
+    )
+
+    assert found is not None
+    assert found["orderId"] == "order-123"
+
+
+def test_find_toss_order_by_client_order_id_from_closed(monkeypatch):
+    adapter = TossOrderAdapter()
+    calls = []
+
+    async def fake_seq():
+        return 7
+
+    async def fake_get(path, *, params=None, account_seq=None):
+        calls.append(dict(params))
+        if params["status"] == "OPEN":
+            return {"result": []}
+        return {
+            "result": {
+                "items": [
+                    {
+                        "orderId": "order-closed",
+                        "clientOrderId": "meme-closed",
+                        "symbol": "005930",
+                        "status": "FILLED",
+                    }
+                ]
+            }
+        }
+
+    monkeypatch.setattr(
+        adapter.accounts,
+        "selected_account_seq",
+        fake_seq,
+    )
+    monkeypatch.setattr(adapter.client, "get", fake_get)
+
+    found = asyncio.run(
+        adapter.find_order_by_client_order_id(
+            symbol="005930",
+            client_order_id="meme-closed",
+        )
+    )
+
+    assert found is not None
+    assert found["status"] == "FILLED"
+    assert [call["status"] for call in calls] == ["OPEN", "CLOSED"]
