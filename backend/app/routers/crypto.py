@@ -13,6 +13,7 @@ from backend.app.models.schemas import (
     UpbitUniverseUpdate,
 )
 from backend.app.services.trading import TradingService
+from backend.app.services.market_performance import MarketPerformanceService
 from backend.app.services.upbit_paper_runner import UpbitPaperRunner
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.upbit_universe_selector import UpbitUniverseSelector
@@ -23,6 +24,11 @@ router = APIRouter(
     tags=["crypto"],
     dependencies=[Depends(require_api_token)],
 )
+
+
+@router.get("/performance")
+async def performance():
+    return await MarketPerformanceService().build("crypto")
 
 
 @router.get("/positions")
