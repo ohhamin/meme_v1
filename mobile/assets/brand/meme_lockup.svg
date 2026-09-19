@@ -1,13 +1,30 @@
-<svg width="720" height="220" viewBox="0 0 720 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="760" height="220" viewBox="0 0 760 220" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="meme" x1="20" y1="190" x2="200" y2="20" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2F7BFF"/>
-      <stop offset="0.52" stop-color="#8B5CFF"/>
-      <stop offset="1" stop-color="#2FD8FF"/>
+    <linearGradient id="left" x1="26" y1="181" x2="110" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#087EFF"/>
+      <stop offset=".58" stop-color="#13D8F5"/>
+      <stop offset="1" stop-color="#315CFF"/>
+    </linearGradient>
+    <linearGradient id="fold" x1="102" y1="68" x2="148" y2="178" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#315CFF"/>
+      <stop offset=".48" stop-color="#704FFF"/>
+      <stop offset="1" stop-color="#D74DF2"/>
+    </linearGradient>
+    <linearGradient id="rise" x1="143" y1="171" x2="217" y2="43" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8351FF"/>
+      <stop offset=".46" stop-color="#079BFF"/>
+      <stop offset="1" stop-color="#22E5F3"/>
     </linearGradient>
   </defs>
-  <path d="M40 164L76 88L120 160L184 62" stroke="url(#meme)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M153 63L199 39L193 93Z" fill="#2FD8FF"/>
-  <text x="236" y="120" fill="#F5F8FF" font-family="Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="5">MEME</text>
-  <text x="242" y="164" fill="#A0B2C9" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="11">AI INVEST</text>
+
+  <path d="M31 166C43 139 54 101 68 82C80 67 94 74 106 97L122 130"
+        stroke="url(#left)" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M90 78C104 91 112 116 124 134C135 150 146 144 157 125"
+        stroke="url(#fold)" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M147 140C161 129 169 111 177 95L195 63"
+        stroke="url(#rise)" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M174 60L211 43C215 41 218 44 217 49L215 87L198 71Z" fill="#22E3F3"/>
+
+  <text x="250" y="117" fill="#F7F9FD" font-family="Arial, Helvetica, sans-serif" font-size="70" font-weight="800" letter-spacing="4">MEME</text>
+  <text x="255" y="160" fill="#9AAECB" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="600" letter-spacing="12">AI INVEST</text>
 </svg>
