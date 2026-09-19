@@ -68,6 +68,9 @@ class PaperDashboardService:
             "positions": positions,
             "trading_7d": trading,
             "score_performance_7d": score_performance,
+            # Backward-compatible aliases; values use the same 7-day window.
+            "trading_30d": trading,
+            "score_performance_30d": score_performance,
             "recent_orders": recent_orders,
         }
 
