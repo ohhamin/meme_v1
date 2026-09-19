@@ -131,3 +131,30 @@ def test_existing_position_can_be_added_to_when_ten_are_open():
         )
     )
     assert result.status == "PASS"
+
+
+
+def test_auto_symbol_cooldown_blocks_repeat_order():
+    result = make_guard().evaluate(
+        make_intent(
+            source="auto",
+            seconds_since_last_auto_order=1800,
+        )
+    )
+
+    assert result.status == "BLOCK"
+    assert any(
+        "cooldown" in reason.lower()
+        for reason in result.reasons
+    )
+
+
+def test_manual_order_is_not_blocked_by_auto_symbol_cooldown():
+    result = make_guard().evaluate(
+        make_intent(
+            source="manual",
+            seconds_since_last_auto_order=60,
+        )
+    )
+
+    assert result.status == "PASS"
