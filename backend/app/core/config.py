@@ -58,6 +58,9 @@ class AppSettings(BaseSettings):
     fred_api_key: str = ""
     fred_api_base_url: str = "https://api.stlouisfed.org/fred"
     macro_context_max_age_hours: int = 48
+    krx_api_key: str = ""
+    krx_api_base_url: str = "https://data-dbg.krx.co.kr/svc/apis"
+    krx_http_timeout_seconds: float = 8.0
     scheduler_enabled: bool = False
     data_retention_days: int = 7
     idempotency_retention_days: int = 30
