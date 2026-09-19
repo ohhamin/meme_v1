@@ -89,6 +89,11 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 <dynamic>[])
             .map((item) => (item as Map).cast<String, dynamic>())
             .toList();
+        final scorePerformance =
+            (data['score_performance_30d'] as List<dynamic>? ??
+                    <dynamic>[])
+                .map((item) => (item as Map).cast<String, dynamic>())
+                .toList();
 
         final equity = _number(combined['equity']);
         final cash = _number(combined['cash']);
@@ -272,6 +277,31 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+              const SectionTitle('BUY 점수별 성과'),
+              const SizedBox(height: 12),
+              if (scorePerformance.isEmpty)
+                const AppSurface(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      '점수별 성과 데이터가 아직 없어요.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                ...scorePerformance.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ScorePerformanceCard(data: item),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                '매수 당시 점수와 이후 매도 실현성과를 연결한 최근 30일 통계예요.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
               SectionTitle(
@@ -571,6 +601,74 @@ class _OrderCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class _ScorePerformanceCard extends StatelessWidget {
+  const _ScorePerformanceCard({required this.data});
+
+  final Map<String, dynamic> data;
+
+  num _number(dynamic value) =>
+      num.tryParse(value?.toString() ?? '0') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final bucket = data['bucket']?.toString() ?? '-';
+    final trades = (data['closed_trades'] as num?)?.toInt() ?? 0;
+    final winRate = _number(data['win_rate_pct']);
+    final avgReturn = _number(data['average_return_pct']);
+    final pnl = _number(data['realized_pnl']);
+    final avgColor = avgReturn > 0
+        ? AppColors.positive
+        : avgReturn < 0
+            ? AppColors.negative
+            : AppColors.textSecondary;
+
+    return AppSurface(
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '점수 $bucket',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '청산 $trades회 · 승률 ${winRate.toStringAsFixed(1)}%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${avgReturn > 0 ? '+' : ''}${avgReturn.toStringAsFixed(2)}%',
+                style: TextStyle(
+                  color: avgColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '실현손익 ${pnl > 0 ? '+' : ''}${NumberFormat('#,###').format(pnl)}원',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ],
       ),
     );

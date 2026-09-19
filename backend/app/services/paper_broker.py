@@ -269,6 +269,8 @@ class PaperBroker:
         now_dt = datetime.now(self.tz)
         now = now_dt.isoformat()
         realized_delta: Decimal | None = None
+        realized_return_pct: Decimal | None = None
+        entry_score: Decimal | None = None
 
         if side == "buy":
             total_cost = notional + fee
@@ -284,6 +286,28 @@ class PaperBroker:
                     + (quantity * fill_price)
                     + fee
                 ) / new_qty
+                old_entry_score_raw = existing.get(
+                    "entry_score",
+                    existing.get("decision_score"),
+                )
+                old_entry_score = (
+                    Decimal(str(old_entry_score_raw))
+                    if old_entry_score_raw is not None
+                    else None
+                )
+                new_entry_score = (
+                    Decimal(str(decision_score))
+                    if decision_score is not None
+                    else None
+                )
+                if old_entry_score is not None and new_entry_score is not None:
+                    entry_score = (
+                        (old_entry_score * old_qty)
+                        + (new_entry_score * quantity)
+                    ) / new_qty
+                else:
+                    entry_score = old_entry_score or new_entry_score
+
                 existing["quantity"] = str(new_qty)
                 existing["average_price"] = str(new_avg)
                 existing["last_price"] = str(fill_price)
@@ -293,6 +317,11 @@ class PaperBroker:
                     name or existing.get("name") or symbol
                 )
                 existing["decision_score"] = decision_score
+                existing["entry_score"] = (
+                    str(entry_score)
+                    if entry_score is not None
+                    else None
+                )
             else:
                 positions[key] = {
                     "symbol": symbol,
@@ -304,7 +333,17 @@ class PaperBroker:
                     "last_market_open": market_open,
                     "realized_pnl": "0",
                     "decision_score": decision_score,
+                    "entry_score": (
+                        str(decision_score)
+                        if decision_score is not None
+                        else None
+                    ),
                 }
+                entry_score = (
+                    Decimal(str(decision_score))
+                    if decision_score is not None
+                    else None
+                )
 
             state["cash"] = str(cash - total_cost)
 
@@ -317,8 +356,23 @@ class PaperBroker:
                 raise ValueError("sell quantity exceeds paper position")
 
             old_avg = Decimal(existing["average_price"])
+            entry_score_raw = existing.get(
+                "entry_score",
+                existing.get("decision_score"),
+            )
+            entry_score = (
+                Decimal(str(entry_score_raw))
+                if entry_score_raw is not None
+                else None
+            )
             realized = Decimal(existing.get("realized_pnl", "0"))
             realized_delta = ((fill_price - old_avg) * quantity) - fee
+            cost_basis = old_avg * quantity
+            realized_return_pct = (
+                realized_delta / cost_basis * Decimal("100")
+                if cost_basis > 0
+                else Decimal("0")
+            )
             realized += realized_delta
 
             remaining = old_qty - quantity
@@ -362,6 +416,8 @@ class PaperBroker:
             source=source,
             created_at=now_dt,
             realized_pnl=realized_delta,
+            entry_score=entry_score,
+            realized_return_pct=realized_return_pct,
         )
 
         self.audit.write(

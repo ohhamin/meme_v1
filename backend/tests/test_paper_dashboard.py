@@ -75,6 +75,8 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
             "symbol": "KRW-BTC",
             "side": "sell",
             "realized_pnl": "12000",
+            "entry_score": "65",
+            "realized_return_pct": "6.0",
         },
         {
             "order_id": "paper-2",
@@ -82,6 +84,8 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
             "symbol": "005930",
             "side": "sell",
             "realized_pnl": "-4000",
+            "entry_score": "75",
+            "realized_return_pct": "-2.0",
         },
         {
             "order_id": "paper-3",
@@ -130,3 +134,16 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
     assert result["trading_30d"]["win_rate_pct"] == "50.00"
     assert result["trading_30d"]["realized_pnl"] == "8000"
     assert len(result["recent_orders"]) == 3
+
+
+    score = {
+        item["bucket"]: item
+        for item in result["score_performance_30d"]
+    }
+    assert score["60-69"]["closed_trades"] == 1
+    assert score["60-69"]["win_rate_pct"] == "100.00"
+    assert score["60-69"]["average_return_pct"] == "6.00"
+    assert score["70-79"]["closed_trades"] == 1
+    assert score["70-79"]["win_rate_pct"] == "0.00"
+    assert score["70-79"]["average_return_pct"] == "-2.00"
+    assert score["80-100"]["closed_trades"] == 0
