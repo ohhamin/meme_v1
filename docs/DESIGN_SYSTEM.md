@@ -1,67 +1,118 @@
-# MEME AI INVEST Design System v1
+# MEME AI INVEST Design System v2
 
 This document is the source of truth for all future mobile UI work in `meme_v1`.
 
-## Brand idea
+## Reference direction
 
-MEME AI INVEST should feel like a modern, trustworthy fintech product rather than a trading terminal.
+The visual reference approved on 2026-09-20 is the dark MEME AI INVEST brand board with:
 
-Core ideas:
+- an almost-black navy background
+- a glossy ribbon-like `M` that continues into an upward arrow
+- cyan / electric blue / violet / magenta accents
+- white `MEME` wordmark and widely tracked `AI INVEST`
+- thin blue borders rather than bright filled panels
+- rounded-square icon tiles
+- restrained glow around brand elements only
+- compact, premium fintech information hierarchy
 
-- data-driven investing
-- calm confidence
-- measurable growth
-- dark premium fintech UI
-- blue/cyan/purple brand gradient
-- rounded, compact surfaces
-- strong information hierarchy
-- restrained use of glow and gradients
+The app should feel close to that board. A generic Material dark theme or a simple line-chart logo is not considered an acceptable substitute.
 
-The brand mark is a ribbon-like `M` that continues into an upward arrow. The mark represents analysis flowing into action and growth.
+## Product identity
+
+Brand lockup:
+
+- `MEME`
+- `AI INVEST`
+- tagline: `데이터가 만드는 더 나은 선택`
+
+Brand mark:
+
+- a soft ribbon-shaped M
+- blue/cyan on the left
+- violet/magenta in the center fold
+- cyan rising stroke and arrow on the right
+- rounded terminals and a small glossy highlight
+- dark navy rounded background when used as the launcher icon
 
 ## Source assets
 
-- `mobile/assets/brand/meme_mark.svg`
-- `mobile/assets/brand/meme_lockup.svg`
-- Flutter-native mark: `mobile/lib/widgets/brand_logo.dart`
-- Android adaptive icon: `mobile/android/app/src/main/res/drawable/ic_meme_mark.xml`
+- Flutter brand renderer: `mobile/lib/widgets/brand_logo.dart`
+- SVG mark source: `mobile/assets/brand/meme_mark.svg`
+- SVG lockup source: `mobile/assets/brand/meme_lockup.svg`
+- Android adaptive foreground: `mobile/android/app/src/main/res/drawable/ic_meme_mark.xml`
 
-The Flutter-native mark is preferred inside the app because it scales cleanly without raster assets.
+The Flutter renderer is the runtime source of truth for in-app branding. Android uses a native vector so launcher rendering does not depend on Flutter startup.
 
-## Color tokens
+## Core palette
 
 Defined in `mobile/lib/theme/app_theme.dart`.
 
 | Token | Value | Purpose |
 |---|---|---|
-| background | #07111F | primary app background |
-| backgroundSoft | #0A1627 | navigation / secondary background |
-| surface | #0E1C2F | standard cards |
-| surfaceElevated | #13243A | inputs / elevated cards |
-| border | #1E3857 | card/input borders |
-| textPrimary | #F5F8FF | main text |
-| textSecondary | #A0B2C9 | supporting text |
-| textMuted | #71839B | quiet labels |
-| primary | #2FD8FF | cyan brand accent |
-| primaryBlue | #2F7BFF | action blue |
-| primaryPurple | #8B5CFF | AI / gradient accent |
-| positive | #21D49B | profit / healthy status |
-| negative | #FF6275 | loss / destructive state |
-| warning | #FFBF5B | warning / insufficient sample |
+| background | #030C18 | primary app background |
+| backgroundSoft | #071220 | app chrome / nav |
+| surface | #071423 | card base |
+| surfaceElevated | #0A1B2D | controls / raised content |
+| border | #173B61 | stronger blue border |
+| borderSoft | #102A47 | normal card border |
+| textPrimary | #F7F9FD | primary text |
+| textSecondary | #9AAECB | secondary text |
+| textMuted | #6C82A1 | quiet labels |
+| primary | #22DFF7 | cyan |
+| primaryBlue | #0797FF | electric blue |
+| primaryDeepBlue | #315BFF | blue-violet bridge |
+| primaryPurple | #8554FF | AI / fold accent |
+| primaryPink | #D84DF2 | ribbon fold highlight |
 
-## Brand gradient
+Semantic finance colors remain separate from the brand gradient:
 
-Primary gradient:
+- positive: green
+- negative: red
+- warning: amber
 
-`cyan → blue → purple`
+Do not use profit/loss colors as decorative brand colors.
 
-Use it for:
+## Background and surfaces
 
-- logo mark
-- hero sections
-- very high-emphasis brand moments
+The reference is mostly dark space, not a wall of blue cards.
 
-Do not use gradients on every card or button.
+Use:
+
+- `AppBackdrop` for the global near-black navy background
+- `AppSurface` for cards
+- thin, low-contrast borders
+- subtle shadows
+- blue/purple ambient glow only around high-emphasis brand moments
+
+Avoid:
+
+- bright blue full-card fills
+- strong gradients on every card
+- white/light gray surfaces
+- heavy neon bloom around ordinary data
+
+## Navigation
+
+Top-level navigation intentionally mirrors the approved reference and contains exactly six destinations:
+
+1. 주식
+2. 코인
+3. AI 판단
+4. 뉴스
+5. 성과
+6. 설정
+
+Use `BrandNavIcon` so each destination appears as a small outlined rounded-square icon tile.
+
+`알고리즘` is not removed. It lives inside the `AI 판단` hub as a secondary tab next to the judgment history.
+
+The former Paper dashboard is the `성과` destination and remains the default landing screen.
+
+## App bar
+
+Every top-level screen uses `BrandAppBarTitle`.
+
+The app bar should show the MEME lockup continuously rather than replacing the brand with a large page title. The current page name is secondary metadata.
 
 ## Layout
 
@@ -75,7 +126,7 @@ Use the spacing tokens from `AppSpacing`.
 - 24: large block spacing
 - 28: section spacing
 
-Screen horizontal padding should normally remain 20.
+Horizontal screen padding normally stays at 20.
 
 ## Radius
 
@@ -87,7 +138,7 @@ Use `AppRadius`.
 - 26: hero / modal surfaces
 - pill: status chips
 
-Avoid square cards unless the component is intentionally data-grid-like.
+The reference relies on rounded rectangles, but the shapes should remain tight and technical rather than bubbly.
 
 ## Typography
 
@@ -101,115 +152,83 @@ Hierarchy:
 4. `bodyMedium`: normal information
 5. `bodySmall`: supporting metadata
 
-Do not create arbitrary font sizes unless a brand component specifically needs them.
+Brand-specific tracking belongs only in the MEME / AI INVEST lockup and small slogan text.
 
 ## Shared components
 
 Prefer these before creating local variants:
 
+- `AppBackdrop`
 - `AppSurface`
 - `SectionTitle`
 - `AppEmptyState`
 - `BrandMark`
 - `BrandLockup`
 - `BrandAppBarTitle`
+- `BrandNavIcon`
 - `BrandHero`
 
-If a new reusable UI pattern appears in two or more screens, move it into a shared widget.
-
-## Cards
-
-All standard cards should:
-
-- use `AppSurface`
-- use subtle gradient surface
-- have a 1px brand border
-- use minimal dark shadow
-- avoid heavy glow
-- keep primary numeric result visually dominant
-
-## Semantic finance colors
-
-Use semantic colors only for meaning:
-
-- green: positive return / connected / safe
-- red: negative return / destructive / live-risk warning
-- amber: caution / insufficient sample / degraded state
-- cyan/blue: neutral product action / selection
-- purple: AI/algorithm context
-
-Never use green just because something is selectable.
+If a new visual pattern appears in two or more screens, move it into a shared widget instead of creating screen-local styling.
 
 ## Paper vs Live
 
 Paper and Live must remain visually distinct.
 
 Paper:
-- cyan/green leaning
-- calm test-state language
+- calm cyan/green-leaning status treatment
+- clear test-state language
 
 Live:
 - red/amber safety emphasis
-- show safety gates clearly
-- never make Live look like a celebratory state
+- safety gates remain visible
+- never make Live mode look celebratory
 
 ## Candidate score vs AI decision score
 
-These are separate concepts and must stay visually and verbally distinct.
+These are separate concepts.
 
 Candidate score:
-- screener quality / whether the stock deserves analysis
-- use cyan/blue
+- screener quality / whether a stock deserves analysis
+- cyan / blue
 
 AI decision score:
-- directional BUY/HOLD/SELL conviction
-- use action-specific semantic color only when appropriate
+- directional BUY / HOLD / SELL conviction
+- semantic action color where useful
 
-Always keep the wording `후보 점수 ≠ 매수 점수` where ambiguity is possible.
+Keep `후보 점수 ≠ 매수 점수` anywhere ambiguity is possible.
 
 ## Charts and performance
 
-Performance visuals should default to:
+Performance visuals should use:
 
-- dark surface
+- dark surfaces
 - minimal grid lines
-- no unnecessary legends
-- show sample count next to rates
-- show insufficient sample warnings under 10 closed trades
+- no decorative legends
+- sample count next to rates
+- insufficient-sample warnings below 10 closed trades
 
-## Buttons
+## Buttons and controls
 
 Primary actions:
 - blue/cyan emphasis
 
 Secondary actions:
-- outlined border
+- dark surface + outline
 
-Destructive / Live-confirm actions:
-- explicit red styling and confirmation
+Destructive / Live confirmation:
+- explicit red treatment + confirmation
 
-Do not use full-width gradient buttons by default. Gradient is reserved for brand moments, not routine controls.
-
-## Navigation
-
-Bottom navigation uses:
-
-- dark secondary background
-- cyan selected icon/label
-- muted blue-gray inactive state
-- soft blue selected indicator
-
-Every top-level screen uses `BrandAppBarTitle` so the product identity stays consistent.
+Do not use full-width rainbow-gradient buttons for routine actions.
 
 ## Future development rule
 
-All future Flutter UI changes should follow this file and the tokens/components in `app_theme.dart`.
+All future Flutter UI changes must follow this file and the shared tokens/components.
 
-When adding a new design choice:
+When adding a new visual choice:
 
 1. check whether a token/component already exists
 2. reuse it if possible
-3. if the pattern is reusable, add it to the design system first
-4. update this document when introducing a new global visual rule
+3. if reusable, add it to the design system first
+4. update this document if the new choice changes global visual rules
 
-Do not introduce a separate color palette, radius system, or card language inside individual feature screens.
+Do not reintroduce a separate palette, radius language, generic Material navigation, or a simplified line-chart logo inside individual feature screens.
