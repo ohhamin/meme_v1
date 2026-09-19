@@ -184,29 +184,59 @@ class TossUniverseSelector:
         stability = [-item["volatility_20d_pct"] for item in rows]
 
         for index, item in enumerate(rows):
-            score = (
-                cls._percentile(liquidity, liquidity[index]) * 0.45
-                + cls._percentile(
-                    medium_momentum,
-                    medium_momentum[index],
-                ) * 0.20
-                + cls._percentile(
-                    short_momentum,
-                    short_momentum[index],
-                ) * 0.10
-                + cls._percentile(activity, activity[index]) * 0.15
-                + cls._percentile(stability, stability[index]) * 0.10
+            liquidity_score = cls._percentile(
+                liquidity,
+                liquidity[index],
+            )
+            medium_score = cls._percentile(
+                medium_momentum,
+                medium_momentum[index],
+            )
+            short_score = cls._percentile(
+                short_momentum,
+                short_momentum[index],
+            )
+            activity_score = cls._percentile(
+                activity,
+                activity[index],
+            )
+            stability_score = cls._percentile(
+                stability,
+                stability[index],
             )
 
+            raw_score = (
+                liquidity_score * 0.45
+                + medium_score * 0.20
+                + short_score * 0.10
+                + activity_score * 0.15
+                + stability_score * 0.10
+            )
+
+            penalty = 0.0
+            penalty_reasons: list[str] = []
             # Avoid filling the candidate list with short-term blow-off moves.
             if abs(item["return_5d_pct"]) > 12:
-                score -= 8
+                penalty += 8
+                penalty_reasons.append("5일 급등락")
             if item["return_20d_pct"] > 30:
-                score -= 7
+                penalty += 7
+                penalty_reasons.append("20일 과열")
             if item["volatility_20d_pct"] > 5:
-                score -= 8
+                penalty += 8
+                penalty_reasons.append("높은 변동성")
 
-            item["score"] = round(max(0.0, min(100.0, score)), 2)
+            item["liquidity_score"] = round(liquidity_score, 2)
+            item["momentum_20d_score"] = round(medium_score, 2)
+            item["momentum_5d_score"] = round(short_score, 2)
+            item["activity_score"] = round(activity_score, 2)
+            item["stability_score"] = round(stability_score, 2)
+            item["penalty"] = round(penalty, 2)
+            item["penalty_reasons"] = penalty_reasons
+            item["score"] = round(
+                max(0.0, min(100.0, raw_score - penalty)),
+                2,
+            )
 
     @staticmethod
     def _percentile(values: list[float], value: float) -> float:
@@ -230,14 +260,24 @@ class TossUniverseSelector:
             return False
 
     def _save_state(self, ranked: list[dict], selected: list[str]) -> None:
+        selected_set = set(selected)
         payload = {
             "refreshed_at": datetime.now(self.tz).isoformat(),
             "selected": selected,
             "ranking": [
                 {
+                    "rank": index + 1,
+                    "selected": item["symbol"] in selected_set,
                     "symbol": item["symbol"],
                     "name": item["name"],
                     "score": item["score"],
+                    "liquidity_score": item["liquidity_score"],
+                    "momentum_20d_score": item["momentum_20d_score"],
+                    "momentum_5d_score": item["momentum_5d_score"],
+                    "activity_score": item["activity_score"],
+                    "stability_score": item["stability_score"],
+                    "penalty": item["penalty"],
+                    "penalty_reasons": item["penalty_reasons"],
                     "avg_turnover_20d": round(
                         item["avg_turnover_20d"],
                         2,
@@ -253,7 +293,7 @@ class TossUniverseSelector:
                         4,
                     ),
                 }
-                for item in ranked
+                for index, item in enumerate(ranked)
             ],
         }
         temp = self.state_path.with_suffix(".tmp")
