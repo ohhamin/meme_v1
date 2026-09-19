@@ -144,6 +144,14 @@ class ApiClient {
     return data['markdown']?.toString() ?? '';
   }
 
+  Future<Map<String, dynamic>> reviewAlgorithmNow() async {
+    return (await _request(
+      'POST',
+      '/algorithm/review',
+      timeout: const Duration(seconds: 90),
+    )) as Map<String, dynamic>;
+  }
+
   Future<List<Map<String, dynamic>>> getAlgorithmProposals() async {
     final data =
         await _request('GET', '/algorithm/proposals') as Map<String, dynamic>;
