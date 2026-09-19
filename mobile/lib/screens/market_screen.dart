@@ -278,6 +278,12 @@ class _MarketScreenState extends State<MarketScreen> {
       );
       var selectionMode =
           status['selection_mode']?.toString() ?? 'manual';
+      var ranking = (status['ranking'] as List<dynamic>? ?? <dynamic>[])
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>())
+          .where((item) => item['selected'] == true)
+          .toList();
+      var refreshedAt = status['refreshed_at']?.toString();
       var autoRunning = false;
 
       final saved = await showModalBottomSheet<bool>(
@@ -369,6 +375,23 @@ class _MarketScreenState extends State<MarketScreen> {
                                           .autoSelectTossUniverse(limit: 15);
                                       controller.text = symbols.join(', ');
                                       selectionMode = 'auto';
+                                      final latest = await ApiClient.instance
+                                          .getTossUniverseStatus();
+                                      ranking = (latest['ranking']
+                                                  as List<dynamic>? ??
+                                              <dynamic>[])
+                                          .whereType<Map>()
+                                          .map(
+                                            (item) =>
+                                                item.cast<String, dynamic>(),
+                                          )
+                                          .where(
+                                            (item) =>
+                                                item['selected'] == true,
+                                          )
+                                          .toList();
+                                      refreshedAt =
+                                          latest['refreshed_at']?.toString();
                                       if (mounted) {
                                         setState(() {
                                           _tossUniverseCount = symbols.length;
@@ -412,6 +435,45 @@ class _MarketScreenState extends State<MarketScreen> {
                             ),
                           ),
                         ),
+                        if (selectionMode == 'auto' && ranking.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '자동선정 근거',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                              ),
+                              if (refreshedAt != null)
+                                Text(
+                                  _formatUniverseRefresh(refreshedAt!),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '점수는 후보 풀 안에서의 상대점수예요. 높은 점수 자체가 매수 신호는 아닙니다.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 300,
+                            child: ListView.separated(
+                              itemCount: ranking.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                return _StockUniverseRankCard(
+                                  item: ranking[index],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         TextField(
                           controller: controller,
@@ -510,6 +572,15 @@ class _MarketScreenState extends State<MarketScreen> {
       );
     }
   }
+  String _formatUniverseRefresh(String raw) {
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      return DateFormat('MM/dd HH:mm').format(dt);
+    } catch (_) {
+      return raw;
+    }
+  }
+
   Future<void> _openUpbitUniverse() async {
     try {
       final results = await Future.wait([
@@ -950,6 +1021,113 @@ class _PerformanceSummary extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _StockUniverseRankCard extends StatelessWidget {
+  const _StockUniverseRankCard({required this.item});
+
+  final Map<String, dynamic> item;
+
+  double _number(String key) =>
+      double.tryParse(item[key]?.toString() ?? '0') ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final money = NumberFormat.compact(locale: 'ko_KR');
+    final score = _number('score');
+    final penalty = _number('penalty');
+    final reasons =
+        (item['penalty_reasons'] as List<dynamic>? ?? <dynamic>[])
+            .map((value) => value.toString())
+            .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 28,
+                child: Text(
+                  '#${item['rank'] ?? '-'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  '${item['name'] ?? item['symbol']} · ${item['symbol'] ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Text(
+                score.toStringAsFixed(1),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 10,
+            runSpacing: 5,
+            children: [
+              _UniverseMetric(label: '유동성', value: _number('liquidity_score')),
+              _UniverseMetric(label: '20일추세', value: _number('momentum_20d_score')),
+              _UniverseMetric(label: '5일추세', value: _number('momentum_5d_score')),
+              _UniverseMetric(label: '거래활성', value: _number('activity_score')),
+              _UniverseMetric(label: '안정성', value: _number('stability_score')),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            '20일 평균 거래대금 ${money.format(_number('avg_turnover_20d'))}원'
+            ' · 5일 ${_number('return_5d_pct').toStringAsFixed(1)}%'
+            ' · 20일 ${_number('return_20d_pct').toStringAsFixed(1)}%',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (penalty > 0) ...[
+            const SizedBox(height: 5),
+            Text(
+              '감점 -${penalty.toStringAsFixed(0)}'
+              '${reasons.isEmpty ? '' : ' · ${reasons.join(', ')}'}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.warning,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UniverseMetric extends StatelessWidget {
+  const _UniverseMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '$label ${value.toStringAsFixed(0)}',
+      style: Theme.of(context).textTheme.bodySmall,
     );
   }
 }
