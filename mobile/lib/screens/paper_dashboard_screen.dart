@@ -119,6 +119,7 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
             children: [
               AppSurface(
+                emphasized: true,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
