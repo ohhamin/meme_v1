@@ -12,6 +12,7 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.data_retention import DataRetentionService
 from backend.app.services.scheduler_state import SchedulerStateService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
+from backend.app.services.push import PushService
 
 
 class AdaptiveDecisionScheduler:
@@ -29,6 +30,7 @@ class AdaptiveDecisionScheduler:
         self.state = SchedulerStateService()
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
+        self.push = PushService()
 
     def start(self) -> None:
         if not self.config.scheduler_enabled:
@@ -183,32 +185,57 @@ class AdaptiveDecisionScheduler:
 
     async def _run_decision_cycle(self) -> None:
         runtime = self.runtime.get()
-        if runtime.mode == "live":
-            result = await self.live_auto_cycle.run()
-        else:
-            result = await self.combined_paper_runner.run()
-
-        if (
-            result.status == "completed"
-            and result.next_check_minutes is not None
-        ):
-            next_minutes = result.next_check_minutes
-        else:
-            next_minutes = (
-                self.config.decision_default_interval_minutes
-            )
-
-        self.audit.write(
-            "system",
-            {
-                "event": "scheduled_decision_cycle_finished",
-                "mode": runtime.mode,
-                "status": result.status,
-                "reason": result.reason,
-                "next_check_minutes": next_minutes,
-            },
+        next_minutes = (
+            self.config.decision_default_interval_minutes
         )
-        self.schedule_next(next_minutes)
+
+        try:
+            if runtime.mode == "live":
+                result = await self.live_auto_cycle.run()
+            else:
+                result = await self.combined_paper_runner.run()
+
+            if (
+                result.status == "completed"
+                and result.next_check_minutes is not None
+            ):
+                next_minutes = result.next_check_minutes
+
+            self.audit.write(
+                "system",
+                {
+                    "event": "scheduled_decision_cycle_finished",
+                    "mode": runtime.mode,
+                    "status": result.status,
+                    "reason": result.reason,
+                    "next_check_minutes": next_minutes,
+                },
+            )
+        except Exception as exc:
+            # This is a one-shot adaptive job. Any unexpected exception must
+            # still schedule the next cycle or automation would silently stop.
+            self.audit.write(
+                "system",
+                {
+                    "event": "scheduled_decision_cycle_failed",
+                    "mode": runtime.mode,
+                    "error_type": type(exc).__name__,
+                    "next_check_minutes": next_minutes,
+                },
+            )
+            self.push.send(
+                title="자동 판단 오류",
+                body=(
+                    "판단 사이클에서 예외가 발생했어요. "
+                    "신규 주문 없이 기본 주기로 다시 시도합니다."
+                ),
+                data={
+                    "type": "decision_cycle_failed",
+                    "mode": runtime.mode,
+                },
+            )
+        finally:
+            self.schedule_next(next_minutes)
 
     def next_run_at(self, proposed_minutes: int) -> datetime:
         minutes = self.config.clamp_decision_interval(
