@@ -44,6 +44,7 @@ class OrderResult(BaseModel):
 class RuntimeSettings(BaseModel):
     mode: Mode = "paper"
     kill_switch: bool = True
+    scheduler_enabled: bool = True
     live_order_allowed: bool = False
 
 
@@ -52,6 +53,10 @@ class ModeUpdate(BaseModel):
 
 
 class KillSwitchUpdate(BaseModel):
+    enabled: bool
+
+
+class SchedulerUpdate(BaseModel):
     enabled: bool
 
 
