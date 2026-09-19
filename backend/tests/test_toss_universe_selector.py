@@ -86,7 +86,19 @@ def test_stock_selector_builds_auto_universe_from_objective_metrics(tmp_path):
     assert universe.limit == 3
     assert "005930" in selected
     assert "000660" in selected
-    assert selector.status()["selection_mode"] == "auto"
+    status = selector.status()
+    assert status["selection_mode"] == "auto"
+    selected_rows = [
+        item
+        for item in status["ranking"]
+        if item["selected"]
+    ]
+    assert len(selected_rows) == 3
+    assert selected_rows[0]["rank"] == 1
+    assert 0 <= selected_rows[0]["liquidity_score"] <= 100
+    assert 0 <= selected_rows[0]["momentum_20d_score"] <= 100
+    assert 0 <= selected_rows[0]["activity_score"] <= 100
+    assert "penalty_reasons" in selected_rows[0]
 
 
 def test_metrics_reject_insufficient_history():
