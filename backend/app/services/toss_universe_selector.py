@@ -184,29 +184,110 @@ class TossUniverseSelector:
         stability = [-item["volatility_20d_pct"] for item in rows]
 
         for index, item in enumerate(rows):
-            score = (
-                cls._percentile(liquidity, liquidity[index]) * 0.45
-                + cls._percentile(
-                    medium_momentum,
-                    medium_momentum[index],
-                ) * 0.20
-                + cls._percentile(
-                    short_momentum,
-                    short_momentum[index],
-                ) * 0.10
-                + cls._percentile(activity, activity[index]) * 0.15
-                + cls._percentile(stability, stability[index]) * 0.10
+            components = {
+                "liquidity": round(
+                    cls._percentile(liquidity, liquidity[index]),
+                    2,
+                ),
+                "momentum_20d": round(
+                    cls._percentile(
+                        medium_momentum,
+                        medium_momentum[index],
+                    ),
+                    2,
+                ),
+                "momentum_5d": round(
+                    cls._percentile(
+                        short_momentum,
+                        short_momentum[index],
+                    ),
+                    2,
+                ),
+                "activity": round(
+                    cls._percentile(activity, activity[index]),
+                    2,
+                ),
+                "stability": round(
+                    cls._percentile(stability, stability[index]),
+                    2,
+                ),
+            }
+            raw_score = (
+                components["liquidity"] * 0.45
+                + components["momentum_20d"] * 0.20
+                + components["momentum_5d"] * 0.10
+                + components["activity"] * 0.15
+                + components["stability"] * 0.10
             )
 
-            # Avoid filling the candidate list with short-term blow-off moves.
+            penalties: list[dict] = []
             if abs(item["return_5d_pct"]) > 12:
-                score -= 8
+                penalties.append(
+                    {
+                        "code": "short_term_move",
+                        "points": 8,
+                        "detail": "5일 등락폭이 12%를 초과",
+                    }
+                )
             if item["return_20d_pct"] > 30:
-                score -= 7
+                penalties.append(
+                    {
+                        "code": "extended_momentum",
+                        "points": 7,
+                        "detail": "20일 상승률이 30%를 초과",
+                    }
+                )
             if item["volatility_20d_pct"] > 5:
-                score -= 8
+                penalties.append(
+                    {
+                        "code": "high_volatility",
+                        "points": 8,
+                        "detail": "20일 변동성이 5%를 초과",
+                    }
+                )
 
-            item["score"] = round(max(0.0, min(100.0, score)), 2)
+            penalty_total = sum(
+                int(penalty["points"])
+                for penalty in penalties
+            )
+            score = raw_score - penalty_total
+
+            item["score_components"] = components
+            item["raw_score"] = round(raw_score, 2)
+            item["penalties"] = penalties
+            item["penalty_total"] = penalty_total
+            item["score"] = round(
+                max(0.0, min(100.0, score)),
+                2,
+            )
+            item["selection_reason"] = cls._selection_reason(item)
+
+    @staticmethod
+    def _selection_reason(item: dict) -> str:
+        components = item.get("score_components") or {}
+        labels = {
+            "liquidity": "유동성",
+            "momentum_20d": "20일 추세",
+            "momentum_5d": "5일 추세",
+            "activity": "거래활성도",
+            "stability": "변동성 안정성",
+        }
+        strongest = sorted(
+            components.items(),
+            key=lambda pair: pair[1],
+            reverse=True,
+        )[:2]
+        strengths = " · ".join(
+            f"{labels.get(key, key)} {value:.0f}"
+            for key, value in strongest
+        )
+        penalty_total = int(item.get("penalty_total") or 0)
+        if penalty_total > 0:
+            return (
+                f"{strengths} 강점 · 과열/변동성 감점 "
+                f"-{penalty_total}"
+            )
+        return f"{strengths} 강점 · 별도 감점 없음"
 
     @staticmethod
     def _percentile(values: list[float], value: float) -> float:
@@ -238,6 +319,18 @@ class TossUniverseSelector:
                     "symbol": item["symbol"],
                     "name": item["name"],
                     "score": item["score"],
+                    "raw_score": item.get("raw_score"),
+                    "score_components": item.get(
+                        "score_components",
+                        {},
+                    ),
+                    "penalty_total": item.get("penalty_total", 0),
+                    "penalties": item.get("penalties", []),
+                    "selection_reason": item.get(
+                        "selection_reason",
+                        "",
+                    ),
+                    "selected": item["symbol"] in selected,
                     "avg_turnover_20d": round(
                         item["avg_turnover_20d"],
                         2,
