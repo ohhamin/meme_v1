@@ -290,6 +290,23 @@ class ApiClient {
     return symbols.map((item) => item.toString()).toList();
   }
 
+  Future<Map<String, dynamic>> getTossUniverseStatus() async {
+    return (await _request(
+      'GET',
+      '/stocks/toss/universe/status',
+    )) as Map<String, dynamic>;
+  }
+
+  Future<List<String>> autoSelectTossUniverse({int limit = 15}) async {
+    final data = await _request(
+      'POST',
+      '/stocks/toss/universe/auto?limit=$limit',
+      timeout: const Duration(seconds: 90),
+    ) as Map<String, dynamic>;
+    final symbols = data['symbols'] as List<dynamic>? ?? <dynamic>[];
+    return symbols.map((item) => item.toString()).toList();
+  }
+
   Future<List<String>> updateTossUniverse(List<String> symbols) async {
     final data = await _request(
       'PUT',

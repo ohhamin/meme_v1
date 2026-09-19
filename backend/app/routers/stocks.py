@@ -15,6 +15,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.toss_paper_runner import TossPaperRunner
 from backend.app.services.toss_universe import TossUniverseService
+from backend.app.services.toss_universe_selector import TossUniverseSelector
 from backend.app.services.trading import TradingService
 from backend.app.services.market_performance import MarketPerformanceService
 
@@ -89,6 +90,23 @@ async def toss_universe():
     )
 
 
+@router.get("/toss/universe/status")
+async def toss_universe_status():
+    return TossUniverseSelector().status()
+
+
+@router.post("/toss/universe/auto", response_model=TossUniverseResponse)
+async def auto_toss_universe(limit: int = Query(15, ge=1, le=30)):
+    symbols = await TossUniverseSelector().select(
+        limit=limit,
+        force=True,
+    )
+    return TossUniverseResponse(
+        symbols=symbols,
+        count=len(symbols),
+    )
+
+
 @router.put("/toss/universe", response_model=TossUniverseResponse)
 async def update_toss_universe(payload: TossUniverseUpdate):
     requested = [
@@ -125,7 +143,7 @@ async def update_toss_universe(payload: TossUniverseUpdate):
                 },
             )
 
-    symbols = TossUniverseService().set(requested)
+    symbols = TossUniverseService().set_manual(requested)
     return TossUniverseResponse(
         symbols=symbols,
         count=len(symbols),
