@@ -81,11 +81,33 @@ class SymbolDecision(BaseModel):
     score: int = Field(ge=0, le=100)
     reason: str = Field(min_length=1, max_length=1000)
 
+    @model_validator(mode="after")
+    def action_matches_score(self):
+        if self.action == "BUY" and self.score < 60:
+            raise ValueError("BUY score must be 60-100")
+        if self.action == "SELL" and self.score > 40:
+            raise ValueError("SELL score must be 0-40")
+        if self.action == "HOLD" and not 41 <= self.score <= 59:
+            raise ValueError("HOLD score must be 41-59")
+        return self
+
 
 class DecisionCycleResult(BaseModel):
-    decisions: list[SymbolDecision]
+    decisions: list[SymbolDecision] = Field(max_length=200)
     next_check_minutes: int = Field(ge=30, le=120)
     cycle_summary: str = Field(min_length=1, max_length=1200)
+
+    @model_validator(mode="after")
+    def unique_market_symbols(self):
+        keys = [
+            (item.market, item.symbol.strip().upper())
+            for item in self.decisions
+        ]
+        if len(keys) != len(set(keys)):
+            raise ValueError(
+                "A decision cycle cannot contain duplicate market/symbol pairs"
+            )
+        return self
 
 
 class DecisionPreviewRequest(BaseModel):
