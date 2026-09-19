@@ -16,6 +16,7 @@ from backend.app.models.schemas import (
 from backend.app.services.toss_paper_runner import TossPaperRunner
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.trading import TradingService
+from backend.app.services.market_performance import MarketPerformanceService
 
 
 router = APIRouter(
@@ -23,6 +24,11 @@ router = APIRouter(
     tags=["stocks"],
     dependencies=[Depends(require_api_token)],
 )
+
+
+@router.get("/performance")
+async def performance():
+    return await MarketPerformanceService().build("stock")
 
 
 @router.get("/positions")
