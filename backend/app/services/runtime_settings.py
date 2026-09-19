@@ -24,8 +24,25 @@ class RuntimeSettingsService:
             self._write(state)
             return self._decorate(state)
 
-        raw = json.loads(self.path.read_text(encoding="utf-8"))
-        state = RuntimeSettings(**raw)
+        try:
+            raw = json.loads(
+                self.path.read_text(encoding="utf-8")
+            )
+            state = RuntimeSettings(**raw)
+        except (
+            OSError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+        ):
+            # Corrupted runtime state must fail closed: Paper + Kill switch ON.
+            state = RuntimeSettings(
+                mode="paper",
+                kill_switch=True,
+                live_order_allowed=False,
+            )
+            self._write(state)
+
         return self._decorate(state)
 
     def set_mode(self, mode: str) -> RuntimeSettings:
