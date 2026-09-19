@@ -17,6 +17,7 @@ from backend.app.services.audit import AuditLogger
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
 from backend.app.services.push import PushService
+from backend.app.services.algorithm_metrics import AlgorithmMetricsService
 
 
 _REVIEW_SCHEMA: dict[str, Any] = {
@@ -50,6 +51,7 @@ class AlgorithmReviewService:
         self.budget = LLMBudgetService()
         self.runtime = LLMRuntimeStateService()
         self.push = PushService()
+        self.metrics = AlgorithmMetricsService()
         self.context_dir: Path = self.config.data_path / "context"
         self.client = (
             AsyncOpenAI(
@@ -100,12 +102,20 @@ class AlgorithmReviewService:
             min(self.config.llm_context_news_chars, 8000),
         )
         current_algorithm = self.algorithms.current()
+        metrics = self.metrics.build()
+
+        if (
+            metrics.get("decision_count", 0)
+            < self.config.algorithm_review_min_decisions
+        ):
+            return self._skip("not_enough_decision_samples")
 
         payload = json.dumps(
             {
                 "current_algorithm": current_algorithm,
                 "recent_decisions": decision_context,
                 "recent_news_context": news_context,
+                "deterministic_metrics": metrics,
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -121,6 +131,7 @@ class AlgorithmReviewService:
                 instructions=(
                     "Review the trading algorithm conservatively using the supplied operating history. "
                     "Only propose a change when there is repeated, concrete evidence of a structural issue. "
+                    "Use deterministic_metrics as the primary evidence for repeated blocks, churn, and order outcomes. "
                     "Do not optimize from a single trade or a small sample. "
                     "Never propose removing or weakening kill switch, fail-closed behavior, "
                     "idempotency, token-budget controls, or hard risk limits. "
