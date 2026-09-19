@@ -32,6 +32,7 @@ async def status():
         "live_order_allowed": runtime.live_order_allowed,
         "scheduler_enabled": config.scheduler_enabled,
         "news_collection_interval_hours": config.news_collection_interval_hours,
+        "data_retention_days": config.data_retention_days,
         "llm_budget": LLMBudgetService().status(),
         "llm_runtime": LLMRuntimeStateService().status(),
         "risk_policy": RiskGuard().policy(),
@@ -55,7 +56,7 @@ async def status():
                 config.toss_client_id and config.toss_client_secret
             ),
             "account_seq_configured": config.toss_account_seq is not None,
-            "live_orders_implemented": False,
+            "live_orders_implemented": True,
         },
         "decision_interval": {
             "default": config.decision_default_interval_minutes,
