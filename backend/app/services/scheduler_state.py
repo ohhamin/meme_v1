@@ -29,12 +29,24 @@ class SchedulerStateService:
         return value if value.tzinfo is not None else None
 
     def save_next_decision_at(self, value: datetime) -> None:
-        self._write(
-            {"next_decision_at": value.isoformat()}
-        )
+        data = self._read()
+        data["next_decision_at"] = value.isoformat()
+        self._write(data)
+
+    def last_run(self) -> dict | None:
+        data = self._read()
+        value = data.get("last_run")
+        return value if isinstance(value, dict) else None
+
+    def save_last_run(self, value: dict) -> None:
+        data = self._read()
+        data["last_run"] = value
+        self._write(data)
 
     def clear_next_decision_at(self) -> None:
-        self._write({})
+        data = self._read()
+        data.pop("next_decision_at", None)
+        self._write(data)
 
     def _read(self) -> dict:
         if not self.path.exists():
