@@ -9,6 +9,7 @@ from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.decision_universe import merge_decision_universe
 
 
 class CombinedPaperRunner:
@@ -30,7 +31,14 @@ class CombinedPaperRunner:
         snapshots = []
         failures: list[str] = []
 
-        upbit_markets = self.upbit_universe.get()
+        portfolios = self.paper_cycle._portfolios()
+        upbit_markets = merge_decision_universe(
+            self.upbit_universe.get(),
+            [
+                position.symbol
+                for position in portfolios["crypto"].positions
+            ],
+        )
         if upbit_markets:
             try:
                 crypto = await self.upbit.snapshots(
@@ -52,7 +60,13 @@ class CombinedPaperRunner:
             except (UpbitMarketDataError, ValueError) as exc:
                 failures.append(f"Upbit: {exc}")
 
-        toss_symbols = self.toss_universe.get()
+        toss_symbols = merge_decision_universe(
+            self.toss_universe.get(),
+            [
+                position.symbol
+                for position in portfolios["stock"].positions
+            ],
+        )
         if toss_symbols:
             if not self.toss.configured:
                 failures.append(
@@ -115,7 +129,7 @@ class CombinedPaperRunner:
             return PaperCycleResponse(
                 status="blocked",
                 reason=reason,
-                portfolios=self.paper_cycle._portfolios(),
+                portfolios=portfolios,
             )
 
         result = await self.paper_cycle.run(
