@@ -9,6 +9,7 @@ from backend.app.models.schemas import (
 from backend.app.services.audit import AuditLogger
 from backend.app.services.live_order_journal import LiveOrderJournal
 from backend.app.services.push import PushService
+from backend.app.services.auto_trade_activity import AutoTradeActivityService
 
 
 class LiveOrderReconciler:
@@ -20,6 +21,7 @@ class LiveOrderReconciler:
         self.toss = TossOrderAdapter()
         self.audit = AuditLogger()
         self.push = PushService()
+        self.auto_activity = AutoTradeActivityService()
 
     async def reconcile(
         self,
@@ -173,6 +175,17 @@ class LiveOrderReconciler:
             broker_order_id=broker_order_id,
             broker_status=broker_status,
         )
+
+        if (
+            updated.source == "auto"
+            and status in {"SUBMITTED", "CONFIRMED"}
+        ):
+            self.auto_activity.record(
+                mode="live",
+                market=updated.market,
+                symbol=updated.symbol,
+                at=updated.created_at,
+            )
 
         if status == "CONFIRMED":
             self.audit.write(
