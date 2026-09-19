@@ -90,11 +90,31 @@ class LiveOrderReconciler:
                     broker_status=broker_status,
                 )
 
-            # Toss can query by broker order id. If submit timed out before
-            # returning orderId, keep UNKNOWN rather than guessing from a
-            # potentially similar order.
+            # Toss can recover an ambiguous submit by the caller-generated
+            # clientOrderId using read-only OPEN/CLOSED order lists.
             if not record.broker_order_id:
-                return record
+                recovered = await self.toss.find_order_by_client_order_id(
+                    symbol=record.symbol,
+                    client_order_id=record.client_order_id,
+                )
+                if recovered is None:
+                    return record
+
+                recovered_order_id = str(
+                    recovered.get("orderId") or ""
+                )
+                if not recovered_order_id:
+                    return record
+
+                record = self.journal.update(
+                    record.intent_id,
+                    status="SUBMITTED",
+                    broker_order_id=recovered_order_id,
+                    broker_status=str(
+                        recovered.get("status") or "PENDING"
+                    ),
+                    reason="Recovered by Toss clientOrderId lookup.",
+                )
 
             payload = await self.toss.get_order(
                 record.broker_order_id
