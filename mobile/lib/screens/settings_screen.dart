@@ -91,7 +91,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Live mode는 실제 주문이 가능한 모드예요. '
-                    '서버의 TRADING_ENABLED와 Broker Adapter가 모두 준비되어야 실제 주문이 실행됩니다.',
+                    '전환하면 Kill switch가 자동으로 다시 켜지고, '
+                    '준비 상태를 확인한 뒤 별도로 꺼야 실제 주문이 가능해요.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -124,9 +125,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     try {
-      final value = await ApiClient.instance.setMode(live ? 'live' : 'paper');
-      if (!mounted) return;
-      setState(() => _settings = value);
+      await ApiClient.instance.setMode(live ? 'live' : 'paper');
+      await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -137,9 +137,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _setKillSwitch(bool enabled) async {
     try {
-      final value = await ApiClient.instance.setKillSwitch(enabled);
-      if (!mounted) return;
-      setState(() => _settings = value);
+      await ApiClient.instance.setKillSwitch(enabled);
+      await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
