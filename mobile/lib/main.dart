@@ -116,10 +116,17 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
           ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: _selectTab,
-            destinations: const [
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+            ),
+            child: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: _selectTab,
+              destinations: const [
               NavigationDestination(
                 icon: BrandNavIcon(icon: Icons.bar_chart_rounded),
                 selectedIcon: BrandNavIcon(
@@ -168,7 +175,8 @@ class _AppShellState extends State<AppShell> {
                 ),
                 label: '설정',
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
