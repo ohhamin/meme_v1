@@ -26,6 +26,9 @@ class RiskGuard:
             "max_data_age_seconds": self.config.risk_max_data_age_seconds,
             "min_cash_reserve_pct": self.config.risk_min_cash_reserve_pct,
             "max_open_positions": self.config.risk_max_open_positions,
+            "auto_symbol_cooldown_minutes": (
+                self.config.risk_auto_symbol_cooldown_minutes
+            ),
             "minimum_open_positions": 0,
             "sell_is_risk_reducing": True,
             "resizes_orders": False,
@@ -50,7 +53,24 @@ class RiskGuard:
         if intent.same_cycle_duplicate:
             reasons.append("Duplicate order for the same symbol in this cycle.")
 
-        # 3) Stale market/account data must never be traded automatically.
+        # 3) Automatic strategy may evaluate every 30 minutes, but a symbol
+        # may create at most one successful automatic order per cooldown window.
+        if (
+            intent.source == "auto"
+            and intent.seconds_since_last_auto_order is not None
+            and intent.seconds_since_last_auto_order
+            < self.config.risk_auto_symbol_cooldown_minutes * 60
+        ):
+            remaining = (
+                self.config.risk_auto_symbol_cooldown_minutes * 60
+                - intent.seconds_since_last_auto_order
+            )
+            reasons.append(
+                "Automatic symbol cooldown is active "
+                f"({remaining}s remaining)."
+            )
+
+        # 4) Stale market/account data must never be traded automatically.
         if intent.data_age_seconds > self.config.risk_max_data_age_seconds:
             reasons.append(
                 "Market/account snapshot is stale "
@@ -58,11 +78,11 @@ class RiskGuard:
                 f"{self.config.risk_max_data_age_seconds}s)."
             )
 
-        # 4) Stock orders require an open market. Crypto adapters normally pass true.
+        # 5) Stock orders require an open market. Crypto adapters normally pass true.
         if intent.market == "stock" and not intent.market_open:
             reasons.append("Stock market is closed.")
 
-        # 5) Basic malformed-order checks.
+        # 6) Basic malformed-order checks.
         if intent.price <= 0:
             reasons.append("Price must be positive.")
 
