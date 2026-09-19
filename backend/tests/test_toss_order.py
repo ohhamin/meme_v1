@@ -92,3 +92,43 @@ def test_toss_sell_preflight_checks_sellable_quantity(monkeypatch):
         adapter.config.toss_client_id = old_id
         adapter.config.toss_client_secret = old_secret
         adapter.config.toss_live_order_enabled = old_enabled
+
+
+
+def test_toss_market_order_payload_and_high_value_flag():
+    adapter = TossOrderAdapter()
+    old_confirm = adapter.config.toss_confirm_high_value_orders
+    old_threshold = adapter.config.toss_high_value_order_threshold_krw
+
+    try:
+        adapter.config.toss_high_value_order_threshold_krw = 100000000
+        adapter.config.toss_confirm_high_value_orders = False
+
+        normal = adapter.build_market_order(
+            symbol="005930",
+            side="buy",
+            quantity=Decimal("3"),
+            notional=Decimal("210000"),
+            client_order_id="meme-normal",
+        )
+        assert normal == {
+            "clientOrderId": "meme-normal",
+            "symbol": "005930",
+            "side": "BUY",
+            "orderType": "MARKET",
+            "quantity": "3",
+        }
+
+        adapter.config.toss_confirm_high_value_orders = True
+        high = adapter.build_market_order(
+            symbol="005930",
+            side="sell",
+            quantity=Decimal("2000"),
+            notional=Decimal("120000000"),
+            client_order_id="meme-high",
+        )
+        assert high["confirmHighValueOrder"] is True
+        assert high["side"] == "SELL"
+    finally:
+        adapter.config.toss_confirm_high_value_orders = old_confirm
+        adapter.config.toss_high_value_order_threshold_krw = old_threshold
