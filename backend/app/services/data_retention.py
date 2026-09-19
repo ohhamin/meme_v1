@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from backend.app.core.config import get_settings
 from backend.app.services.audit import AuditLogger
 from backend.app.services.rolling_context import RollingContextService
+from backend.app.services.idempotency import IdempotencyStore
 
 
 class DataRetentionService:
@@ -31,6 +32,7 @@ class DataRetentionService:
             ),
         }
 
+        deleted["idempotency"] = IdempotencyStore().prune()
         RollingContextService().refresh_all()
         self.audit.write(
             "system",
