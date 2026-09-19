@@ -138,6 +138,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _setScheduler(bool enabled) async {
+    try {
+      await ApiClient.instance.setSchedulerEnabled(enabled);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _setKillSwitch(bool enabled) async {
     try {
       await ApiClient.instance.setKillSwitch(enabled);
@@ -672,6 +684,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final readiness = _readiness ?? <String, dynamic>{};
     final live = settings['mode'] == 'live';
     final killSwitch = settings['kill_switch'] == true;
+    final schedulerEnabled = scheduler['enabled'] == true;
     final liveAllowed = settings['live_order_allowed'] == true;
 
     final llmBudget =
@@ -1106,6 +1119,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   value: live,
                   onChanged: _setLive,
+                ),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  title: Text(
+                    'AI 스케줄러',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  subtitle: const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text(
+                      '끄면 뉴스 수집·AI 매매 판단 등 예약 실행을 모두 멈춰요.',
+                    ),
+                  ),
+                  value: schedulerEnabled,
+                  onChanged: _setScheduler,
                 ),
                 const Divider(),
                 SwitchListTile(
