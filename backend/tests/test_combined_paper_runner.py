@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 
 from backend.app.models.schemas import (
     MarketInstrumentSnapshot,
@@ -26,11 +27,24 @@ class _MarketData:
 
 
 class _PaperCycle:
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        crypto_positions=None,
+        stock_positions=None,
+    ):
         self.received = None
+        self._portfolio_data = {
+            "crypto": SimpleNamespace(
+                positions=list(crypto_positions or [])
+            ),
+            "stock": SimpleNamespace(
+                positions=list(stock_positions or [])
+            ),
+        }
 
     def _portfolios(self):
-        return None
+        return self._portfolio_data
 
     async def run(self, *, instruments):
         self.received = list(instruments)
@@ -123,3 +137,38 @@ def test_closed_stock_market_does_not_block_crypto_cycle():
     assert result.status == "completed"
     assert len(runner.paper_cycle.received) == 1
     assert runner.paper_cycle.received[0].market == "crypto"
+
+
+
+def test_held_crypto_is_evaluated_even_after_watchlist_removal():
+    runner = CombinedPaperRunner()
+    runner.upbit_universe = _Universe([])
+    runner.toss_universe = _Universe([])
+    runner.upbit = _MarketData(
+        [
+            MarketInstrumentSnapshot(
+                market="crypto",
+                symbol="KRW-BTC",
+                name="비트코인",
+                price=100000000,
+                data_age_seconds=1,
+                market_open=True,
+            )
+        ]
+    )
+    runner.toss = _MarketData([], configured=False)
+    runner.paper_cycle = _PaperCycle(
+        crypto_positions=[
+            SimpleNamespace(symbol="KRW-BTC")
+        ]
+    )
+    runner.audit.write = lambda *args, **kwargs: None
+
+    result = asyncio.run(runner.run())
+
+    assert result.status == "completed"
+    assert runner.paper_cycle.received is not None
+    assert [
+        item.symbol
+        for item in runner.paper_cycle.received
+    ] == ["KRW-BTC"]
