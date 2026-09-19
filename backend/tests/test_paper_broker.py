@@ -86,3 +86,39 @@ def test_update_prices_marks_portfolio_to_market(tmp_path):
     assert position.market_value == Decimal("120000.000")
     assert position.return_rate == Decimal("20.0")
     assert portfolio.equity == Decimal("1020000.000")
+
+
+
+def test_update_prices_preserves_snapshot_age(tmp_path):
+    broker = make_broker(tmp_path)
+    broker.execute(
+        symbol="BTC",
+        name="Bitcoin",
+        side="buy",
+        quantity=Decimal("0.001"),
+        market_price=Decimal("100000000"),
+    )
+
+    broker.update_prices(
+        [
+            MarketInstrumentSnapshot(
+                market="crypto",
+                symbol="BTC",
+                name="Bitcoin",
+                price=Decimal("100000000"),
+                data_age_seconds=600,
+            )
+        ]
+    )
+
+    position = broker.portfolio().positions[0]
+    age = broker.config.risk_max_data_age_seconds
+    assert position.last_price_at is not None
+
+    from datetime import datetime
+
+    now = datetime.now(position.last_price_at.tzinfo)
+    observed_age = int(
+        (now - position.last_price_at).total_seconds()
+    )
+    assert 598 <= observed_age <= 602
