@@ -35,7 +35,7 @@ class AdaptiveDecisionScheduler:
         self.macro_context = MacroMarketContextService()
 
     def start(self) -> None:
-        if not self.config.scheduler_enabled:
+        if not self.state.enabled(self.config.scheduler_enabled):
             return
 
         if not self.scheduler.running:
@@ -64,6 +64,16 @@ class AdaptiveDecisionScheduler:
     def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+
+    def set_enabled(self, enabled: bool) -> dict:
+        self.state.save_enabled(enabled)
+        if enabled:
+            self.start()
+        else:
+            if self.scheduler.running:
+                self.scheduler.remove_all_jobs()
+            self.state.clear_next_decision_at()
+        return self.status()
 
     def schedule_news_collection(self) -> None:
         """뉴스는 시작 시 즉시 1회 확인하고 이후 설정된 간격으로 수집한다."""
@@ -190,9 +200,10 @@ class AdaptiveDecisionScheduler:
             if job is not None
             else self.state.next_decision_at()
         )
+        enabled = self.state.enabled(self.config.scheduler_enabled)
         return {
-            "enabled": self.config.scheduler_enabled,
-            "running": self.scheduler.running,
+            "enabled": enabled,
+            "running": enabled and self.scheduler.running,
             "last_run": self.state.last_run(),
             "next_decision_at": (
                 next_run.isoformat()
