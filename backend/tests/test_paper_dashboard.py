@@ -32,6 +32,7 @@ def _position(market, symbol, value, return_rate):
         return_rate=Decimal(str(return_rate)),
         realized_pnl=Decimal("0"),
         decision_score=70,
+        candidate_score=Decimal("82") if market == "stock" else None,
     )
 
 
@@ -86,6 +87,7 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
             "realized_pnl": "-4000",
             "entry_score": "75",
             "realized_return_pct": "-2.0",
+            "candidate_score": "84",
         },
         {
             "order_id": "paper-3",
@@ -147,3 +149,12 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
     assert score["70-79"]["win_rate_pct"] == "0.00"
     assert score["70-79"]["average_return_pct"] == "-2.00"
     assert score["80-100"]["closed_trades"] == 0
+
+    candidate = {
+        item["bucket"]: item
+        for item in result["candidate_score_performance_7d"]
+    }
+    assert candidate["80-100"]["closed_trades"] == 1
+    assert candidate["80-100"]["win_rate_pct"] == "0.00"
+    assert candidate["80-100"]["average_return_pct"] == "-2.00"
+    assert candidate["80-100"]["sample_sufficient"] is False
