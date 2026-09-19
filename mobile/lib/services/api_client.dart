@@ -90,6 +90,11 @@ class ApiClient {
     return data.cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> getMarketPerformance(String market) async {
+    return (await _request('GET', '/$market/performance'))
+        as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> manualStockOrder({
     required String symbol,
     required String side,
@@ -178,6 +183,14 @@ class ApiClient {
   Future<Map<String, dynamic>> getSchedulerStatus() async {
     return (await _request('GET', '/scheduler/status'))
         as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> setSchedulerEnabled(bool enabled) async {
+    return (await _request(
+      'PUT',
+      '/scheduler/enabled',
+      body: {'enabled': enabled},
+    )) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> getReadiness() async {
