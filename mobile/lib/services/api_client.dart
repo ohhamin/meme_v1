@@ -143,6 +143,11 @@ class ApiClient {
     return (await _request('GET', '/status')) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getReadiness() async {
+    return (await _request('GET', '/readiness'))
+        as Map<String, dynamic>;
+  }
+
   Future<List<Map<String, dynamic>>> getUnresolvedLiveOrders() async {
     final data = await _request(
       'GET',
