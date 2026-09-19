@@ -227,6 +227,161 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _openUnresolvedLiveOrders() async {
+    try {
+      final items = await ApiClient.instance.getUnresolvedLiveOrders();
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.72,
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(26),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '확인 필요한 Live 주문',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        Text(
+                          '${items.length}건',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: items.isEmpty
+                        ? const Center(
+                            child: Text('확인 필요한 주문이 없어요.'),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              final broker =
+                                  item['broker']?.toString().toUpperCase() ??
+                                      '-';
+                              final symbol =
+                                  item['symbol']?.toString() ?? '-';
+                              final side =
+                                  item['side']?.toString().toUpperCase() ?? '-';
+                              final state =
+                                  item['status']?.toString() ?? 'UNKNOWN';
+                              final reason =
+                                  item['reason']?.toString() ?? '';
+
+                              return AppSurface(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '$symbol · $side',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium,
+                                          ),
+                                        ),
+                                        Text(
+                                          state,
+                                          style: const TextStyle(
+                                            color: AppColors.warning,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      broker,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                    if (reason.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        reason,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          try {
+                            await ApiClient.instance.reconcileLiveOrders();
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            await _load();
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.sync_rounded),
+                        label: const Text('Broker 상태 다시 확인'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _resumeLlm() async {
     try {
       await ApiClient.instance.resumeLlm();
@@ -282,6 +437,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (status['push'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
     final pushRegistered = pushStatus['registered'] == true;
+    final nextDecisionAt = status['next_decision_at']?.toString();
 
     final budgetMode = llmBudget['mode']?.toString() ?? 'unknown';
     final runtimeMode = llmRuntime['mode']?.toString() ?? 'unknown';
@@ -387,11 +543,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         liveEnablement['toss_live_order_enabled'] == true,
                   ),
                   const Divider(height: 24),
-                  _SafetyRow(
-                    label: '확인 필요한 주문',
-                    enabled: unresolvedLiveOrders == 0,
-                    enabledText: '없음',
-                    disabledText: '$unresolvedLiveOrders건',
+                  InkWell(
+                    onTap: unresolvedLiveOrders > 0
+                        ? _openUnresolvedLiveOrders
+                        : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: _SafetyRow(
+                        label: '확인 필요한 주문',
+                        enabled: unresolvedLiveOrders == 0,
+                        enabledText: '없음',
+                        disabledText: '$unresolvedLiveOrders건 · 보기',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -421,6 +586,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onReset: () => _resetPaper('crypto', '코인'),
             ),
           ],
+          const SizedBox(height: 20),
+          const SectionTitle('자동 판단'),
+          const SizedBox(height: 12),
+          AppSurface(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.schedule_rounded,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '다음 판단 예정',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        nextDecisionAt == null
+                            ? 'Scheduler가 꺼져 있거나 아직 예약되지 않았어요.'
+                            : nextDecisionAt,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
           const SectionTitle('알림'),
           const SizedBox(height: 12),
