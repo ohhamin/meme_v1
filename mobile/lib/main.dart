@@ -55,15 +55,24 @@ class _AppShellState extends State<AppShell> {
     '세팅',
   ];
 
-  final _screens = const [
-    PaperDashboardScreen(),
-    MarketScreen(isStock: true),
-    MarketScreen(isStock: false),
-    DailyMarkdownScreen(kind: 'news'),
-    DecisionScreen(),
-    AlgorithmScreen(),
-    SettingsScreen(),
-  ];
+  Widget _screenFor(int index) {
+    switch (index) {
+      case 0:
+        return const PaperDashboardScreen();
+      case 1:
+        return const MarketScreen(isStock: true);
+      case 2:
+        return const MarketScreen(isStock: false);
+      case 3:
+        return const DailyMarkdownScreen(kind: 'news');
+      case 4:
+        return const DecisionScreen();
+      case 5:
+        return const AlgorithmScreen();
+      default:
+        return const SettingsScreen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,10 +82,7 @@ class _AppShellState extends State<AppShell> {
       ),
       body: SafeArea(
         top: false,
-        child: IndexedStack(
-          index: _index,
-          children: _screens,
-        ),
+        child: _screenFor(_index),
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
