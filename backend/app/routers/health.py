@@ -11,6 +11,7 @@ from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.live_order_journal import LiveOrderJournal
 from backend.app.services.live_order_service import LiveOrderService
 from backend.app.services.device_tokens import DeviceTokenService
+from backend.app.services.scheduler_state import SchedulerStateService
 
 
 router = APIRouter(tags=["system"])
@@ -31,6 +32,11 @@ async def status():
         "kill_switch": runtime.kill_switch,
         "live_order_allowed": runtime.live_order_allowed,
         "scheduler_enabled": config.scheduler_enabled,
+        "next_decision_at": (
+            SchedulerStateService().next_decision_at().isoformat()
+            if SchedulerStateService().next_decision_at() is not None
+            else None
+        ),
         "news_collection_interval_hours": config.news_collection_interval_hours,
         "data_retention_days": config.data_retention_days,
         "llm_budget": LLMBudgetService().status(),
