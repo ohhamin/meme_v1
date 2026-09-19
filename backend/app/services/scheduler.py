@@ -38,8 +38,9 @@ class AdaptiveDecisionScheduler:
         if not self.config.scheduler_enabled:
             return
 
+        runtime_enabled = self.runtime.get().scheduler_enabled
         if not self.scheduler.running:
-            self.scheduler.start()
+            self.scheduler.start(paused=not runtime_enabled)
 
         self.schedule_news_collection()
         self.schedule_macro_context()
@@ -61,7 +62,7 @@ class AdaptiveDecisionScheduler:
                 self.config.decision_default_interval_minutes
             )
 
-        if not self.runtime.get().scheduler_enabled:
+        if not runtime_enabled and self.scheduler.running:
             self.scheduler.pause()
 
     def shutdown(self) -> None:
