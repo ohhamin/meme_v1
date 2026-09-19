@@ -180,6 +180,14 @@ class ApiClient {
         as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> setSchedulerEnabled(bool enabled) async {
+    return (await _request(
+      'PUT',
+      '/scheduler/enabled',
+      body: {'enabled': enabled},
+    )) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> getReadiness() async {
     return (await _request('GET', '/readiness'))
         as Map<String, dynamic>;
