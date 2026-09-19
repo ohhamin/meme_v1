@@ -36,7 +36,10 @@ class UpbitPaperRunner:
             )
 
         try:
-            snapshots = await self.market_data.snapshots(selected)
+            snapshots = await self.market_data.snapshots(
+                selected,
+                with_features=True,
+            )
         except (UpbitMarketDataError, ValueError) as exc:
             self.audit.write(
                 "system",
