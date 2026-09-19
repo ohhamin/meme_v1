@@ -30,6 +30,11 @@ class DataRetentionService:
                 self.config.data_path / "decisions",
                 cutoff,
             ),
+            "metrics": self._prune_folder(
+                self.config.data_path / "metrics",
+                cutoff,
+                suffix=".jsonl",
+            ),
         }
 
         deleted["idempotency"] = IdempotencyStore().prune()
@@ -49,11 +54,13 @@ class DataRetentionService:
     def _prune_folder(
         folder: Path,
         cutoff: date,
+        *,
+        suffix: str = ".md",
     ) -> int:
         folder.mkdir(parents=True, exist_ok=True)
         deleted = 0
 
-        for path in folder.glob("*.md"):
+        for path in folder.glob(f"*{suffix}"):
             try:
                 file_day = date.fromisoformat(path.stem)
             except ValueError:
