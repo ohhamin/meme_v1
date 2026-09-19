@@ -1236,3 +1236,78 @@ Uvicorn worker를 여러 개 실행하지 않는다.
 
 `deploy/`에 Docker Compose와 Nginx 예제를 둔다.
 Broker credential, OpenAI key, Firebase Service Account는 이미지/Git에 포함하지 않는다.
+
+## 23. 자동 종목 Cooldown
+
+전체 판단 사이클은 30~120분이지만 **자동 주문은 종목별 기본 60분에 최대 한 번**만 허용한다.
+
+```text
+10:00 BTC BUY 체결
+10:30 전체 판단 -> BTC BUY 재판단 가능
+                   하지만 자동 주문은 BLOCK
+11:00 이후      -> 다시 자동 주문 가능
+```
+
+설정:
+
+```text
+RISK_AUTO_SYMBOL_COOLDOWN_MINUTES=60
+```
+
+Paper와 Live의 cooldown 기록은 서로 분리한다.
+수동 주문은 사용자가 직접 확인한 행위이므로 이 자동 cooldown의 적용 대상이 아니다.
+Live 주문 결과가 timeout 후 reconciliation으로 복구된 경우에도 실제 자동 주문이 존재했다면 원래 주문 시각 기준 cooldown을 복구한다.
+
+## 24. 판단 Universe와 보유 포지션
+
+사용자가 설정한 watch/decision universe와 실제 보유 종목은 합집합으로 판단한다.
+
+```text
+configured universe
+        +
+current holdings
+        |
+        v
+actual decision universe
+```
+
+따라서 앱에서 관심 대상을 해제해도 이미 보유 중인 포지션이 자동 판단에서 사라지지 않는다.
+포지션이 완전히 정리되면 configured universe에 없는 종목은 다음 사이클부터 제외된다.
+
+## 25. 기술 Feature
+
+LLM에 raw candle 전체를 보내지 않고 Backend가 compact feature를 계산한다.
+
+Upbit:
+
+- 60분봉 25개
+- 1h / 6h / 24h return
+- short/long SMA gap
+- realized volatility
+- 최근 range
+- 최근 거래량 ratio
+
+Toss:
+
+- 1분봉 최대 121개
+- 5m / 30m / 120m return
+- short/long SMA gap
+- realized volatility
+- 최근 range
+- 최근 거래량 ratio
+
+Feature 계산은 deterministic하며 `MarketInstrumentSnapshot.features`에 포함한다.
+캔들 조회/파싱 실패 시 거래 방향을 추정하지 않고 `features_available=0`으로 처리한다.
+
+## 26. Readiness
+
+`GET /readiness`는 실제 주문을 수행하지 않는 설정 점검 API다.
+
+- Paper 자동매매 준비 조건
+- Live 수동매매 gate
+- Live 자동매매 gate
+- Upbit/Toss credential 및 broker gate
+- 미확인 Live 주문 존재 여부
+- 현재 configured/보유 기반 판단 대상
+
+앱 세팅에서도 이 상태를 표시하여 Live 전환 전에 남은 조건을 확인할 수 있다.
