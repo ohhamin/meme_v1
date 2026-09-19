@@ -12,6 +12,7 @@ from backend.app.services.live_order_journal import LiveOrderJournal
 from backend.app.services.live_order_service import LiveOrderService
 from backend.app.services.device_tokens import DeviceTokenService
 from backend.app.services.scheduler_state import SchedulerStateService
+from backend.app.services.readiness import ReadinessService
 
 
 router = APIRouter(tags=["system"])
@@ -70,3 +71,9 @@ async def status():
             "max": config.decision_max_interval_minutes,
         },
     }
+
+
+
+@router.get("/readiness", dependencies=[Depends(require_api_token)])
+async def readiness():
+    return ReadinessService().status()
