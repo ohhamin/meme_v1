@@ -40,3 +40,13 @@ firebase-adminsdk*.json
 # Deployment secrets
 secrets/*
 !secrets/.gitkeep
+
+.env
+.env.*
+secrets/
+**/secrets/
+*firebase-admin*.json
+*service-account*.json
+*serviceAccount*.json
+
+mobile/.flutter-plugins-dependencies
