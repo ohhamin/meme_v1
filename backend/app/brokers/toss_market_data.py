@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Iterable
@@ -8,6 +9,7 @@ from backend.app.models.schemas import (
     TossQuote,
     TossStockInfo,
 )
+from backend.app.services.technical_features import TechnicalFeatureService
 
 
 class TossMarketDataAdapter:
@@ -176,9 +178,63 @@ class TossMarketDataAdapter:
 
         return False
 
+    async def candles(
+        self,
+        symbol: str,
+        *,
+        interval: str = "1m",
+        count: int = 121,
+    ) -> list[dict]:
+        normalized = self._normalize_symbols([symbol])[0]
+        if interval not in {"1m", "1d"}:
+            raise ValueError("Unsupported Toss candle interval.")
+
+        payload = await self.client.get(
+            "/api/v1/candles",
+            params={
+                "symbol": normalized,
+                "interval": interval,
+                "count": max(2, min(count, 200)),
+                "adjusted": True,
+            },
+        )
+        result = payload.get("result") or {}
+        raw = result.get("candles") or []
+
+        candles: list[dict] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                close = float(item.get("closePrice") or 0)
+                open_price = float(item.get("openPrice") or 0)
+                high = float(item.get("highPrice") or 0)
+                low = float(item.get("lowPrice") or 0)
+                volume = float(item.get("volume") or 0)
+            except (TypeError, ValueError):
+                continue
+
+            if close <= 0:
+                continue
+
+            candles.append(
+                {
+                    "timestamp": str(item.get("timestamp") or ""),
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume,
+                }
+            )
+
+        return candles
+
     async def snapshots(
         self,
         symbols: Iterable[str],
+        *,
+        with_features: bool = False,
     ) -> list[MarketInstrumentSnapshot]:
         normalized = self._normalize_symbols(symbols)
         if not normalized:
@@ -220,6 +276,32 @@ class TossMarketDataAdapter:
             if info.trading_suspended:
                 market_open = False
 
+            features: dict[str, float | int | str | None] = {}
+            if with_features and market_open:
+                try:
+                    candles = await self.candles(
+                        symbol,
+                        interval="1m",
+                        count=121,
+                    )
+                    features = TechnicalFeatureService.compute(
+                        candles=candles,
+                        current_price=float(quote.last_price),
+                        short_period=5,
+                        medium_period=30,
+                        long_period=120,
+                        interval_label="1m",
+                    )
+                except Exception:
+                    features = {
+                        "features_available": 0,
+                        "feature_interval": "1m",
+                        "feature_samples": 0,
+                    }
+
+                if symbol != normalized[-1]:
+                    await asyncio.sleep(0.11)
+
             snapshots.append(
                 MarketInstrumentSnapshot(
                     market="stock",
@@ -228,6 +310,7 @@ class TossMarketDataAdapter:
                     price=quote.last_price,
                     data_age_seconds=quote.data_age_seconds,
                     market_open=market_open,
+                    features=features,
                 )
             )
 
