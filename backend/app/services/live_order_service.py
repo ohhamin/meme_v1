@@ -373,6 +373,7 @@ class LiveOrderService:
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
+                    notional=notional,
                     client_order_id=record.client_order_id,
                 )
                 result = response.get("result") or {}
