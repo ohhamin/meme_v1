@@ -225,17 +225,22 @@ class TossOrderAdapter:
         if found is not None:
             return found
 
-        # CLOSED is paginated. Search a bounded recent window so reconciliation
-        # stays cheap and read-only. The journal will keep UNKNOWN if not found.
-        for page in range(1, 4):
+        # CLOSED uses cursor pagination. Search only a bounded recent
+        # window so reconciliation stays cheap and read-only. The journal
+        # remains UNKNOWN if the order cannot be recovered safely.
+        cursor: str | None = None
+        for _ in range(3):
+            params = {
+                "status": "CLOSED",
+                "symbol": normalized,
+                "limit": 100,
+            }
+            if cursor:
+                params["cursor"] = cursor
+
             closed_payload = await self.client.get(
                 "/api/v1/orders",
-                params={
-                    "status": "CLOSED",
-                    "symbol": normalized,
-                    "limit": 100,
-                    "page": page,
-                },
+                params=params,
                 account_seq=account_seq,
             )
             found = self._find_client_order(
@@ -245,9 +250,16 @@ class TossOrderAdapter:
             if found is not None:
                 return found
 
-            items = self._order_items(closed_payload)
-            if len(items) < 100:
+            result = closed_payload.get("result")
+            if not isinstance(result, dict):
                 break
+
+            has_next = bool(result.get("hasNext"))
+            next_cursor = result.get("nextCursor")
+            if not has_next or not next_cursor:
+                break
+
+            cursor = str(next_cursor)
 
         return None
 
