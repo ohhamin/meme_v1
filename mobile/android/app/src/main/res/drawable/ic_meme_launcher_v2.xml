@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Full MEME AI INVEST artwork, deliberately new resource name to bust launcher/resource caches. -->
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#0A8FFF"
+        android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M22,51 C28,39 33,28 40,28 C46,28 50,37 55,45"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#7650FF"
+        android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M40,28 C47,31 51,40 55,46 C59,52 64,50 69,42"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#13DDF3"
+        android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M64,47 C70,43 75,35 80,29 L86,22"/>
+    <path android:fillColor="#19E0F2" android:pathData="M78,21 L93,16 Q95,15 94,19 L93,34 L86,28 Z"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#66FFFFFF"
+        android:strokeWidth="1.1" android:strokeLineCap="round"
+        android:pathData="M24,47 C30,35 34,28 40,28"/>
+
+    <!-- MEME -->
+    <path android:fillColor="#FFFFFF" android:pathData="M22,63 L27,63 L32,70 L37,63 L42,63 L42,79 L37.5,79 L37.5,70 L33.5,76 L30.5,76 L26.5,70 L26.5,79 L22,79 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M44,63 L56,63 L56,66.5 L48.5,66.5 L48.5,69 L55,69 L55,72.5 L48.5,72.5 L48.5,75.5 L56,75.5 L56,79 L44,79 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M58,63 L63,63 L68,70 L73,63 L78,63 L78,79 L73.5,79 L73.5,70 L69.5,76 L66.5,76 L62.5,70 L62.5,79 L58,79 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M80,63 L92,63 L92,66.5 L84.5,66.5 L84.5,69 L91,69 L91,72.5 L84.5,72.5 L84.5,75.5 L92,75.5 L92,79 L80,79 Z"/>
+
+    <!-- AI INVEST lettering represented at launcher scale -->
+    <path android:fillColor="#A9BEDD" android:pathData="
+        M30,85 L31.5,82 L33,85 L32.2,85 L31.5,83.6 L30.8,85 Z
+        M35,82 L36,82 L36,85 L35,85 Z
+        M40,82 L41,82 L41,85 L40,85 Z
+        M44,82 L45,82 L46.2,84 L46.2,82 L47.2,82 L47.2,85 L46.1,85 L45,83 L45,85 L44,85 Z
+        M49,82 L52,82 L52,83 L50,83 L50,83.5 L51.8,83.5 L51.8,84.2 L50,84.2 L50,85 L52,85 L52,86 L49,86 Z
+        M54,82 L55.1,82 L56,84.4 L56.9,82 L58,82 L56.7,85 L55.3,85 Z
+        M60,82 L63,82 L63,83 L61,83 L61,83.5 L62.8,83.5 L62.8,84.2 L61,84.2 L61,85 L63,85 L63,86 L60,86 Z
+        M65,82 L68,82 L68,83 L66,83 L66,83.3 L68,84 L68,85 L65,85 L65,84 L67,84 L67,83.7 L65,83 Z
+        M70,82 L74,82 L74,83 L72.5,83 L72.5,85 L71.5,85 L71.5,83 L70,83 Z"/>
+</vector>
