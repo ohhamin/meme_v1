@@ -5,10 +5,8 @@ from fastapi import HTTPException, status
 
 from backend.app.core.config import get_settings
 from backend.app.models.schemas import OrderResult, RiskOrderIntent
-from backend.app.services.audit import AuditLogger
 from backend.app.services.idempotency import IdempotencyStore
 from backend.app.services.paper_broker import PaperBroker
-from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
@@ -21,8 +19,6 @@ class TradingService:
         self.config = get_settings()
         self.runtime = RuntimeSettingsService()
         self.idempotency = IdempotencyStore()
-        self.audit = AuditLogger()
-        self.push = PushService()
         self.paper = {
             "stock": PaperBroker("stock"),
             "crypto": PaperBroker("crypto"),
@@ -253,39 +249,6 @@ class TradingService:
                 f"@ {execution.price}"
             ),
             created_at=execution.created_at,
-        )
-
-    def _live_not_ready(
-        self,
-        *,
-        symbol: str,
-        side: str,
-        idempotency_key: str,
-    ) -> OrderResult:
-        runtime = self.runtime.get()
-
-        if runtime.kill_switch:
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail=(
-                    "Kill switch is enabled. New orders are blocked."
-                ),
-            )
-
-        self.idempotency.ensure_new(idempotency_key)
-
-        if not self.config.trading_enabled:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "Live mode is selected, but "
-                    "TRADING_ENABLED=false."
-                ),
-            )
-
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Live broker adapter is not implemented yet.",
         )
 
     def _price_age_seconds(self, last_price_at) -> int:
