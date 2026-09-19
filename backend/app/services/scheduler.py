@@ -61,9 +61,38 @@ class AdaptiveDecisionScheduler:
                 self.config.decision_default_interval_minutes
             )
 
+        if not self.runtime.get().scheduler_enabled:
+            self.scheduler.pause()
+
     def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+
+    def set_enabled(self, enabled: bool) -> dict:
+        state = self.runtime.set_scheduler_enabled(enabled)
+
+        if not self.config.scheduler_enabled:
+            return self.status()
+
+        if not self.scheduler.running:
+            self.start()
+        elif state.scheduler_enabled:
+            self.scheduler.resume()
+            if self.scheduler.get_job("adaptive-decision-cycle") is None:
+                self.schedule_next(
+                    self.config.decision_default_interval_minutes
+                )
+        else:
+            self.scheduler.pause()
+
+        self.audit.write(
+            "system",
+            {
+                "event": "scheduler_runtime_toggled",
+                "enabled": state.scheduler_enabled,
+            },
+        )
+        return self.status()
 
     def schedule_news_collection(self) -> None:
         """뉴스는 시작 시 즉시 1회 확인하고 이후 설정된 간격으로 수집한다."""
@@ -190,9 +219,15 @@ class AdaptiveDecisionScheduler:
             if job is not None
             else self.state.next_decision_at()
         )
+        runtime_enabled = self.runtime.get().scheduler_enabled
         return {
-            "enabled": self.config.scheduler_enabled,
-            "running": self.scheduler.running,
+            "enabled": bool(
+                self.config.scheduler_enabled and runtime_enabled
+            ),
+            "configured": self.config.scheduler_enabled,
+            "running": bool(
+                self.scheduler.running and runtime_enabled
+            ),
             "last_run": self.state.last_run(),
             "next_decision_at": (
                 next_run.isoformat()
