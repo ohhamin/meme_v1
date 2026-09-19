@@ -189,14 +189,16 @@ def test_find_toss_order_by_client_order_id_from_closed(monkeypatch):
             return {"result": []}
         return {
             "result": {
-                "items": [
+                "orders": [
                     {
                         "orderId": "order-closed",
                         "clientOrderId": "meme-closed",
                         "symbol": "005930",
                         "status": "FILLED",
                     }
-                ]
+                ],
+                "nextCursor": None,
+                "hasNext": False,
             }
         }
 
@@ -217,3 +219,76 @@ def test_find_toss_order_by_client_order_id_from_closed(monkeypatch):
     assert found is not None
     assert found["status"] == "FILLED"
     assert [call["status"] for call in calls] == ["OPEN", "CLOSED"]
+
+
+
+def test_find_toss_order_by_client_order_id_uses_closed_cursor(monkeypatch):
+    adapter = TossOrderAdapter()
+    calls = []
+
+    async def fake_seq():
+        return 7
+
+    async def fake_get(path, *, params=None, account_seq=None):
+        calls.append(dict(params))
+        assert path == "/api/v1/orders"
+        assert account_seq == 7
+        assert "page" not in params
+
+        if params["status"] == "OPEN":
+            return {"result": []}
+
+        if "cursor" not in params:
+            return {
+                "result": {
+                    "orders": [
+                        {
+                            "orderId": "other-order",
+                            "clientOrderId": "other-client",
+                            "status": "FILLED",
+                        }
+                    ],
+                    "nextCursor": "cursor-2",
+                    "hasNext": True,
+                }
+            }
+
+        assert params["cursor"] == "cursor-2"
+        return {
+            "result": {
+                "orders": [
+                    {
+                        "orderId": "target-order",
+                        "clientOrderId": "meme-target",
+                        "symbol": "005930",
+                        "status": "FILLED",
+                    }
+                ],
+                "nextCursor": None,
+                "hasNext": False,
+            }
+        }
+
+    monkeypatch.setattr(
+        adapter.accounts,
+        "selected_account_seq",
+        fake_seq,
+    )
+    monkeypatch.setattr(adapter.client, "get", fake_get)
+
+    found = asyncio.run(
+        adapter.find_order_by_client_order_id(
+            symbol="005930",
+            client_order_id="meme-target",
+        )
+    )
+
+    assert found is not None
+    assert found["orderId"] == "target-order"
+    assert [call["status"] for call in calls] == [
+        "OPEN",
+        "CLOSED",
+        "CLOSED",
+    ]
+    assert calls[1].get("cursor") is None
+    assert calls[2]["cursor"] == "cursor-2"
