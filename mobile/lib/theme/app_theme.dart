@@ -27,6 +27,7 @@ abstract final class AppColors {
   static const negative = Color(0xFFFF6478);
   static const negativeSoft = Color(0xFF371A29);
   static const warning = Color(0xFFFFC25E);
+  static const warningSoft = Color(0xFF352A18);
 
   static const divider = Color(0xFF102A44);
   static const chip = Color(0xFF0B1C2F);
