@@ -129,11 +129,24 @@ class AlgorithmMetricsService:
                 ),
             },
             "performance": self._performance_summary(),
-            "score_performance_30d": self._score_performance_30d(),
+            "score_performance_7d": self._score_performance_7d(),
         }
 
-    def _score_performance_30d(self) -> dict:
-        records = self.paper_orders.recent(limit=1000, days=30)
+    def _score_performance_7d(self) -> dict:
+        records = (
+            self.paper_orders.recent(
+                limit=1000,
+                days=7,
+                market="stock",
+                session_id=PaperBroker("stock").session_id,
+            )
+            + self.paper_orders.recent(
+                limit=1000,
+                days=7,
+                market="crypto",
+                session_id=PaperBroker("crypto").session_id,
+            )
+        )
         buckets = [
             ("60-69", 60, 70),
             ("70-79", 70, 80),
@@ -177,7 +190,7 @@ class AlgorithmMetricsService:
             }
 
         return {
-            "window_days": 30,
+            "window_days": 7,
             "total_closed_trades": total_closed,
             "minimum_bucket_sample_for_threshold_change": 10,
             "buckets": result,
