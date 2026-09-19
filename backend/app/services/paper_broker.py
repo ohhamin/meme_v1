@@ -64,6 +64,7 @@ class PaperBroker:
         state = {
             "market": self.market,
             "broker": self.broker_name,
+            "session_id": uuid4().hex,
             "date": today,
             "cash": str(cash),
             "initial_cash": str(cash),
@@ -418,6 +419,7 @@ class PaperBroker:
             realized_pnl=realized_delta,
             entry_score=entry_score,
             realized_return_pct=realized_return_pct,
+            session_id=state.get("session_id"),
         )
 
         self.audit.write(
@@ -470,6 +472,10 @@ class PaperBroker:
             state = json.loads(
                 self.path.read_text(encoding="utf-8")
             )
+
+        if not state.get("session_id"):
+            state["session_id"] = uuid4().hex
+            self._write(state)
 
         self._roll_day_if_needed(state)
         return state
