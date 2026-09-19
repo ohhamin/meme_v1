@@ -52,3 +52,34 @@ def test_live_order_unknown_is_never_terminal(tmp_path):
     journal.update(record.intent_id, status="UNKNOWN")
 
     assert journal.unresolved()[0].status == "UNKNOWN"
+
+
+
+def test_same_symbol_unresolved_guard(tmp_path):
+    journal = make_journal(tmp_path)
+    first = journal.create(
+        broker="upbit",
+        source="auto",
+        market="crypto",
+        symbol="KRW-BTC",
+        side="buy",
+        quantity=Decimal("0.001"),
+        notional=Decimal("100000"),
+        reference_price=Decimal("100000000"),
+    )
+    journal.update(first.intent_id, status="SUBMITTED")
+
+    assert journal.has_unresolved(
+        broker="upbit",
+        symbol="krw-btc",
+    ) is True
+    assert journal.has_unresolved(
+        broker="upbit",
+        symbol="KRW-ETH",
+    ) is False
+
+    journal.update(first.intent_id, status="CONFIRMED")
+    assert journal.has_unresolved(
+        broker="upbit",
+        symbol="KRW-BTC",
+    ) is False
