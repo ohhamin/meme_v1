@@ -2,51 +2,57 @@ import 'package:flutter/material.dart';
 
 
 abstract final class AppColors {
-  // MEME AI INVEST brand palette.
-  static const background = Color(0xFF07111F);
-  static const backgroundSoft = Color(0xFF0A1627);
-  static const surface = Color(0xFF0E1C2F);
-  static const surfaceElevated = Color(0xFF13243A);
-  static const surfaceStrong = Color(0xFF172A43);
-  static const border = Color(0xFF1E3857);
+  // MEME AI INVEST reference palette (2026-09).
+  static const background = Color(0xFF030C18);
+  static const backgroundSoft = Color(0xFF071220);
+  static const surface = Color(0xFF071423);
+  static const surfaceElevated = Color(0xFF0A1B2D);
+  static const surfaceStrong = Color(0xFF0D2238);
+  static const border = Color(0xFF173B61);
+  static const borderSoft = Color(0xFF102A47);
 
-  static const textPrimary = Color(0xFFF5F8FF);
-  static const textSecondary = Color(0xFFA0B2C9);
-  static const textMuted = Color(0xFF71839B);
+  static const textPrimary = Color(0xFFF7F9FD);
+  static const textSecondary = Color(0xFF9AAECB);
+  static const textMuted = Color(0xFF6C82A1);
 
-  static const primary = Color(0xFF2FD8FF);
-  static const primaryBlue = Color(0xFF2F7BFF);
-  static const primaryPurple = Color(0xFF8B5CFF);
-  static const primarySoft = Color(0xFF102C4C);
+  static const primary = Color(0xFF22DFF7);
+  static const primaryBlue = Color(0xFF0797FF);
+  static const primaryDeepBlue = Color(0xFF315BFF);
+  static const primaryPurple = Color(0xFF8554FF);
+  static const primaryPink = Color(0xFFD84DF2);
+  static const primarySoft = Color(0xFF0A2844);
 
-  static const positive = Color(0xFF21D49B);
-  static const positiveSoft = Color(0xFF123B34);
-  static const negative = Color(0xFFFF6275);
-  static const negativeSoft = Color(0xFF3D1E2B);
-  static const warning = Color(0xFFFFBF5B);
+  static const positive = Color(0xFF26D6A1);
+  static const positiveSoft = Color(0xFF0D332D);
+  static const negative = Color(0xFFFF6478);
+  static const negativeSoft = Color(0xFF371A29);
+  static const warning = Color(0xFFFFC25E);
 
-  static const divider = Color(0xFF1B304A);
-  static const chip = Color(0xFF12243A);
+  static const divider = Color(0xFF102A44);
+  static const chip = Color(0xFF0B1C2F);
 }
 
 
 abstract final class AppGradients {
   static const primary = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    begin: Alignment.bottomLeft,
+    end: Alignment.topRight,
     colors: [
-      AppColors.primary,
       AppColors.primaryBlue,
+      AppColors.primaryDeepBlue,
       AppColors.primaryPurple,
+      AppColors.primary,
     ],
+    stops: [0.0, 0.34, 0.64, 1.0],
   );
 
   static const surface = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      AppColors.surfaceElevated,
-      AppColors.surface,
+      Color(0xFF0A1B2E),
+      Color(0xFF071321),
+      Color(0xFF050F1C),
     ],
   );
 
@@ -54,10 +60,23 @@ abstract final class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF123866),
-      Color(0xFF0B2342),
-      Color(0xFF20194B),
+      Color(0xFF0D3764),
+      Color(0xFF081932),
+      Color(0xFF0A1025),
+      Color(0xFF1A0D38),
     ],
+    stops: [0.0, 0.38, 0.70, 1.0],
+  );
+
+  static const backdrop = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF0A1B32),
+      AppColors.background,
+      Color(0xFF020812),
+    ],
+    stops: [0.0, 0.48, 1.0],
   );
 }
 
@@ -97,63 +116,64 @@ ThemeData buildAppTheme() {
   final base = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: AppColors.background,
+    scaffoldBackgroundColor: Colors.transparent,
     colorScheme: scheme,
   );
 
   return base.copyWith(
     splashFactory: InkSparkle.splashFactory,
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.background,
+      backgroundColor: Color(0xF7030C18),
       foregroundColor: AppColors.textPrimary,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      toolbarHeight: 70,
-      titleSpacing: 20,
+      toolbarHeight: 72,
+      titleSpacing: 18,
       titleTextStyle: TextStyle(
         color: AppColors.textPrimary,
-        fontSize: 22,
+        fontSize: 20,
         height: 1.2,
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
       ),
     ),
     textTheme: base.textTheme.copyWith(
       headlineMedium: const TextStyle(
         color: AppColors.textPrimary,
         fontSize: 28,
-        height: 1.2,
+        height: 1.15,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.8,
       ),
       titleLarge: const TextStyle(
         color: AppColors.textPrimary,
-        fontSize: 20,
+        fontSize: 19,
         height: 1.35,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.4,
+        letterSpacing: -0.35,
       ),
       titleMedium: const TextStyle(
         color: AppColors.textPrimary,
-        fontSize: 17,
+        fontSize: 16,
         height: 1.4,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.25,
+        letterSpacing: -0.2,
       ),
       bodyLarge: const TextStyle(
         color: AppColors.textPrimary,
         fontSize: 16,
         height: 1.5,
         fontWeight: FontWeight.w500,
-        letterSpacing: -0.2,
+        letterSpacing: -0.15,
       ),
       bodyMedium: const TextStyle(
         color: AppColors.textPrimary,
         fontSize: 14,
         height: 1.5,
         fontWeight: FontWeight.w500,
-        letterSpacing: -0.15,
+        letterSpacing: -0.1,
       ),
       bodySmall: const TextStyle(
         color: AppColors.textSecondary,
@@ -163,31 +183,23 @@ ThemeData buildAppTheme() {
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 70,
-      backgroundColor: AppColors.backgroundSoft,
-      indicatorColor: AppColors.primarySoft,
+      height: 86,
+      backgroundColor: const Color(0xF507111E),
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: Colors.transparent,
       elevation: 0,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(
-            color: AppColors.primary,
-            size: 23,
-          );
-        }
-        return const IconThemeData(
-          color: AppColors.textMuted,
-          size: 22,
-        );
-      }),
+      iconTheme: WidgetStateProperty.all(
+        const IconThemeData(size: 22),
+      ),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return TextStyle(
-          color: selected ? AppColors.primary : AppColors.textMuted,
-          fontSize: 10.5,
+          color: selected ? AppColors.textPrimary : AppColors.textMuted,
+          fontSize: 10,
           height: 1.1,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-          letterSpacing: -0.2,
+          letterSpacing: -0.1,
         );
       }),
     ),
@@ -198,17 +210,17 @@ ThemeData buildAppTheme() {
       labelStyle: const TextStyle(color: AppColors.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: const BorderSide(color: AppColors.borderSoft),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: const BorderSide(color: AppColors.borderSoft),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
         borderSide: const BorderSide(
           color: AppColors.primary,
-          width: 1.4,
+          width: 1.2,
         ),
       ),
       contentPadding: const EdgeInsets.symmetric(
