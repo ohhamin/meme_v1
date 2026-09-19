@@ -5,6 +5,7 @@ from backend.app.core.config import get_settings
 from backend.app.services.algorithm import AlgorithmService
 from backend.app.services.file_store import DailyMarkdownStore
 from backend.app.services.llm_budget import LLMBudgetService
+from backend.app.services.macro_market_context import MacroMarketContextService
 
 
 @dataclass
@@ -12,6 +13,7 @@ class CompactDecisionContext:
     algorithm_markdown: str
     news_context: str
     decision_context: str
+    macro_context: dict
     market_snapshot: dict
     account_snapshot: dict
     estimated_input_tokens: int
@@ -27,6 +29,7 @@ class CompactContextBuilder:
         self.news = DailyMarkdownStore("news")
         self.decisions = DailyMarkdownStore("decisions")
         self.budget = LLMBudgetService()
+        self.macro = MacroMarketContextService()
         self.context_dir: Path = self.config.data_path / "context"
         self.context_dir.mkdir(parents=True, exist_ok=True)
 
@@ -61,12 +64,14 @@ class CompactContextBuilder:
             )
 
         algorithm = self.algorithms.current()
+        macro_context = self.macro.read()
 
         rough_text = "\n".join(
             [
                 algorithm,
                 news_context,
                 decision_context,
+                str(macro_context),
                 str(market_snapshot),
                 str(account_snapshot),
             ]
@@ -77,6 +82,7 @@ class CompactContextBuilder:
             algorithm_markdown=algorithm,
             news_context=news_context,
             decision_context=decision_context,
+            macro_context=macro_context,
             market_snapshot=market_snapshot,
             account_snapshot=account_snapshot,
             estimated_input_tokens=estimated,
