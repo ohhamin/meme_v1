@@ -58,6 +58,9 @@ class AppSettings(BaseSettings):
     fred_api_key: str = ""
     fred_api_base_url: str = "https://api.stlouisfed.org/fred"
     macro_context_max_age_hours: int = 48
+    korea_exim_api_key: str = ""
+    korea_exim_api_url: str = "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON"
+    korea_exim_http_timeout_seconds: float = 8.0
     krx_api_key: str = ""
     krx_api_base_url: str = "https://data-dbg.krx.co.kr/svc/apis"
     krx_http_timeout_seconds: float = 8.0
