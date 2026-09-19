@@ -114,6 +114,19 @@ class LiveOrderJournal:
             limit=limit,
         )
 
+    def has_unresolved(
+        self,
+        *,
+        broker: str,
+        symbol: str,
+    ) -> bool:
+        normalized = symbol.strip().upper()
+        return any(
+            record.broker == broker
+            and record.symbol.strip().upper() == normalized
+            for record in self.unresolved(limit=500)
+        )
+
     def count_today(
         self,
         *,
