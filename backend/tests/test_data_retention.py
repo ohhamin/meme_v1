@@ -11,9 +11,11 @@ def test_retention_deletes_only_old_date_files(tmp_path, monkeypatch):
 
     news = tmp_path / "news"
     decisions = tmp_path / "decisions"
+    metrics = tmp_path / "metrics"
     context = tmp_path / "context"
     news.mkdir()
     decisions.mkdir()
+    metrics.mkdir()
     context.mkdir()
 
     today = datetime.now(service.tz).date()
@@ -26,6 +28,8 @@ def test_retention_deletes_only_old_date_files(tmp_path, monkeypatch):
 
     (decisions / f"{old.isoformat()}.md").write_text("old", encoding="utf-8")
     (decisions / f"{today.isoformat()}.md").write_text("today", encoding="utf-8")
+    (metrics / f"{old.isoformat()}.jsonl").write_text("{}\n", encoding="utf-8")
+    (metrics / f"{today.isoformat()}.jsonl").write_text("{}\n", encoding="utf-8")
 
     monkeypatch.setattr(
         "backend.app.services.data_retention.RollingContextService.refresh_all",
@@ -36,7 +40,10 @@ def test_retention_deletes_only_old_date_files(tmp_path, monkeypatch):
 
     assert result["news"] == 1
     assert result["decisions"] == 1
+    assert result["metrics"] == 1
     assert not (news / f"{old.isoformat()}.md").exists()
     assert (news / f"{keep.isoformat()}.md").exists()
     assert (news / "notes.md").exists()
     assert (decisions / f"{today.isoformat()}.md").exists()
+    assert not (metrics / f"{old.isoformat()}.jsonl").exists()
+    assert (metrics / f"{today.isoformat()}.jsonl").exists()
