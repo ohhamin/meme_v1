@@ -1010,7 +1010,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: aiBlocked
                             ? AppColors.negativeSoft
                             : aiConserve
-                                ? const Color(0xFFFFF4E5)
+                                ? AppColors.warningSoft
                                 : AppColors.primarySoft,
                         borderRadius: BorderRadius.circular(14),
                       ),
