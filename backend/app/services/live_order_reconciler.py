@@ -121,17 +121,9 @@ class LiveOrderReconciler:
             )
             order = payload.get("result") or {}
             broker_status = str(order.get("status") or "")
-            if broker_status in {
-                "FILLED",
-                "CANCELED",
-                "REJECTED",
-                "REPLACED",
-                "CANCEL_REJECTED",
-                "REPLACE_REJECTED",
-            }:
-                status = "CONFIRMED"
-            else:
-                status = "SUBMITTED"
+            status = self._toss_journal_status(
+                broker_status
+            )
 
             return self._save(
                 record,
@@ -146,6 +138,26 @@ class LiveOrderReconciler:
             ValueError,
         ):
             return record
+
+    @staticmethod
+    def _toss_journal_status(broker_status: str) -> str:
+        normalized = broker_status.strip().upper()
+
+        if normalized in {"FILLED", "CANCELED"}:
+            return "CONFIRMED"
+        if normalized == "REJECTED":
+            return "REJECTED"
+
+        # These states can imply that another/open order may still exist.
+        # Keep the symbol blocked until a human or later broker state resolves it.
+        if normalized in {
+            "REPLACED",
+            "CANCEL_REJECTED",
+            "REPLACE_REJECTED",
+        }:
+            return "UNKNOWN"
+
+        return "SUBMITTED"
 
     def _save(
         self,
