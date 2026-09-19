@@ -132,7 +132,7 @@ class AlgorithmReviewService:
                     "Review the trading algorithm conservatively using the supplied operating history. "
                     "Only propose a change when there is repeated, concrete evidence of a structural issue. "
                     "Use deterministic_metrics as the primary evidence for repeated blocks, churn, order outcomes, "
-                    "and score_performance_30d. "
+                    "and score_performance_7d. "
                     "For BUY score-threshold or score-band changes, require at least 10 closed trades in the affected "
                     "score bucket. If that sample threshold is not met, do not propose changing BUY score thresholds. "
                     "When a sufficiently sampled lower BUY score band has persistently poor win rate and negative "
