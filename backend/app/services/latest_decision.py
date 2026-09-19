@@ -13,18 +13,28 @@ class LatestDecisionService:
     def __init__(self):
         self.store = DailyMarkdownStore("decisions")
 
-    def get(self) -> LatestDecisionResponse | None:
-        dates = self.store.available_dates(limit=1)
-        if not dates:
+    def get(self, mode: str | None = None) -> LatestDecisionResponse | None:
+        wanted = mode.upper() if mode else None
+        selected_day = None
+        selected_cycle = None
+
+        for day in self.store.available_dates(limit=7):
+            markdown = self.store.read(day)
+            cycles = self._cycles(markdown)
+            for cycle in reversed(cycles):
+                if wanted and cycle["execution_mode"] != wanted:
+                    continue
+                selected_day = day
+                selected_cycle = cycle
+                break
+            if selected_cycle is not None:
+                break
+
+        if selected_cycle is None or selected_day is None:
             return None
 
-        day = dates[0]
-        markdown = self.store.read(day)
-        cycles = self._cycles(markdown)
-        if not cycles:
-            return None
-
-        cycle = cycles[-1]
+        day = selected_day
+        cycle = selected_cycle
         items = cycle["items"]
         return LatestDecisionResponse(
             date=day,
