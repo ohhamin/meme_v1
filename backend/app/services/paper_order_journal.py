@@ -32,6 +32,7 @@ class PaperOrderJournal:
         realized_pnl: Decimal | None = None,
         entry_score: Decimal | None = None,
         realized_return_pct: Decimal | None = None,
+        session_id: str | None = None,
     ) -> Path:
         day = created_at.astimezone(self.tz).date().isoformat()
         path = self.base_dir / f"{day}.jsonl"
@@ -61,6 +62,7 @@ class PaperOrderJournal:
                 if realized_return_pct is not None
                 else None
             ),
+            "session_id": session_id,
         }
         with path.open("a", encoding="utf-8") as fp:
             fp.write(
@@ -77,7 +79,9 @@ class PaperOrderJournal:
         self,
         *,
         limit: int = 50,
-        days: int = 30,
+        days: int = 7,
+        market: str | None = None,
+        session_id: str | None = None,
     ) -> list[dict]:
         cutoff = datetime.now(self.tz).date() - timedelta(
             days=max(1, days) - 1
@@ -105,6 +109,10 @@ class PaperOrderJournal:
                 except json.JSONDecodeError:
                     continue
                 if isinstance(raw, dict):
+                    if market is not None and raw.get("market") != market:
+                        continue
+                    if session_id is not None and raw.get("session_id") != session_id:
+                        continue
                     records.append(raw)
                     if len(records) >= limit:
                         return records
