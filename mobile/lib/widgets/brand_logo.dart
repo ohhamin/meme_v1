@@ -32,12 +32,12 @@ class BrandMark extends StatelessWidget {
         gradient: AppGradients.hero,
         borderRadius: BorderRadius.circular(size * 0.28),
         border: Border.all(
-          color: AppColors.primaryBlue.withValues(alpha: 0.55),
+          color: AppColors.primaryBlue.withOpacity(0.55),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.22),
+            color: AppColors.primaryBlue.withOpacity(0.22),
             blurRadius: size * 0.45,
             spreadRadius: -size * 0.16,
           ),
@@ -166,7 +166,7 @@ class BrandHero extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPurple.withValues(alpha: 0.12),
+            color: AppColors.primaryPurple.withOpacity(0.12),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
