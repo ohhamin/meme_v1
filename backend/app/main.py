@@ -19,6 +19,7 @@ from backend.app.services.algorithm import AlgorithmService
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.push import PushService
 from backend.app.services.scheduler import AdaptiveDecisionScheduler
+from backend.app.services.startup_maintenance import StartupMaintenanceService
 
 
 scheduler = AdaptiveDecisionScheduler()
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI):
     RuntimeSettingsService().get()
     AlgorithmService()
     PushService().initialize()
+    await StartupMaintenanceService().run()
     scheduler.start()
     yield
     scheduler.shutdown()
