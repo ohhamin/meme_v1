@@ -11,6 +11,7 @@ __pycache__/
 data/news/*.md
 data/decisions/*.md
 data/logs/*.jsonl
+data/metrics/*.jsonl
 data/state/*.json
 data/state/live_orders/*.json
 data/context/*.md
@@ -20,6 +21,7 @@ data/algorithm/proposals/**/*.md
 !data/news/.gitkeep
 !data/decisions/.gitkeep
 !data/logs/.gitkeep
+!data/metrics/.gitkeep
 !data/state/.gitkeep
 !data/state/live_orders/.gitkeep
 !data/context/.gitkeep
