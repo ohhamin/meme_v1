@@ -19,6 +19,7 @@ class _DecisionScreenState extends State<DecisionScreen> {
   DateTime _selected = DateTime.now();
   late Future<String> _future;
   late Future<Map<String, dynamic>?> _latestFuture;
+  String _mode = 'paper';
 
   @override
   void initState() {
@@ -27,8 +28,21 @@ class _DecisionScreenState extends State<DecisionScreen> {
   }
 
   void _load() {
-    _future = ApiClient.instance.getDailyMarkdown('decisions', _selected);
-    _latestFuture = ApiClient.instance.getLatestDecision();
+    _future = _loadMarkdown();
+    _latestFuture = _loadLatest();
+  }
+
+  Future<String> _loadMarkdown() async {
+    final settings = await ApiClient.instance.getSettings();
+    _mode = settings['mode']?.toString() ?? 'paper';
+    return ApiClient.instance.getDailyMarkdown('decisions', _selected);
+  }
+
+  Future<Map<String, dynamic>?> _loadLatest() async {
+    final settings = await ApiClient.instance.getSettings();
+    final mode = settings['mode']?.toString() ?? 'paper';
+    _mode = mode;
+    return ApiClient.instance.getLatestDecision(mode: mode);
   }
 
   void _changeDate(DateTime value) {
@@ -77,14 +91,16 @@ class _DecisionScreenState extends State<DecisionScreen> {
               }
 
               final markdown = snapshot.data ?? '';
-              final cards = _DecisionParser.parse(markdown);
+              final mode = _mode.toUpperCase();
+              final cards = _DecisionParser.parse(markdown)
+                  .where((item) => item.executionMode == mode)
+                  .toList();
               final latestTime =
                   cards.isEmpty ? '' : cards.last.time;
               final latestCards = latestTime.isEmpty
                   ? <_DecisionCardData>[]
                   : cards.where((item) => item.time == latestTime).toList();
-              final latestSummary =
-                  _DecisionParser.latestSummary(markdown);
+              final latestSummary = '';
 
               if (cards.isEmpty) {
                 return Padding(
