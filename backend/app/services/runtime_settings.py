@@ -47,7 +47,18 @@ class RuntimeSettingsService:
 
     def set_mode(self, mode: str) -> RuntimeSettings:
         state = self.get()
+        entering_live = (
+            mode == "live"
+            and state.mode != "live"
+        )
         state.mode = mode
+
+        # Mode selection alone must never arm real ordering. Entering Live
+        # always re-engages the Kill switch; the user must disable it in a
+        # separate, explicit action after reviewing readiness.
+        if entering_live:
+            state.kill_switch = True
+
         self._write(state)
         return self._decorate(state)
 
