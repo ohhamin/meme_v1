@@ -45,6 +45,7 @@ class PaperDashboardService:
 
         journal = self.orders.recent(limit=500, days=30)
         trading = self._trading_stats(journal)
+        score_performance = self._score_performance(journal)
         recent_orders = journal[:10]
 
         return {
@@ -66,6 +67,7 @@ class PaperDashboardService:
             },
             "positions": positions,
             "trading_30d": trading,
+            "score_performance_30d": score_performance,
             "recent_orders": recent_orders,
         }
 
@@ -136,6 +138,62 @@ class PaperDashboardService:
             "average_loss": str(avg_loss),
             "symbols": symbols,
         }
+
+    @staticmethod
+    def _score_performance(records: list[dict]) -> list[dict]:
+        buckets = [
+            ("60-69", Decimal("60"), Decimal("70")),
+            ("70-79", Decimal("70"), Decimal("80")),
+            ("80-100", Decimal("80"), Decimal("101")),
+        ]
+        result = []
+
+        for label, lower, upper in buckets:
+            rows = []
+            for record in records:
+                if record.get("side") != "sell":
+                    continue
+                try:
+                    score = Decimal(str(record.get("entry_score")))
+                    pnl = Decimal(str(record.get("realized_pnl")))
+                    return_pct = Decimal(
+                        str(record.get("realized_return_pct"))
+                    )
+                except (ValueError, TypeError):
+                    continue
+                if lower <= score < upper:
+                    rows.append((pnl, return_pct))
+
+            wins = [row for row in rows if row[0] > 0]
+            win_rate = (
+                Decimal(len(wins)) / Decimal(len(rows)) * Decimal("100")
+                if rows
+                else Decimal("0")
+            )
+            realized_pnl = sum((row[0] for row in rows), Decimal("0"))
+            avg_return = (
+                sum((row[1] for row in rows), Decimal("0"))
+                / Decimal(len(rows))
+                if rows
+                else Decimal("0")
+            )
+
+            result.append(
+                {
+                    "bucket": label,
+                    "closed_trades": len(rows),
+                    "wins": len(wins),
+                    "win_rate_pct": str(
+                        win_rate.quantize(Decimal("0.01"))
+                    ),
+                    "realized_pnl": str(realized_pnl),
+                    "average_return_pct": str(
+                        avg_return.quantize(Decimal("0.01"))
+                    ),
+                }
+            )
+
+        return result
 
     def _combined_drawdown_7d(self) -> float | None:
         series: list[Decimal] = []
