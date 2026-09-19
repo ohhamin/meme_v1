@@ -162,6 +162,9 @@ class MarketInstrumentSnapshot(BaseModel):
     price: Decimal = Field(gt=0)
     data_age_seconds: int = Field(default=0, ge=0)
     market_open: bool = True
+    features: dict[str, float | int | str | None] = Field(
+        default_factory=dict
+    )
 
 
 class PositionSizeResult(BaseModel):
