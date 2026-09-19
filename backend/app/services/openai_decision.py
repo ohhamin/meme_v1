@@ -186,6 +186,24 @@ class LLMDecisionClient:
                 "OpenAI returned an invalid decision response."
             ) from exc
 
+        try:
+            self._validate_decision_coverage(
+                context=context,
+                result=result,
+            )
+        except ValueError as exc:
+            self.runtime.backoff(
+                reason="invalid_decision_coverage",
+                retry_after_seconds=60,
+            )
+            self._audit_failure(
+                "invalid_decision_coverage",
+                exc,
+            )
+            raise LLMUnavailableError(
+                "OpenAI decision response did not cover the supplied universe exactly."
+            ) from exc
+
         # 모델 출력 외에 서버에서도 한 번 더 범위를 강제한다.
         result.next_check_minutes = self.config.clamp_decision_interval(
             result.next_check_minutes
@@ -244,6 +262,41 @@ class LLMDecisionClient:
             "next_check_minutes is for the whole cycle, never per symbol, and must be 30-120. "
             "Do not execute orders and do not output anything outside the required schema."
         )
+
+    @staticmethod
+    def _validate_decision_coverage(
+        *,
+        context: CompactDecisionContext,
+        result: DecisionCycleResult,
+    ) -> None:
+        raw_instruments = context.market_snapshot.get("instruments")
+        if not isinstance(raw_instruments, list):
+            raise ValueError("market_snapshot.instruments must be a list")
+
+        expected: set[tuple[str, str]] = set()
+        for item in raw_instruments:
+            if not isinstance(item, dict):
+                raise ValueError("invalid market instrument")
+            market = str(item.get("market") or "").strip()
+            symbol = str(item.get("symbol") or "").strip().upper()
+            if market not in {"stock", "crypto"} or not symbol:
+                raise ValueError("invalid market/symbol")
+            expected.add((market, symbol))
+
+        actual = {
+            (
+                decision.market,
+                decision.symbol.strip().upper(),
+            )
+            for decision in result.decisions
+        }
+
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            raise ValueError(
+                f"decision coverage mismatch missing={missing} extra={extra}"
+            )
 
     @staticmethod
     def _retry_after_seconds(exc: RateLimitError) -> int:
