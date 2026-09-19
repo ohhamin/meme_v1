@@ -33,7 +33,7 @@ async def status():
         "mode": runtime.mode,
         "kill_switch": runtime.kill_switch,
         "live_order_allowed": runtime.live_order_allowed,
-        "scheduler_enabled": config.scheduler_enabled,
+        "scheduler_enabled": runtime.scheduler_enabled,
         "next_decision_at": (
             SchedulerStateService().next_decision_at().isoformat()
             if SchedulerStateService().next_decision_at() is not None
