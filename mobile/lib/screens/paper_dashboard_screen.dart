@@ -83,14 +83,14 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
             .map((item) => (item as Map).cast<String, dynamic>())
             .toList();
         final trading =
-            (data['trading_30d'] as Map?)?.cast<String, dynamic>() ??
+            (data['trading_7d'] as Map?)?.cast<String, dynamic>() ??
                 <String, dynamic>{};
         final recentOrders = (data['recent_orders'] as List<dynamic>? ??
                 <dynamic>[])
             .map((item) => (item as Map).cast<String, dynamic>())
             .toList();
         final scorePerformance =
-            (data['score_performance_30d'] as List<dynamic>? ??
+            (data['score_performance_7d'] as List<dynamic>? ??
                     <dynamic>[])
                 .map((item) => (item as Map).cast<String, dynamic>())
                 .toList();
@@ -223,7 +223,7 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              const SectionTitle('최근 30일 매매 성과'),
+              const SectionTitle('최근 7일 매매 성과'),
               const SizedBox(height: 12),
               AppSurface(
                 child: Column(
@@ -300,7 +300,7 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 ),
               const SizedBox(height: 8),
               Text(
-                '매수 당시 점수와 이후 매도 실현성과를 연결한 최근 30일 통계예요.',
+                '매수 당시 점수와 이후 매도 실현성과를 연결한 최근 7일 통계예요.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
