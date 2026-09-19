@@ -163,6 +163,7 @@ class TossOrderAdapter:
         symbol: str,
         side: str,
         quantity: Decimal,
+        notional: Decimal,
         client_order_id: str,
     ) -> dict:
         if not self.enabled:
@@ -194,3 +195,89 @@ class TossOrderAdapter:
             f"/api/v1/orders/{order_id}",
             account_seq=account_seq,
         )
+
+
+    async def find_order_by_client_order_id(
+        self,
+        *,
+        symbol: str,
+        client_order_id: str,
+    ) -> dict | None:
+        """Recover an order after an ambiguous submit using read-only lists.
+
+        Never submits/retries an order. Search OPEN first, then recent CLOSED.
+        """
+        account_seq = await self.accounts.selected_account_seq()
+        normalized = symbol.strip().upper()
+
+        open_payload = await self.client.get(
+            "/api/v1/orders",
+            params={
+                "status": "OPEN",
+                "symbol": normalized,
+            },
+            account_seq=account_seq,
+        )
+        found = self._find_client_order(
+            open_payload,
+            client_order_id,
+        )
+        if found is not None:
+            return found
+
+        # CLOSED is paginated. Search a bounded recent window so reconciliation
+        # stays cheap and read-only. The journal will keep UNKNOWN if not found.
+        for page in range(1, 4):
+            closed_payload = await self.client.get(
+                "/api/v1/orders",
+                params={
+                    "status": "CLOSED",
+                    "symbol": normalized,
+                    "limit": 100,
+                    "page": page,
+                },
+                account_seq=account_seq,
+            )
+            found = self._find_client_order(
+                closed_payload,
+                client_order_id,
+            )
+            if found is not None:
+                return found
+
+            items = self._order_items(closed_payload)
+            if len(items) < 100:
+                break
+
+        return None
+
+    @classmethod
+    def _find_client_order(
+        cls,
+        payload: dict,
+        client_order_id: str,
+    ) -> dict | None:
+        for order in cls._order_items(payload):
+            if str(order.get("clientOrderId") or "") == client_order_id:
+                return order
+        return None
+
+    @staticmethod
+    def _order_items(payload: dict) -> list[dict]:
+        result = payload.get("result")
+        if isinstance(result, list):
+            return [
+                item
+                for item in result
+                if isinstance(item, dict)
+            ]
+        if isinstance(result, dict):
+            for key in ("items", "orders"):
+                raw = result.get(key)
+                if isinstance(raw, list):
+                    return [
+                        item
+                        for item in raw
+                        if isinstance(item, dict)
+                    ]
+        return []
