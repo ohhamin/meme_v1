@@ -20,7 +20,8 @@ class _MarketData:
         self._snapshots = snapshots
         self.configured = configured
 
-    async def snapshots(self, values):
+    async def snapshots(self, values, *, with_features=False):
+        assert with_features is True
         return list(self._snapshots)
 
 
