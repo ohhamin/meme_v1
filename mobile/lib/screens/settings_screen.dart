@@ -19,6 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _status;
   Map<String, dynamic>? _paper;
   Map<String, dynamic>? _readiness;
+  Map<String, dynamic>? _scheduler;
   bool _loading = true;
   String? _error;
 
@@ -35,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ApiClient.instance.getStatus(),
         ApiClient.instance.getPaperPortfolio(),
         ApiClient.instance.getReadiness(),
+        ApiClient.instance.getSchedulerStatus(),
       ]);
 
       if (!mounted) return;
@@ -43,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _status = results[1];
         _paper = results[2];
         _readiness = results[3];
+        _scheduler = results[4];
         _loading = false;
         _error = null;
       });
@@ -688,7 +691,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (status['push'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
     final pushRegistered = pushStatus['registered'] == true;
-    final nextDecisionAt = status['next_decision_at']?.toString();
+    final scheduler = _scheduler ?? <String, dynamic>{};
+    final schedulerRunning = scheduler['running'] == true;
+    final nextDecisionAt = scheduler['next_decision_at']?.toString() ??
+        status['next_decision_at']?.toString();
+    final lastRun =
+        (scheduler['last_run'] as Map?)?.cast<String, dynamic>();
     final paperReadiness =
         (readiness['paper_auto'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
@@ -912,6 +920,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 14),
+                _SafetyRow(
+                  label: 'Scheduler',
+                  enabled: schedulerRunning,
+                  enabledText: '실행 중',
+                  disabledText: '중지',
+                ),
+                if (lastRun != null) ...[
+                  const Divider(height: 24),
+                  Text(
+                    '마지막 자동 판단',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    [
+                      lastRun['finished_at'] == null
+                          ? null
+                          : _formatDateTime(lastRun['finished_at'].toString()),
+                      lastRun['status']?.toString(),
+                      '판단 ${lastRun['decision_count'] ?? 0}개',
+                      '주문 ${lastRun['order_count'] ?? 0}건',
+                    ].whereType<String>().join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (lastRun['reason'] != null) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      lastRun['reason'].toString(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.negative,
+                          ),
+                    ),
+                  ],
+                ],
                 if (!live) ...[
                   const SizedBox(height: 16),
                   SizedBox(
