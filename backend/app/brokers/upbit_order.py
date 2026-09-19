@@ -102,7 +102,7 @@ class UpbitOrderAdapter:
                 side=side,
                 quantity=quantity,
                 notional=notional,
-                identifier=identifier,
+                identifier=f"{identifier}-test",
             )
             await self.client.post(
                 "/orders/test",
