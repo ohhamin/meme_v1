@@ -28,6 +28,7 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.cycle_metrics import CycleMetricsStore
+from backend.app.services.decision_universe import merge_decision_universe
 
 
 class LiveAutoCycleService:
@@ -62,9 +63,16 @@ class LiveAutoCycleService:
         portfolio_by_market = {}
 
         if self.config.upbit_live_order_enabled:
-            markets = self.upbit_universe.get()
-            if markets:
-                try:
+            try:
+                portfolio = await self.portfolios.upbit()
+                markets = merge_decision_universe(
+                    self.upbit_universe.get(),
+                    [
+                        position.symbol
+                        for position in portfolio.positions
+                    ],
+                )
+                if markets:
                     crypto = await self.upbit_market.snapshots(
                         markets,
                         with_features=True,
@@ -74,7 +82,6 @@ class LiveAutoCycleService:
                             "Incomplete Upbit market snapshot."
                         )
                     instruments.extend(crypto)
-                    portfolio = await self.portfolios.upbit()
                     portfolio_by_market["crypto"] = portfolio
                     account_snapshot["crypto"] = {
                         "broker": "upbit",
@@ -87,19 +94,26 @@ class LiveAutoCycleService:
                             for p in portfolio.positions
                         ],
                     }
-                except Exception as exc:
-                    self.audit.write(
-                        "system",
-                        {
-                            "event": "live_auto_upbit_snapshot_failed",
-                            "reason": str(exc),
-                        },
-                    )
+            except Exception as exc:
+                self.audit.write(
+                    "system",
+                    {
+                        "event": "live_auto_upbit_snapshot_failed",
+                        "reason": str(exc),
+                    },
+                )
 
         if self.config.toss_live_order_enabled:
-            symbols = self.toss_universe.get()
-            if symbols:
-                try:
+            try:
+                portfolio = await self.portfolios.toss()
+                symbols = merge_decision_universe(
+                    self.toss_universe.get(),
+                    [
+                        position.symbol
+                        for position in portfolio.positions
+                    ],
+                )
+                if symbols:
                     stocks = await self.toss_market.snapshots(
                         symbols,
                         with_features=True,
@@ -109,7 +123,7 @@ class LiveAutoCycleService:
                             "Incomplete Toss market snapshot."
                         )
                     # Do not spend LLM tokens on stock candidates when every
-                    # selected stock is outside a tradable KRX/NXT session.
+                    # selected/held stock is outside a tradable KRX/NXT session.
                     tradable = [
                         item
                         for item in stocks
@@ -117,7 +131,6 @@ class LiveAutoCycleService:
                     ]
                     if tradable:
                         instruments.extend(tradable)
-                        portfolio = await self.portfolios.toss()
                         portfolio_by_market["stock"] = portfolio
                         account_snapshot["stock"] = {
                             "broker": "toss",
@@ -130,14 +143,14 @@ class LiveAutoCycleService:
                                 for p in portfolio.positions
                             ],
                         }
-                except Exception as exc:
-                    self.audit.write(
-                        "system",
-                        {
-                            "event": "live_auto_toss_snapshot_failed",
-                            "reason": str(exc),
-                        },
-                    )
+            except Exception as exc:
+                self.audit.write(
+                    "system",
+                    {
+                        "event": "live_auto_toss_snapshot_failed",
+                        "reason": str(exc),
+                    },
+                )
 
         if not instruments:
             return LiveAutoCycleResponse(
