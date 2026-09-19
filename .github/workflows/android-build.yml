@@ -34,6 +34,7 @@ jobs:
           flutter create             --platforms=android             --org com.ohhamin             --project-name meme_v1             /tmp/meme_v1_mobile
 
           rm -rf /tmp/meme_v1_mobile/lib
+          rm -rf /tmp/meme_v1_mobile/test
           cp -R mobile/lib /tmp/meme_v1_mobile/lib
           cp mobile/pubspec.yaml /tmp/meme_v1_mobile/pubspec.yaml
 
