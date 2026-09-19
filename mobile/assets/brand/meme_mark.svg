@@ -1,0 +1,12 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="meme" x1="36" y1="210" x2="224" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F7BFF"/>
+      <stop offset="0.52" stop-color="#8B5CFF"/>
+      <stop offset="1" stop-color="#2FD8FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="58" fill="#0B1A31"/>
+  <path d="M42 177L82 91L132 174L201 68" stroke="url(#meme)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M166 69L216 43L209 101Z" fill="#2FD8FF"/>
+</svg>
