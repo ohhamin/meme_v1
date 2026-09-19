@@ -4,14 +4,44 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Blue/cyan left ribbon -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#2F7BFF"
+        android:strokeColor="#079BFF"
         android:strokeWidth="13"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M20,70 L37,39 L55,68 L82,31" />
+        android:pathData="M20,72 C25,61 30,45 37,39 C43,34 48,38 53,46 L62,61" />
+
+    <!-- Purple folded middle ribbon -->
     <path
-        android:fillColor="#2FD8FF"
-        android:pathData="M70,30 L89,21 L86,42 Z" />
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#7654FF"
+        android:strokeWidth="13"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M47,39 C52,44 57,55 62,61 C67,68 72,64 77,55" />
+
+    <!-- Cyan rising stroke -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#19DFF4"
+        android:strokeWidth="13"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M72,62 C78,57 82,49 86,42 L92,31" />
+
+    <!-- Upward arrow -->
+    <path
+        android:fillColor="#20E2F4"
+        android:pathData="M80,29 L98,21 Q100,20 99,24 L98,43 L91,36 Z" />
+
+    <!-- Subtle highlight -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#44FFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M22,67 C29,51 33,41 39,39" />
 </vector>
