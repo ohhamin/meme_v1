@@ -143,6 +143,27 @@ class ApiClient {
     return (await _request('GET', '/status')) as Map<String, dynamic>;
   }
 
+  Future<List<Map<String, dynamic>>> getUnresolvedLiveOrders() async {
+    final data = await _request(
+      'GET',
+      '/live-orders/unresolved?limit=50',
+    ) as Map<String, dynamic>;
+    final items = data['items'] as List<dynamic>? ?? <dynamic>[];
+    return items.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> reconcileLiveOrders({
+    String? intentId,
+  }) async {
+    final suffix = intentId == null
+        ? '?limit=50'
+        : '?intent_id=${Uri.encodeQueryComponent(intentId)}&limit=50';
+    return (await _request(
+      'POST',
+      '/live-orders/reconcile$suffix',
+    )) as Map<String, dynamic>;
+  }
+
   Future<void> registerPushToken({
     required String token,
     required String platform,
