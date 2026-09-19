@@ -15,6 +15,7 @@ from backend.app.models.schemas import (
 from backend.app.services.trading import TradingService
 from backend.app.services.upbit_paper_runner import UpbitPaperRunner
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.upbit_universe_selector import UpbitUniverseSelector
 
 
 router = APIRouter(
@@ -91,6 +92,12 @@ async def upbit_universe():
         markets=markets,
         count=len(markets),
     )
+
+
+@router.post("/upbit/universe/auto", response_model=UpbitUniverseResponse)
+async def auto_upbit_universe(limit: int = Query(10, ge=1, le=50)):
+    markets = await UpbitUniverseSelector().select(limit=limit)
+    return UpbitUniverseResponse(markets=markets, count=len(markets))
 
 
 @router.put("/upbit/universe", response_model=UpbitUniverseResponse)
