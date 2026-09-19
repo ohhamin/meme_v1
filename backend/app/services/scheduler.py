@@ -10,6 +10,7 @@ from backend.app.services.live_order_reconciler import LiveOrderReconciler
 from backend.app.services.live_auto_cycle import LiveAutoCycleService
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.data_retention import DataRetentionService
+from backend.app.services.scheduler_state import SchedulerStateService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 
 
@@ -25,6 +26,7 @@ class AdaptiveDecisionScheduler:
         self.live_auto_cycle = LiveAutoCycleService()
         self.runtime = RuntimeSettingsService()
         self.retention = DataRetentionService()
+        self.state = SchedulerStateService()
         self.combined_paper_runner = CombinedPaperRunner()
         self.audit = AuditLogger()
 
@@ -39,9 +41,20 @@ class AdaptiveDecisionScheduler:
         self.schedule_algorithm_review()
         self.schedule_live_order_reconciliation()
         self.schedule_retention()
-        self.schedule_next(
-            self.config.decision_default_interval_minutes
-        )
+
+        saved_next = self.state.next_decision_at()
+        now = datetime.now(timezone.utc)
+        if (
+            saved_next is not None
+            and saved_next.astimezone(timezone.utc) > now
+        ):
+            self._schedule_at(
+                saved_next.astimezone(timezone.utc)
+            )
+        else:
+            self.schedule_next(
+                self.config.decision_default_interval_minutes
+            )
 
     def shutdown(self) -> None:
         if self.scheduler.running:
@@ -96,21 +109,22 @@ class AdaptiveDecisionScheduler:
         )
 
     def schedule_next(self, proposed_minutes: int) -> int:
-        """Schedule one future decision cycle.
-
-        The next job is a one-shot date job. After it finishes, the returned
-        next_check_minutes schedules the following cycle.
-        """
+        """Schedule one future decision cycle and persist its run time."""
         minutes = self.config.clamp_decision_interval(
             proposed_minutes
         )
-
-        if not self.scheduler.running:
-            return minutes
-
         run_at = datetime.now(timezone.utc) + timedelta(
             minutes=minutes
         )
+
+        if self.scheduler.running:
+            self._schedule_at(run_at)
+        else:
+            self.state.save_next_decision_at(run_at)
+
+        return minutes
+
+    def _schedule_at(self, run_at: datetime) -> None:
         self.scheduler.add_job(
             self._run_decision_cycle,
             trigger="date",
@@ -120,7 +134,17 @@ class AdaptiveDecisionScheduler:
             max_instances=1,
             misfire_grace_time=300,
         )
+        self.state.save_next_decision_at(run_at)
 
+        minutes = max(
+            0,
+            int(
+                (
+                    run_at - datetime.now(timezone.utc)
+                ).total_seconds()
+                // 60
+            ),
+        )
         self.audit.write(
             "system",
             {
@@ -135,7 +159,27 @@ class AdaptiveDecisionScheduler:
                 ),
             },
         )
-        return minutes
+
+    def status(self) -> dict:
+        job = (
+            self.scheduler.get_job("adaptive-decision-cycle")
+            if self.scheduler.running
+            else None
+        )
+        next_run = (
+            job.next_run_time
+            if job is not None
+            else self.state.next_decision_at()
+        )
+        return {
+            "enabled": self.config.scheduler_enabled,
+            "running": self.scheduler.running,
+            "next_decision_at": (
+                next_run.isoformat()
+                if next_run is not None
+                else None
+            ),
+        }
 
     async def _run_decision_cycle(self) -> None:
         runtime = self.runtime.get()
