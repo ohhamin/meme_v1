@@ -57,8 +57,10 @@ def test_algorithm_metrics_summarizes_decisions_and_churn(monkeypatch):
         "recent",
         lambda limit=1000, days=30: [
             {
+                "market": "stock",
                 "side": "sell",
                 "entry_score": "65",
+                "candidate_score": "82",
                 "realized_pnl": "-1000",
                 "realized_return_pct": "-1.5",
             },
@@ -113,4 +115,11 @@ def test_algorithm_metrics_summarizes_decisions_and_churn(monkeypatch):
     assert (
         result["score_performance_30d"]["buckets"]["60-69"]["sample_sufficient"]
         is False
+    )
+    assert result["score_performance_7d"]["window_days"] == 7
+    assert (
+        result["candidate_score_performance_7d"]["buckets"]["80-100"][
+            "closed_trades"
+        ]
+        == 1
     )

@@ -40,12 +40,18 @@ class PaperDashboardService:
                     "return_rate": str(position.return_rate),
                     "realized_pnl": str(position.realized_pnl),
                     "decision_score": position.decision_score,
+                    "candidate_score": (
+                        str(position.candidate_score)
+                        if position.candidate_score is not None
+                        else None
+                    ),
                 })
         positions.sort(key=lambda item: Decimal(item["market_value"]), reverse=True)
 
         journal = self.orders.recent(limit=500, days=7)
         trading = self._trading_stats(journal)
         score_performance = self._score_performance(journal)
+        candidate_performance = self._candidate_score_performance(journal)
         recent_orders = journal[:10]
 
         return {
@@ -68,6 +74,7 @@ class PaperDashboardService:
             "positions": positions,
             "trading_7d": trading,
             "score_performance_7d": score_performance,
+            "candidate_score_performance_7d": candidate_performance,
             # Backward-compatible aliases; values use the same 7-day window.
             "trading_30d": trading,
             "score_performance_30d": score_performance,
@@ -193,6 +200,74 @@ class PaperDashboardService:
                     "average_return_pct": str(
                         avg_return.quantize(Decimal("0.01"))
                     ),
+                }
+            )
+
+        return result
+
+    @staticmethod
+    def _candidate_score_performance(records: list[dict]) -> list[dict]:
+        buckets = [
+            ("0-59", Decimal("0"), Decimal("60")),
+            ("60-69", Decimal("60"), Decimal("70")),
+            ("70-79", Decimal("70"), Decimal("80")),
+            ("80-100", Decimal("80"), Decimal("101")),
+        ]
+        result = []
+
+        for label, lower, upper in buckets:
+            rows = []
+            for record in records:
+                if (
+                    record.get("market") != "stock"
+                    or record.get("side") != "sell"
+                ):
+                    continue
+                try:
+                    score = Decimal(
+                        str(record.get("candidate_score"))
+                    )
+                    pnl = Decimal(str(record.get("realized_pnl")))
+                    return_pct = Decimal(
+                        str(record.get("realized_return_pct"))
+                    )
+                except (ValueError, TypeError):
+                    continue
+                if lower <= score < upper:
+                    rows.append((pnl, return_pct))
+
+            wins = [row for row in rows if row[0] > 0]
+            win_rate = (
+                Decimal(len(wins))
+                / Decimal(len(rows))
+                * Decimal("100")
+                if rows
+                else Decimal("0")
+            )
+            realized_pnl = sum(
+                (row[0] for row in rows),
+                Decimal("0"),
+            )
+            avg_return = (
+                sum((row[1] for row in rows), Decimal("0"))
+                / Decimal(len(rows))
+                if rows
+                else Decimal("0")
+            )
+
+            result.append(
+                {
+                    "bucket": label,
+                    "closed_trades": len(rows),
+                    "wins": len(wins),
+                    "win_rate_pct": str(
+                        win_rate.quantize(Decimal("0.01"))
+                    ),
+                    "realized_pnl": str(realized_pnl),
+                    "average_return_pct": str(
+                        avg_return.quantize(Decimal("0.01"))
+                    ),
+                    "sample_sufficient": len(rows) >= 10,
                 }
             )
 
