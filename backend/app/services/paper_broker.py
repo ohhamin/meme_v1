@@ -14,6 +14,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.audit import AuditLogger
 from backend.app.services.push import PushService
+from backend.app.services.paper_order_journal import PaperOrderJournal
 
 
 class PaperBroker:
@@ -40,6 +41,7 @@ class PaperBroker:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.audit = AuditLogger()
         self.push = PushService()
+        self.journal = PaperOrderJournal()
 
     @property
     def broker_name(self) -> str:
@@ -264,7 +266,9 @@ class PaperBroker:
 
         cash = Decimal(state["cash"])
         existing = positions.get(key)
-        now = datetime.now(self.tz).isoformat()
+        now_dt = datetime.now(self.tz)
+        now = now_dt.isoformat()
+        realized_delta: Decimal | None = None
 
         if side == "buy":
             total_cost = notional + fee
@@ -314,7 +318,8 @@ class PaperBroker:
 
             old_avg = Decimal(existing["average_price"])
             realized = Decimal(existing.get("realized_pnl", "0"))
-            realized += ((fill_price - old_avg) * quantity) - fee
+            realized_delta = ((fill_price - old_avg) * quantity) - fee
+            realized += realized_delta
 
             remaining = old_qty - quantity
             state["cash"] = str(cash + notional - fee)
@@ -342,7 +347,21 @@ class PaperBroker:
             notional=notional,
             fee=fee,
             status="paper_filled",
-            created_at=datetime.now(self.tz),
+            created_at=now_dt,
+        )
+
+        self.journal.append(
+            order_id=execution.order_id,
+            market=self.market,
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=fill_price,
+            notional=notional,
+            fee=fee,
+            source=source,
+            created_at=now_dt,
+            realized_pnl=realized_delta,
         )
 
         self.audit.write(
