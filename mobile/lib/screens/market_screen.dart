@@ -592,6 +592,211 @@ class _MarketScreenState extends State<MarketScreen> {
     }
   }
 
+  Future<void> _showStockRanking(
+    List<Map<String, dynamic>> ranking,
+  ) async {
+    final selected = ranking
+        .where((item) => item['selected'] == true)
+        .toList();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.82,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '자동선정 Top ${selected.length}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      Text(
+                        '후보 점수 ≠ 매수 점수',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '유동성 45% · 20일 추세 20% · 5일 추세 10% · '
+                    '거래활성도 15% · 변동성 안정성 10%',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
+                    itemCount: selected.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = selected[index];
+                      final score =
+                          num.tryParse(item['score']?.toString() ?? '0') ?? 0;
+                      final turnover = num.tryParse(
+                            item['avg_turnover_20d']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final return5 = num.tryParse(
+                            item['return_5d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final return20 = num.tryParse(
+                            item['return_20d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final volatility = num.tryParse(
+                            item['volatility_20d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final penalty =
+                          num.tryParse(item['penalty']?.toString() ?? '0') ?? 0;
+                      final reasons = (
+                        item['penalty_reasons'] as List<dynamic>? ??
+                            <dynamic>[]
+                      ).map((value) => value.toString()).toList();
+                      final money = NumberFormat.compact(locale: 'ko_KR');
+
+                      return AppSurface(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Text(
+                                    '${item['rank'] ?? index + 1}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name']?.toString() ??
+                                            item['symbol']?.toString() ??
+                                            '-',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                      Text(
+                                        item['symbol']?.toString() ?? '',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  score.toStringAsFixed(1),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _SelectorMetric(
+                                  label: '유동성',
+                                  value: item['liquidity_score'],
+                                ),
+                                _SelectorMetric(
+                                  label: '20일추세',
+                                  value: item['momentum_20d_score'],
+                                ),
+                                _SelectorMetric(
+                                  label: '5일추세',
+                                  value: item['momentum_5d_score'],
+                                ),
+                                _SelectorMetric(
+                                  label: '거래활성',
+                                  value: item['activity_score'],
+                                ),
+                                _SelectorMetric(
+                                  label: '안정성',
+                                  value: item['stability_score'],
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Text(
+                              '20일 평균 거래대금 ${money.format(turnover)}원'
+                              ' · 5일 ${return5 >= 0 ? '+' : ''}${return5.toStringAsFixed(1)}%'
+                              ' · 20일 ${return20 >= 0 ? '+' : ''}${return20.toStringAsFixed(1)}%'
+                              ' · 변동성 ${volatility.toStringAsFixed(1)}%',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (penalty > 0) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '감점 -${penalty.toStringAsFixed(0)}'
+                                '${reasons.isEmpty ? '' : ' · ${reasons.join(' · ')}'}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.warning),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
   Future<void> _openUpbitUniverse() async {
     try {
       final results = await Future.wait([
