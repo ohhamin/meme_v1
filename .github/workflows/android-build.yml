@@ -38,6 +38,12 @@ jobs:
           cp -R mobile/lib /tmp/meme_v1_mobile/lib
           cp mobile/pubspec.yaml /tmp/meme_v1_mobile/pubspec.yaml
 
+          # Keep the clean generated Gradle scaffold, but overlay the
+          # committed MEME launcher/splash/theme resources used by real builds.
+          rm -rf /tmp/meme_v1_mobile/android/app/src/main/res
+          cp -R mobile/android/app/src/main/res /tmp/meme_v1_mobile/android/app/src/main/res
+          cp mobile/android/app/src/main/AndroidManifest.xml /tmp/meme_v1_mobile/android/app/src/main/AndroidManifest.xml
+
       - name: Install dependencies
         working-directory: /tmp/meme_v1_mobile
         run: flutter pub get
