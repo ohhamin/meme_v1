@@ -8,17 +8,22 @@ Flutter 개인용 앱 골격입니다.
 [주식] [코인] [뉴스] [판단] [알고리즘] [세팅]
 ```
 
-## 최초 생성
+## Android 네이티브 프로젝트 생성
 
-이 저장소에는 핵심 Dart 소스만 먼저 넣었습니다. 로컬에서 `mobile/`로 이동한 뒤
-Android/iOS 네이티브 폴더가 없다면 한 번 실행합니다.
+저장소의 핵심 Dart 소스는 유지하면서 Android 폴더만 안전하게 생성하려면:
 
 ```bash
-flutter create .
+cd mobile
+bash tool/bootstrap_android.sh
 flutter pub get
 ```
 
-기존 `lib/` 파일은 덮어쓰지 않도록 확인하세요.
+스크립트는 임시 Flutter 프로젝트에서 `android/`만 가져오기 때문에
+기존 `lib/`와 `pubspec.yaml`을 덮어쓰지 않습니다.
+
+GitHub Actions의 `android-build` workflow도 동일한 방식으로 매번
+깨끗한 Android scaffold를 만든 뒤 실제 debug APK까지 빌드합니다.
+성공한 workflow에는 `meme-v1-debug-apk` artifact가 7일 동안 저장됩니다.
 
 ## 실행
 
@@ -57,3 +62,12 @@ Firebase credential/설정 파일은 저장소에 커밋하지 않습니다.
 - 주문과 Live 전환은 Bottom Sheet 확인
 - 판단은 Markdown 원문 대신 가능한 경우 종목별 카드로 렌더링
 - 알고리즘은 현재/제안 segmented tab으로 분리
+
+
+## 현재 로컬 Flutter가 없어도
+
+GitHub의 `android-build` workflow가 성공하면 로컬에서 Flutter 설치를 끝내기 전에도
+실제 Android debug APK가 생성되는지 확인할 수 있습니다.
+
+CI용 APK에는 실제 운영 API 주소/토큰을 넣지 않습니다.
+실기기 검증용 빌드는 본인 Backend 주소와 API token을 `--dart-define`으로 넣어 다시 빌드합니다.
