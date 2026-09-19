@@ -1,20 +1,29 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import 'screens/algorithm_screen.dart';
+import 'screens/ai_hub_screen.dart';
 import 'screens/daily_markdown_screen.dart';
-import 'screens/decision_screen.dart';
 import 'screens/market_screen.dart';
 import 'screens/paper_dashboard_screen.dart';
 import 'screens/settings_screen.dart';
-import 'theme/app_theme.dart';
 import 'services/push_registration.dart';
+import 'theme/app_theme.dart';
 import 'widgets/brand_logo.dart';
 
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: AppColors.background,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const MemeApp());
   unawaited(PushRegistrationService.instance.initialize());
 }
@@ -44,25 +53,24 @@ class AppShell extends StatefulWidget {
 
 
 class _AppShellState extends State<AppShell> {
-  int _index = 0;
+  // The former home/Paper dashboard is now the Performance tab.
+  int _index = 4;
 
   static const _titles = [
-    'Paper 대시보드',
     '주식',
     '코인',
+    'AI 판단',
     '뉴스',
-    '판단',
-    '알고리즘',
-    '세팅',
+    '성과',
+    '설정',
   ];
 
   final List<Widget> _screens = [
-    const PaperDashboardScreen(),
     const MarketScreen(isStock: true),
     const MarketScreen(isStock: false),
+    const AiHubScreen(),
     const DailyMarkdownScreen(kind: 'news'),
-    const DecisionScreen(),
-    const AlgorithmScreen(),
+    const PaperDashboardScreen(),
     const SettingsScreen(),
   ];
 
@@ -70,81 +78,98 @@ class _AppShellState extends State<AppShell> {
     setState(() {
       _index = value;
       // These screens are mode-aware on the backend. Recreate them whenever
-      // the user enters the tab so a Paper/Live change in Settings is reflected
-      // immediately without requiring pull-to-refresh.
-      if (value == 1) {
-        _screens[1] = MarketScreen(key: UniqueKey(), isStock: true);
+      // the user enters the tab so Paper/Live changes are reflected right away.
+      if (value == 0) {
+        _screens[0] = MarketScreen(key: UniqueKey(), isStock: true);
+      } else if (value == 1) {
+        _screens[1] = MarketScreen(key: UniqueKey(), isStock: false);
       } else if (value == 2) {
-        _screens[2] = MarketScreen(key: UniqueKey(), isStock: false);
+        _screens[2] = AiHubScreen(key: UniqueKey());
       } else if (value == 4) {
-        _screens[4] = DecisionScreen(key: UniqueKey());
+        _screens[4] = PaperDashboardScreen(key: UniqueKey());
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: BrandAppBarTitle(pageTitle: _titles[_index]),
-      ),
-      body: SafeArea(
-        top: false,
-        child: IndexedStack(
-          index: _index,
-          children: _screens,
+    return AppBackdrop(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: BrandAppBarTitle(pageTitle: _titles[_index]),
         ),
-      ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.divider,
-              width: 0.7,
-            ),
+        body: SafeArea(
+          top: false,
+          child: IndexedStack(
+            index: _index,
+            children: _screens,
           ),
         ),
-        child: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: _selectTab,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.space_dashboard_outlined),
-              selectedIcon: Icon(Icons.space_dashboard_rounded),
-              label: '홈',
+        bottomNavigationBar: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Color(0xF507111E),
+            border: Border(
+              top: BorderSide(
+                color: AppColors.divider,
+                width: 0.8,
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.show_chart_rounded),
-              selectedIcon: Icon(Icons.show_chart_rounded),
-              label: '주식',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.currency_bitcoin_rounded),
-              selectedIcon: Icon(Icons.currency_bitcoin_rounded),
-              label: '코인',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.article_outlined),
-              selectedIcon: Icon(Icons.article_rounded),
-              label: '뉴스',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.psychology_alt_outlined),
-              selectedIcon: Icon(Icons.psychology_alt_rounded),
-              label: '판단',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.account_tree_outlined),
-              selectedIcon: Icon(Icons.account_tree_rounded),
-              label: '알고리즘',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: '세팅',
-            ),
-          ],
+          ),
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: _selectTab,
+            destinations: const [
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.bar_chart_rounded),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.bar_chart_rounded,
+                  selected: true,
+                ),
+                label: '주식',
+              ),
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.currency_bitcoin_rounded),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.currency_bitcoin_rounded,
+                  selected: true,
+                ),
+                label: '코인',
+              ),
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.psychology_alt_outlined),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.psychology_alt_rounded,
+                  selected: true,
+                ),
+                label: 'AI 판단',
+              ),
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.article_outlined),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.article_rounded,
+                  selected: true,
+                ),
+                label: '뉴스',
+              ),
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.pie_chart_outline_rounded),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.pie_chart_rounded,
+                  selected: true,
+                ),
+                label: '성과',
+              ),
+              NavigationDestination(
+                icon: BrandNavIcon(icon: Icons.settings_outlined),
+                selectedIcon: BrandNavIcon(
+                  icon: Icons.settings_rounded,
+                  selected: true,
+                ),
+                label: '설정',
+              ),
+            ],
+          ),
         ),
       ),
     );
