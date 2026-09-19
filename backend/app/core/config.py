@@ -71,6 +71,7 @@ class AppSettings(BaseSettings):
     llm_context_decision_chars: int = 6000
     llm_conserve_threshold_pct: int = 20
     algorithm_review_interval_hours: int = 24
+    algorithm_review_min_decisions: int = 20
 
     upbit_access_key: str = ""
     upbit_secret_key: str = ""
