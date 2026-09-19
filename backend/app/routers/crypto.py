@@ -16,6 +16,7 @@ from backend.app.services.trading import TradingService
 from backend.app.services.upbit_paper_runner import UpbitPaperRunner
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.upbit_universe_selector import UpbitUniverseSelector
+from backend.app.services.market_performance import MarketPerformanceService
 
 
 router = APIRouter(
@@ -28,6 +29,11 @@ router = APIRouter(
 @router.get("/positions")
 async def positions():
     return await TradingService().crypto_positions()
+
+
+@router.get("/performance")
+async def performance():
+    return MarketPerformanceService().build("crypto")
 
 
 @router.post("/orders/manual")
