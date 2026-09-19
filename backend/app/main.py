@@ -20,6 +20,8 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.push import PushService
 from backend.app.services.scheduler import AdaptiveDecisionScheduler
 from backend.app.services.startup_maintenance import StartupMaintenanceService
+from backend.app.services.safety_config import SafetyConfigValidator
+from backend.app.services.audit import AuditLogger
 
 
 scheduler = AdaptiveDecisionScheduler()
@@ -27,6 +29,16 @@ scheduler = AdaptiveDecisionScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    safety = SafetyConfigValidator().require_safe_startup()
+    for warning in safety.warnings:
+        AuditLogger().write(
+            "system",
+            {
+                "event": "startup_safety_warning",
+                "warning": warning,
+            },
+        )
+
     RuntimeSettingsService().get()
     AlgorithmService()
     PushService().initialize()
