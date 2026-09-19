@@ -4,6 +4,6 @@
     <item>
         <inset
             android:drawable="@drawable/meme_app_logo"
-            android:inset="7dp" />
+            android:inset="15dp" />
     </item>
 </layer-list>
