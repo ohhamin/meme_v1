@@ -175,13 +175,19 @@ class LiveOrderService:
                     detail=f"Live broker snapshot unavailable: {exc}",
                 ) from exc
 
+            effective_notional = (
+                notional
+                if market == "crypto" and side == "buy"
+                else quantity * snapshot["price"]
+            )
+
             return await self._execute(
                 broker=broker,
                 source="auto",
                 symbol=snapshot["symbol"],
                 side=side,
                 quantity=quantity,
-                notional=notional,
+                notional=effective_notional,
                 snapshot=snapshot,
                 idempotency_key=(
                     f"auto-{broker}-{uuid4().hex}"
