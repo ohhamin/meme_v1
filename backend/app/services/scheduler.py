@@ -35,7 +35,7 @@ class AdaptiveDecisionScheduler:
         self.macro_context = MacroMarketContextService()
 
     def start(self) -> None:
-        if not self.config.scheduler_enabled:
+        if not self.runtime.get().scheduler_enabled:
             return
 
         if not self.scheduler.running:
@@ -64,6 +64,23 @@ class AdaptiveDecisionScheduler:
     def shutdown(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+
+    def set_enabled(self, enabled: bool) -> dict:
+        self.runtime.set_scheduler_enabled(enabled)
+        if enabled:
+            if not self.scheduler.running:
+                self.scheduler.start()
+            self.schedule_news_collection()
+            self.schedule_macro_context()
+            self.schedule_algorithm_review()
+            self.schedule_live_order_reconciliation()
+            self.schedule_retention()
+            self.schedule_next(self.config.decision_default_interval_minutes)
+        else:
+            if self.scheduler.running:
+                self.scheduler.remove_all_jobs()
+            self.state.clear_next_decision_at()
+        return self.status()
 
     def schedule_news_collection(self) -> None:
         """뉴스는 시작 시 즉시 1회 확인하고 이후 설정된 간격으로 수집한다."""
@@ -191,8 +208,8 @@ class AdaptiveDecisionScheduler:
             else self.state.next_decision_at()
         )
         return {
-            "enabled": self.config.scheduler_enabled,
-            "running": self.scheduler.running,
+            "enabled": self.runtime.get().scheduler_enabled,
+            "running": self.scheduler.running and self.runtime.get().scheduler_enabled,
             "last_run": self.state.last_run(),
             "next_decision_at": (
                 next_run.isoformat()
@@ -203,6 +220,8 @@ class AdaptiveDecisionScheduler:
 
     async def _run_decision_cycle(self) -> None:
         runtime = self.runtime.get()
+        if not getattr(runtime, "scheduler_enabled", True):
+            return
         next_minutes = (
             self.config.decision_default_interval_minutes
         )
@@ -283,7 +302,8 @@ class AdaptiveDecisionScheduler:
                 },
             )
         finally:
-            self.schedule_next(next_minutes)
+            if getattr(self.runtime.get(), "scheduler_enabled", True):
+                self.schedule_next(next_minutes)
 
     def _send_cycle_summary(
         self,

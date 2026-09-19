@@ -16,6 +16,7 @@ class RuntimeSettingsService:
             mode="paper" if self.config.paper_trading else "live",
             kill_switch=self.config.kill_switch,
             live_order_allowed=False,
+            scheduler_enabled=self.config.scheduler_enabled,
         )
 
     def get(self) -> RuntimeSettings:
@@ -28,7 +29,13 @@ class RuntimeSettingsService:
             raw = json.loads(
                 self.path.read_text(encoding="utf-8")
             )
+            migrated = False
+            if "scheduler_enabled" not in raw:
+                raw["scheduler_enabled"] = self.config.scheduler_enabled
+                migrated = True
             state = RuntimeSettings(**raw)
+            if migrated:
+                self._write(state)
         except (
             OSError,
             json.JSONDecodeError,
@@ -40,6 +47,7 @@ class RuntimeSettingsService:
                 mode="paper",
                 kill_switch=True,
                 live_order_allowed=False,
+                scheduler_enabled=False,
             )
             self._write(state)
 
@@ -65,6 +73,12 @@ class RuntimeSettingsService:
     def set_kill_switch(self, enabled: bool) -> RuntimeSettings:
         state = self.get()
         state.kill_switch = enabled
+        self._write(state)
+        return self._decorate(state)
+
+    def set_scheduler_enabled(self, enabled: bool) -> RuntimeSettings:
+        state = self.get()
+        state.scheduler_enabled = enabled
         self._write(state)
         return self._decorate(state)
 

@@ -13,18 +13,23 @@ class LatestDecisionService:
     def __init__(self):
         self.store = DailyMarkdownStore("decisions")
 
-    def get(self) -> LatestDecisionResponse | None:
-        dates = self.store.available_dates(limit=1)
-        if not dates:
+    def get(self, mode: str | None = None) -> LatestDecisionResponse | None:
+        target = mode.upper() if mode else None
+        for day in self.store.available_dates(limit=7):
+            markdown = self.store.read(day)
+            cycles = self._cycles(markdown)
+            if target is not None:
+                cycles = [
+                    cycle
+                    for cycle in cycles
+                    if cycle["execution_mode"] == target
+                ]
+            if not cycles:
+                continue
+            cycle = cycles[-1]
+            break
+        else:
             return None
-
-        day = dates[0]
-        markdown = self.store.read(day)
-        cycles = self._cycles(markdown)
-        if not cycles:
-            return None
-
-        cycle = cycles[-1]
         items = cycle["items"]
         return LatestDecisionResponse(
             date=day,
@@ -36,6 +41,39 @@ class LatestDecisionService:
             hold_count=sum(1 for item in items if item.action == "HOLD"),
             items=items,
         )
+
+    def filter_markdown(self, markdown: str, mode: str) -> str:
+        target = mode.upper()
+        chunks: list[list[str]] = []
+        current: list[str] | None = None
+
+        for raw in markdown.splitlines():
+            line = raw.strip()
+            if line.startswith("## ") and "Decision Cycle" in line:
+                if current:
+                    chunks.append(current)
+                current = [raw]
+            elif current is not None:
+                current.append(raw)
+
+        if current:
+            chunks.append(current)
+
+        selected: list[str] = []
+        for chunk in chunks:
+            execution_mode = "PAPER"
+            for raw in chunk:
+                line = raw.strip()
+                if line.startswith("- Execution Mode:"):
+                    execution_mode = (
+                        line.split(":", 1)[1].strip().upper() or "PAPER"
+                    )
+                    break
+            if execution_mode == target:
+                selected.extend(chunk)
+                selected.append("")
+
+        return "\n".join(selected).strip()
 
     def _cycles(self, markdown: str) -> list[dict]:
         cycles: list[dict] = []

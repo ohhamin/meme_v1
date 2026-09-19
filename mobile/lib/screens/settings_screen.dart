@@ -150,6 +150,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _setSchedulerEnabled(bool enabled) async {
+    try {
+      await ApiClient.instance.setSchedulerEnabled(enabled);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _resetPaper(String market, String label) async {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -693,6 +705,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             <String, dynamic>{};
     final pushRegistered = pushStatus['registered'] == true;
     final scheduler = _scheduler ?? <String, dynamic>{};
+    final schedulerEnabled = scheduler['enabled'] == true;
     final schedulerRunning = scheduler['running'] == true;
     final nextDecisionAt = scheduler['next_decision_at']?.toString() ??
         status['next_decision_at']?.toString();
@@ -1121,6 +1134,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   value: killSwitch,
                   onChanged: _setKillSwitch,
+                ),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  title: Text(
+                    'AI Scheduler',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  subtitle: const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text(
+                      '끄면 뉴스 수집·시장 컨텍스트·AI 매매 판단·알고리즘 검토를 모두 멈춰요.',
+                    ),
+                  ),
+                  value: schedulerEnabled,
+                  onChanged: _setSchedulerEnabled,
                 ),
               ],
             ),

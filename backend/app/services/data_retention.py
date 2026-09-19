@@ -35,6 +35,11 @@ class DataRetentionService:
                 cutoff,
                 suffix=".jsonl",
             ),
+            "paper_orders": self._prune_folder(
+                self.config.data_path / "paper_orders",
+                cutoff,
+                suffix=".jsonl",
+            ),
         }
 
         deleted["idempotency"] = IdempotencyStore().prune()
