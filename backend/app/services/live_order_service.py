@@ -27,7 +27,12 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
 class LiveOrderService:
-    """Manual live-order orchestration with durable intent-before-mutation safety."""
+    """Live-order orchestration with serialized broker mutation safety."""
+
+    _broker_locks = {
+        "upbit": asyncio.Lock(),
+        "toss": asyncio.Lock(),
+    }
 
     def __init__(self):
         self.runtime = RuntimeSettingsService()
@@ -59,28 +64,29 @@ class LiveOrderService:
         idempotency_key: str,
     ) -> OrderResult:
         self._require_live_manual("toss")
-        self.idempotency.ensure_new(idempotency_key)
 
-        try:
-            snap = await self.snapshots.toss(symbol)
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Live Toss snapshot unavailable: {exc}",
-            ) from exc
+        async with self._broker_locks["toss"]:
+            self.idempotency.ensure_new(idempotency_key)
+            try:
+                snap = await self.snapshots.toss(symbol)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Live Toss snapshot unavailable: {exc}",
+                ) from exc
 
-        qty = Decimal(quantity)
-        notional = qty * snap["price"]
-        return await self._execute(
-            broker="toss",
-            source="manual",
-            symbol=snap["symbol"],
-            side=side,
-            quantity=qty,
-            notional=notional,
-            snapshot=snap,
-            idempotency_key=idempotency_key,
-        )
+            qty = Decimal(quantity)
+            notional = qty * snap["price"]
+            return await self._execute(
+                broker="toss",
+                source="manual",
+                symbol=snap["symbol"],
+                side=side,
+                quantity=qty,
+                notional=notional,
+                snapshot=snap,
+                idempotency_key=idempotency_key,
+            )
 
     async def manual_crypto_order(
         self,
@@ -91,55 +97,56 @@ class LiveOrderService:
         idempotency_key: str,
     ) -> OrderResult:
         self._require_live_manual("upbit")
-        self.idempotency.ensure_new(idempotency_key)
 
-        try:
-            snap = await self.snapshots.upbit(symbol)
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Live Upbit snapshot unavailable: {exc}",
-            ) from exc
+        async with self._broker_locks["upbit"]:
+            self.idempotency.ensure_new(idempotency_key)
+            try:
+                snap = await self.snapshots.upbit(symbol)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Live Upbit snapshot unavailable: {exc}",
+                ) from exc
 
-        amount = Decimal(str(amount_krw))
-        if side == "buy":
-            notional = amount
-            quantity = (
-                amount / snap["price"]
-            ).quantize(
-                Decimal("0.00000001"),
-                rounding=ROUND_DOWN,
-            )
-        elif side == "sell":
-            quantity = (
-                amount / snap["price"]
-            ).quantize(
-                Decimal("0.00000001"),
-                rounding=ROUND_DOWN,
-            )
-            notional = quantity * snap["price"]
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="side must be buy or sell",
-            )
+            amount = Decimal(str(amount_krw))
+            if side == "buy":
+                notional = amount
+                quantity = (
+                    amount / snap["price"]
+                ).quantize(
+                    Decimal("0.00000001"),
+                    rounding=ROUND_DOWN,
+                )
+            elif side == "sell":
+                quantity = (
+                    amount / snap["price"]
+                ).quantize(
+                    Decimal("0.00000001"),
+                    rounding=ROUND_DOWN,
+                )
+                notional = quantity * snap["price"]
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="side must be buy or sell",
+                )
 
-        if quantity <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Calculated crypto quantity is zero.",
-            )
+            if quantity <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Calculated crypto quantity is zero.",
+                )
 
-        return await self._execute(
-            broker="upbit",
-            source="manual",
-            symbol=snap["symbol"],
-            side=side,
-            quantity=quantity,
-            notional=notional,
-            snapshot=snap,
-            idempotency_key=idempotency_key,
-        )
+            return await self._execute(
+                broker="upbit",
+                source="manual",
+                symbol=snap["symbol"],
+                side=side,
+                quantity=quantity,
+                notional=notional,
+                snapshot=snap,
+                idempotency_key=idempotency_key,
+            )
 
     async def auto_order(
         self,
@@ -153,30 +160,31 @@ class LiveOrderService:
         broker = "upbit" if market == "crypto" else "toss"
         self._require_live_auto(broker)
 
-        try:
-            snapshot = (
-                await self.snapshots.upbit(symbol)
-                if broker == "upbit"
-                else await self.snapshots.toss(symbol)
-            )
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Live broker snapshot unavailable: {exc}",
-            ) from exc
+        async with self._broker_locks[broker]:
+            try:
+                snapshot = (
+                    await self.snapshots.upbit(symbol)
+                    if broker == "upbit"
+                    else await self.snapshots.toss(symbol)
+                )
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Live broker snapshot unavailable: {exc}",
+                ) from exc
 
-        return await self._execute(
-            broker=broker,
-            source="auto",
-            symbol=snapshot["symbol"],
-            side=side,
-            quantity=quantity,
-            notional=notional,
-            snapshot=snapshot,
-            idempotency_key=(
-                f"auto-{broker}-{uuid4().hex}"
-            ),
-        )
+            return await self._execute(
+                broker=broker,
+                source="auto",
+                symbol=snapshot["symbol"],
+                side=side,
+                quantity=quantity,
+                notional=notional,
+                snapshot=snapshot,
+                idempotency_key=(
+                    f"auto-{broker}-{uuid4().hex}"
+                ),
+            )
 
     def _require_live_manual(self, broker: str) -> None:
         runtime = self.runtime.get()
