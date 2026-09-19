@@ -118,7 +118,7 @@ LLM과 Broker adapter는 연결되어 있지만 Live 주문은 여러 환경변�
 - 뉴스는 Responses API의 `web_search`를 사용해 6시간마다 수집
 - `POST /decisions/preview`로 주문 없이 전체 종목 판단 파이프라인 테스트 가능
 - 판단 결과는 한 사이클에 여러 종목을 함께 반환
-- 실제 주문/Risk Guard 연결 전에는 기록 시 Risk Guard를 `PENDING`으로 표시
+- Paper/Live 자동 사이클은 실제 Position Sizer + Risk Guard 결과를 판단 기록에 저장
 - 알고리즘 review는 기본 24시간마다 실행되며 제안이 필요한 경우에만 pending Markdown 생성
 - pending 제안은 앱에서 사용자가 적용해야만 현재 알고리즘에 반영
 
@@ -145,6 +145,7 @@ Broker
 - 별도 "한 주문 최대 금액" 제한은 두지 않는다.
 - 한 종목은 해당 계좌 평가금액의 최대 40%까지 허용한다.
 - 보유 종목은 전체 0~10개이며 0개, 즉 현금 100% 상태도 정상이다.
+- 한 종목 자동 주문은 기본 60분에 최대 1번이다. 판단 사이클이 30분 후 다시 돌아도 해당 종목은 cooldown 동안 재주문하지 않는다.
 
 SELL은 기존 노출을 줄이는 주문이므로 일일 손실/신규 노출 제한보다
 보유수량/시장상태 같은 핵심 검사를 우선 적용한다.
@@ -202,6 +203,7 @@ Upbit public quote
 
 보유종목 수 0~10과 **판단 대상 universe 개수는 별개**다.
 예를 들어 20개 코인을 관찰하더라도 실제 보유는 0~10개만 가능하다.
+판단 대상에서 제거해도 이미 보유 중인 종목은 포지션이 정리될 때까지 자동 판단 대상에 계속 포함된다.
 
 
 ## Toss 증권 연동
@@ -279,3 +281,17 @@ Backend Docker 이미지는 Uvicorn **1 worker**만 사용한다.
 `deploy/`에 EC2 배포용 Compose와 Nginx 예제가 있으며 `data/`는 영속 volume으로 유지한다.
 서버 재시작 후 adaptive scheduler의 다음 판단 시각도 `data/state/scheduler.json`에서 복구한다.
 news/decisions Markdown은 기본 최근 7일만 유지한다.
+
+## 판단용 시장 Feature
+
+현재가만 LLM에 전달하지 않고 실제 OHLCV에서 작은 deterministic feature를 계산한다.
+
+- Upbit: 60분봉 기반 1시간/6시간/24시간 수익률, 이동평균 괴리, 변동성, 가격 범위, 거래량 변화
+- Toss: 1분봉 기반 5분/30분/120분 수익률, 이동평균 괴리, 변동성, 가격 범위, 거래량 변화
+
+Feature 하나가 매수/매도 신호를 강제하지 않으며, 데이터가 없으면 `features_available=0`으로 전달한다.
+
+## 실행 준비 상태
+
+`GET /readiness`에서 Paper 자동매매, Live 수동매매, Live 자동매매의 남은 조건을 확인할 수 있다.
+앱 세팅 화면에서도 같은 준비 상태를 표시한다.
