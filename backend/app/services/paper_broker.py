@@ -154,6 +154,7 @@ class PaperBroker:
                     return_rate=return_rate,
                     realized_pnl=realized_pnl,
                     decision_score=raw.get("decision_score"),
+                    candidate_score=raw.get("entry_candidate_score"),
                 )
             )
 
@@ -209,6 +210,11 @@ class PaperBroker:
                     "market_value": str(p.market_value),
                     "return_rate": str(p.return_rate),
                     "decision_score": p.decision_score,
+                    "candidate_score": (
+                        str(p.candidate_score)
+                        if p.candidate_score is not None
+                        else None
+                    ),
                 }
                 for p in portfolio.positions
             ],
@@ -271,8 +277,10 @@ class PaperBroker:
         realized_delta: Decimal | None = None
         realized_return_pct: Decimal | None = None
         entry_score: Decimal | None = None
+        candidate_score: Decimal | None = None
 
         if side == "buy":
+            new_candidate_score = self._candidate_score(symbol)
             total_cost = notional + fee
             if total_cost > cash:
                 raise ValueError("insufficient paper cash")
@@ -300,6 +308,27 @@ class PaperBroker:
                     if decision_score is not None
                     else None
                 )
+                old_candidate_raw = existing.get(
+                    "entry_candidate_score"
+                )
+                old_candidate_score = (
+                    Decimal(str(old_candidate_raw))
+                    if old_candidate_raw is not None
+                    else None
+                )
+                if (
+                    old_candidate_score is not None
+                    and new_candidate_score is not None
+                ):
+                    candidate_score = (
+                        (old_candidate_score * old_qty)
+                        + (new_candidate_score * quantity)
+                    ) / new_qty
+                else:
+                    candidate_score = (
+                        old_candidate_score or new_candidate_score
+                    )
+
                 if old_entry_score is not None and new_entry_score is not None:
                     entry_score = (
                         (old_entry_score * old_qty)
@@ -322,6 +351,11 @@ class PaperBroker:
                     if entry_score is not None
                     else None
                 )
+                existing["entry_candidate_score"] = (
+                    str(candidate_score)
+                    if candidate_score is not None
+                    else None
+                )
             else:
                 positions[key] = {
                     "symbol": symbol,
@@ -338,12 +372,18 @@ class PaperBroker:
                         if decision_score is not None
                         else None
                     ),
+                    "entry_candidate_score": (
+                        str(new_candidate_score)
+                        if new_candidate_score is not None
+                        else None
+                    ),
                 }
                 entry_score = (
                     Decimal(str(decision_score))
                     if decision_score is not None
                     else None
                 )
+                candidate_score = new_candidate_score
 
             state["cash"] = str(cash - total_cost)
 
@@ -363,6 +403,14 @@ class PaperBroker:
             entry_score = (
                 Decimal(str(entry_score_raw))
                 if entry_score_raw is not None
+                else None
+            )
+            candidate_score_raw = existing.get(
+                "entry_candidate_score"
+            )
+            candidate_score = (
+                Decimal(str(candidate_score_raw))
+                if candidate_score_raw is not None
                 else None
             )
             realized = Decimal(existing.get("realized_pnl", "0"))
@@ -417,6 +465,7 @@ class PaperBroker:
             created_at=now_dt,
             realized_pnl=realized_delta,
             entry_score=entry_score,
+            candidate_score=candidate_score,
             realized_return_pct=realized_return_pct,
         )
 
@@ -449,6 +498,34 @@ class PaperBroker:
             },
         )
         return execution
+
+    def _candidate_score(self, symbol: str) -> Decimal | None:
+        if self.market != "stock":
+            return None
+
+        try:
+            from backend.app.services.toss_universe_selector import (
+                TossUniverseSelector,
+            )
+
+            status = TossUniverseSelector().status()
+            if status.get("selection_mode") != "auto":
+                return None
+            for item in status.get("ranking") or []:
+                if (
+                    str(item.get("symbol") or "").upper()
+                    == symbol.upper()
+                    and item.get("selected") is True
+                ):
+                    raw = item.get("score")
+                    return (
+                        Decimal(str(raw))
+                        if raw is not None
+                        else None
+                    )
+        except (ValueError, TypeError, OSError):
+            return None
+        return None
 
     def _load(self) -> dict:
         if not self.path.exists():
