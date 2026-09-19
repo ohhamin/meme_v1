@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 
 from backend.app.core.security import require_api_token
 
@@ -16,3 +16,13 @@ async def scheduler_status():
     from backend.app.main import scheduler
 
     return scheduler.status()
+
+
+@router.put("/enabled")
+async def set_scheduler_enabled(
+    enabled: bool = Body(..., embed=True),
+):
+    # Import lazily to avoid a circular import while main.py is creating the app.
+    from backend.app.main import scheduler
+
+    return scheduler.set_enabled(enabled)
