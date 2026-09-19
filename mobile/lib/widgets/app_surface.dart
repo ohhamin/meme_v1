@@ -9,11 +9,13 @@ class AppSurface extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(18),
     this.margin,
+    this.emphasized = false,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
@@ -23,13 +25,25 @@ class AppSurface extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: AppGradients.surface,
         borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: emphasized
+              ? AppColors.primaryBlue.withOpacity(0.34)
+              : AppColors.borderSoft,
+          width: emphasized ? 1.0 : 0.8,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.22),
+            blurRadius: 20,
+            spreadRadius: -10,
+            offset: const Offset(0, 12),
           ),
+          if (emphasized)
+            BoxShadow(
+              color: AppColors.primaryBlue.withOpacity(0.10),
+              blurRadius: 24,
+              spreadRadius: -12,
+            ),
         ],
       ),
       child: child,
@@ -52,6 +66,15 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            gradient: AppGradients.primary,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 9),
         Expanded(
           child: Text(
             title,
@@ -88,14 +111,22 @@ class AppEmptyState extends StatelessWidget {
             Container(
               width: 58,
               height: 58,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.surfaceElevated,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.borderSoft,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: AppColors.textSecondary,
-                size: 27,
+              child: ShaderMask(
+                shaderCallback: (bounds) =>
+                    AppGradients.primary.createShader(bounds),
+                blendMode: BlendMode.srcIn,
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 27,
+                ),
               ),
             ),
             const SizedBox(height: 18),
