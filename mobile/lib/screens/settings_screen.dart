@@ -384,6 +384,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _checkExternalConnections() async {
+    try {
+      final result = await ApiClient.instance.getExternalReadiness();
+      if (!mounted) return;
+
+      const labels = <String, String>{
+        'openai': 'OpenAI 설정',
+        'firebase': 'Firebase',
+        'upbit_public_market': 'Upbit 공개 시세',
+        'upbit_account': 'Upbit 계좌',
+        'toss_account': 'Toss 계좌',
+      };
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(26),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '외부 연동 점검',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.verified_user_outlined,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '조회 API만 호출해 연결 상태를 확인해요. '
+                    '이 점검은 실제 주문을 만들지 않아요.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: labels.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 20),
+                      itemBuilder: (context, index) {
+                        final entry = labels.entries.elementAt(index);
+                        final raw =
+                            (result[entry.key] as Map?)?.cast<String, dynamic>() ??
+                                <String, dynamic>{};
+                        final state =
+                            raw['status']?.toString() ?? 'unknown';
+                        final detail = raw['detail']?.toString();
+                        final ok = state == 'ok' || state == 'configured';
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              ok
+                                  ? Icons.check_circle_rounded
+                                  : state == 'not_configured'
+                                      ? Icons.remove_circle_outline_rounded
+                                      : Icons.error_outline_rounded,
+                              color: ok
+                                  ? AppColors.positive
+                                  : state == 'not_configured'
+                                      ? AppColors.textSecondary
+                                      : AppColors.negative,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.value,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    detail ??
+                                        (state == 'not_configured'
+                                            ? '아직 설정되지 않았어요.'
+                                            : state),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('확인'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _runPaperCycleNow() async {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -637,6 +786,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _ReadinessRow(
                   label: 'Live 자동매매',
                   data: liveAutoReadiness,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _checkExternalConnections,
+                    icon: const Icon(Icons.cable_rounded),
+                    label: const Text('외부 연동 읽기 점검'),
+                  ),
                 ),
               ],
             ),
