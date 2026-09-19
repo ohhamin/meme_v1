@@ -24,6 +24,7 @@ from backend.app.services.live_risk_snapshot import (
 from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
+from backend.app.services.auto_trade_activity import AutoTradeActivityService
 
 
 class LiveOrderService:
@@ -45,6 +46,7 @@ class LiveOrderService:
         self.toss = TossOrderAdapter()
         self.audit = AuditLogger()
         self.push = PushService()
+        self.auto_activity = AutoTradeActivityService()
 
     def enablement(self) -> dict:
         return {
@@ -285,6 +287,15 @@ class LiveOrderService:
             data_age_seconds=snapshot["data_age_seconds"],
             market_open=snapshot["market_open"],
             same_cycle_duplicate=False,
+            seconds_since_last_auto_order=(
+                self.auto_activity.seconds_since_last(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                )
+                if source == "auto"
+                else None
+            ),
         )
         risk = self.risk.evaluate(intent)
 
@@ -418,6 +429,14 @@ class LiveOrderService:
                     "notional": str(notional),
                 },
             )
+            if source == "auto":
+                self.auto_activity.record(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                    at=record.updated_at,
+                )
+
             self.push.send(
                 title="Live 주문 접수",
                 body=f"{symbol} {side.upper()}",
@@ -453,6 +472,13 @@ class LiveOrderService:
                 record = await self._try_reconcile_upbit(record)
 
             if record.status == "SUBMITTED":
+                if source == "auto":
+                    self.auto_activity.record(
+                        mode="live",
+                        market=snapshot["market"],
+                        symbol=symbol,
+                        at=record.updated_at,
+                    )
                 return OrderResult(
                     order_id=record.broker_order_id or record.intent_id,
                     symbol=symbol,
