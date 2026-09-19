@@ -176,6 +176,7 @@ class AdaptiveDecisionScheduler:
         return {
             "enabled": self.config.scheduler_enabled,
             "running": self.scheduler.running,
+            "last_run": self.state.last_run(),
             "next_decision_at": (
                 next_run.isoformat()
                 if next_run is not None
@@ -201,6 +202,18 @@ class AdaptiveDecisionScheduler:
             ):
                 next_minutes = result.next_check_minutes
 
+            self.state.save_last_run(
+                {
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                    "mode": runtime.mode,
+                    "status": result.status,
+                    "reason": result.reason,
+                    "next_check_minutes": next_minutes,
+                    "decision_count": len(result.items),
+                    "order_count": sum(1 for item in result.items if item.order is not None),
+                }
+            )
+
             self.audit.write(
                 "system",
                 {
@@ -212,6 +225,17 @@ class AdaptiveDecisionScheduler:
                 },
             )
         except Exception as exc:
+            self.state.save_last_run(
+                {
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                    "mode": runtime.mode,
+                    "status": "failed",
+                    "reason": type(exc).__name__,
+                    "next_check_minutes": next_minutes,
+                    "decision_count": 0,
+                    "order_count": 0,
+                }
+            )
             # This is a one-shot adaptive job. Any unexpected exception must
             # still schedule the next cycle or automation would silently stop.
             self.audit.write(
