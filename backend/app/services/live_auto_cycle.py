@@ -65,7 +65,10 @@ class LiveAutoCycleService:
             markets = self.upbit_universe.get()
             if markets:
                 try:
-                    crypto = await self.upbit_market.snapshots(markets)
+                    crypto = await self.upbit_market.snapshots(
+                        markets,
+                        with_features=True,
+                    )
                     if len(crypto) != len(set(markets)):
                         raise RuntimeError(
                             "Incomplete Upbit market snapshot."
@@ -97,7 +100,10 @@ class LiveAutoCycleService:
             symbols = self.toss_universe.get()
             if symbols:
                 try:
-                    stocks = await self.toss_market.snapshots(symbols)
+                    stocks = await self.toss_market.snapshots(
+                        symbols,
+                        with_features=True,
+                    )
                     if len(stocks) != len(set(symbols)):
                         raise RuntimeError(
                             "Incomplete Toss market snapshot."
