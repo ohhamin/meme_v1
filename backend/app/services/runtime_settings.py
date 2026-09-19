@@ -15,6 +15,7 @@ class RuntimeSettingsService:
         return RuntimeSettings(
             mode="paper" if self.config.paper_trading else "live",
             kill_switch=self.config.kill_switch,
+            scheduler_enabled=self.config.scheduler_enabled,
             live_order_allowed=False,
         )
 
@@ -39,6 +40,7 @@ class RuntimeSettingsService:
             state = RuntimeSettings(
                 mode="paper",
                 kill_switch=True,
+                scheduler_enabled=False,
                 live_order_allowed=False,
             )
             self._write(state)
@@ -65,6 +67,12 @@ class RuntimeSettingsService:
     def set_kill_switch(self, enabled: bool) -> RuntimeSettings:
         state = self.get()
         state.kill_switch = enabled
+        self._write(state)
+        return self._decorate(state)
+
+    def set_scheduler_enabled(self, enabled: bool) -> RuntimeSettings:
+        state = self.get()
+        state.scheduler_enabled = bool(enabled)
         self._write(state)
         return self._decorate(state)
 
