@@ -130,8 +130,11 @@ class ApiClient {
     return data['markdown']?.toString() ?? '';
   }
 
-  Future<Map<String, dynamic>?> getLatestDecision() async {
-    final data = await _request('GET', '/decisions/latest');
+  Future<Map<String, dynamic>?> getLatestDecision({String? mode}) async {
+    final suffix = mode == null
+        ? ''
+        : '?mode=${Uri.encodeQueryComponent(mode)}';
+    final data = await _request('GET', '/decisions/latest$suffix');
     if (data == null) {
       return null;
     }
@@ -178,6 +181,14 @@ class ApiClient {
   Future<Map<String, dynamic>> getSchedulerStatus() async {
     return (await _request('GET', '/scheduler/status'))
         as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> setSchedulerEnabled(bool enabled) async {
+    return (await _request(
+      'PUT',
+      '/settings/scheduler',
+      body: {'enabled': enabled},
+    )) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> getReadiness() async {
@@ -240,6 +251,11 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getPaperDashboard() async {
     return (await _request('GET', '/paper/dashboard'))
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getMarketPerformance(String market) async {
+    return (await _request('GET', '/$market/performance'))
         as Map<String, dynamic>;
   }
 
