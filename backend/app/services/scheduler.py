@@ -302,7 +302,7 @@ class AdaptiveDecisionScheduler:
                 },
             )
         finally:
-            if self.runtime.get().scheduler_enabled:
+            if getattr(self.runtime.get(), "scheduler_enabled", True):
                 self.schedule_next(next_minutes)
 
     def _send_cycle_summary(
