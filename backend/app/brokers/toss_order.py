@@ -113,6 +113,50 @@ class TossOrderAdapter:
             reasons=reasons,
         )
 
+    def build_market_order(
+        self,
+        *,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+        notional: Decimal,
+        client_order_id: str,
+    ) -> dict:
+        normalized = symbol.strip().upper()
+        if len(normalized) != 6 or not normalized.isdigit():
+            raise ValueError(
+                "Only 6-digit Korean stock symbols are supported."
+            )
+        if side not in {"buy", "sell"}:
+            raise ValueError("side must be buy or sell")
+
+        qty = quantity.quantize(
+            Decimal("1"),
+            rounding=ROUND_DOWN,
+        )
+        if qty <= 0 or qty != quantity:
+            raise ValueError(
+                "Korean stock quantity must be a positive integer."
+            )
+
+        body = {
+            "clientOrderId": client_order_id,
+            "symbol": normalized,
+            "side": "BUY" if side == "buy" else "SELL",
+            "orderType": "MARKET",
+            "quantity": str(qty),
+        }
+        if (
+            notional
+            >= Decimal(
+                str(self.config.toss_high_value_order_threshold_krw)
+            )
+            and self.config.toss_confirm_high_value_orders
+        ):
+            body["confirmHighValueOrder"] = True
+
+        return body
+
     async def submit_market_order(
         self,
         *,
@@ -127,25 +171,13 @@ class TossOrderAdapter:
             )
 
         account_seq = await self.accounts.selected_account_seq()
-        qty = quantity.quantize(
-            Decimal("1"),
-            rounding=ROUND_DOWN,
+        body = self.build_market_order(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            notional=notional,
+            client_order_id=client_order_id,
         )
-        body = {
-            "clientOrderId": client_order_id,
-            "symbol": symbol.strip().upper(),
-            "side": "BUY" if side == "buy" else "SELL",
-            "orderType": "MARKET",
-            "quantity": str(qty),
-        }
-        if (
-            notional
-            >= Decimal(
-                str(self.config.toss_high_value_order_threshold_krw)
-            )
-            and self.config.toss_confirm_high_value_orders
-        ):
-            body["confirmHighValueOrder"] = True
 
         return await self.client.post(
             "/api/v1/orders",
