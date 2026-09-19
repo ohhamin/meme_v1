@@ -29,6 +29,7 @@ from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.cycle_metrics import CycleMetricsStore
 from backend.app.services.decision_universe import merge_decision_universe
+from backend.app.services.auto_trade_activity import AutoTradeActivityService
 
 
 class LiveAutoCycleService:
@@ -49,6 +50,7 @@ class LiveAutoCycleService:
         self.toss_universe = TossUniverseService()
         self.audit = AuditLogger()
         self.metrics = CycleMetricsStore()
+        self.auto_activity = AutoTradeActivityService()
 
     async def run(self) -> LiveAutoCycleResponse:
         gate_reasons = self._gate_reasons()
@@ -276,6 +278,13 @@ class LiveAutoCycleService:
                     data_age_seconds=instrument.data_age_seconds,
                     market_open=instrument.market_open,
                     same_cycle_duplicate=key in seen,
+                    seconds_since_last_auto_order=(
+                        self.auto_activity.seconds_since_last(
+                            mode="live",
+                            market=decision.market,
+                            symbol=decision.symbol,
+                        )
+                    ),
                 )
             )
             seen.add(key)
