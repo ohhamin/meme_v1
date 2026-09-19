@@ -33,3 +33,6 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Build backend container
+        run: docker build -f backend/Dockerfile -t meme-v1-backend:ci .
