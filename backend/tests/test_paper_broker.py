@@ -151,3 +151,47 @@ def test_sell_journal_keeps_entry_score_and_realized_return(tmp_path):
     assert sell["entry_score"] == "68"
     assert Decimal(sell["realized_pnl"]) == Decimal("10000.000")
     assert Decimal(sell["realized_return_pct"]) == Decimal("10.0")
+
+
+
+def test_stock_sell_journal_keeps_candidate_score(tmp_path, monkeypatch):
+    broker = PaperBroker("stock")
+    broker.path = tmp_path / "paper_stock_portfolio.json"
+    broker.journal.base_dir = tmp_path / "paper_orders"
+    broker.journal.base_dir.mkdir(parents=True, exist_ok=True)
+    broker.audit.write = lambda *args, **kwargs: None
+    broker.push.send = lambda *args, **kwargs: None
+    broker.config.paper_stock_initial_cash_krw = 1000000
+    broker.config.paper_fee_bps = 0
+    broker.config.paper_slippage_bps = 0
+    broker.reset(Decimal("1000000"))
+    monkeypatch.setattr(
+        broker,
+        "_candidate_score",
+        lambda symbol: Decimal("84.5"),
+    )
+
+    broker.execute(
+        symbol="005930",
+        name="Samsung",
+        side="buy",
+        quantity=Decimal("1"),
+        market_price=Decimal("100000"),
+        decision_score=72,
+    )
+    position = broker.portfolio().positions[0]
+    assert position.candidate_score == Decimal("84.5")
+
+    broker.execute(
+        symbol="005930",
+        name="Samsung",
+        side="sell",
+        quantity=Decimal("1"),
+        market_price=Decimal("105000"),
+        decision_score=35,
+    )
+
+    records = broker.journal.recent(limit=10, days=1)
+    sell = next(item for item in records if item["side"] == "sell")
+    assert sell["candidate_score"] == "84.5"
+    assert Decimal(sell["realized_return_pct"]) == Decimal("5")
