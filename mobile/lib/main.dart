@@ -55,15 +55,31 @@ class _AppShellState extends State<AppShell> {
     '세팅',
   ];
 
-  final _screens = const [
-    PaperDashboardScreen(),
-    MarketScreen(isStock: true),
-    MarketScreen(isStock: false),
-    DailyMarkdownScreen(kind: 'news'),
-    DecisionScreen(),
-    AlgorithmScreen(),
-    SettingsScreen(),
+  final List<Widget> _screens = [
+    const PaperDashboardScreen(),
+    const MarketScreen(isStock: true),
+    const MarketScreen(isStock: false),
+    const DailyMarkdownScreen(kind: 'news'),
+    const DecisionScreen(),
+    const AlgorithmScreen(),
+    const SettingsScreen(),
   ];
+
+  void _selectTab(int value) {
+    setState(() {
+      _index = value;
+      // These screens are mode-aware on the backend. Recreate them whenever
+      // the user enters the tab so a Paper/Live change in Settings is reflected
+      // immediately without requiring pull-to-refresh.
+      if (value == 1) {
+        _screens[1] = MarketScreen(key: UniqueKey(), isStock: true);
+      } else if (value == 2) {
+        _screens[2] = MarketScreen(key: UniqueKey(), isStock: false);
+      } else if (value == 4) {
+        _screens[4] = DecisionScreen(key: UniqueKey());
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,9 +106,7 @@ class _AppShellState extends State<AppShell> {
         ),
         child: NavigationBar(
           selectedIndex: _index,
-          onDestinationSelected: (value) {
-            setState(() => _index = value);
-          },
+          onDestinationSelected: _selectTab,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.space_dashboard_outlined),
