@@ -695,8 +695,8 @@ class _MarketScreenState extends State<MarketScreen> {
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    '유동성 35% · 60일 추세 30% · 20일 추세 20% · '
-                    '변동성 안정성 10% · 거래활성도 5%',
+                    '유동성 35% · 60일 상승빈도 25% · 20일 상승빈도 20% · '
+                    '안정성 10% · 20일 수익흐름 5% · 거래활성 5%',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -802,12 +802,12 @@ class _MarketScreenState extends State<MarketScreen> {
                                   value: item['liquidity_score'],
                                 ),
                                 _SelectorMetric(
-                                  label: '60일추세',
-                                  value: item['momentum_60d_score'],
+                                  label: '60일상승빈도',
+                                  value: item['sign_60d_score'],
                                 ),
                                 _SelectorMetric(
-                                  label: '20일추세',
-                                  value: item['momentum_20d_score'],
+                                  label: '20일상승빈도',
+                                  value: item['sign_20d_score'],
                                 ),
                                 _SelectorMetric(
                                   label: '거래활성',
@@ -1521,8 +1521,8 @@ class _StockUniverseRankCard extends StatelessWidget {
             runSpacing: 5,
             children: [
               _UniverseMetric(label: '유동성', value: _number('liquidity_score')),
-              _UniverseMetric(label: '60일추세', value: _number('momentum_60d_score')),
-              _UniverseMetric(label: '20일추세', value: _number('momentum_20d_score')),
+              _UniverseMetric(label: '60일상승빈도', value: _number('sign_60d_score')),
+              _UniverseMetric(label: '20일상승빈도', value: _number('sign_20d_score')),
               _UniverseMetric(label: '거래활성', value: _number('activity_score')),
               _UniverseMetric(label: '안정성', value: _number('stability_score')),
             ],
