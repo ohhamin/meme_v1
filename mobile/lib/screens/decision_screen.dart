@@ -123,7 +123,7 @@ class _DecisionScreenState extends State<DecisionScreen> {
 
 
 
-class _DecisionCycleCard extends StatelessWidget {
+class _DecisionCycleCard extends StatefulWidget {
   const _DecisionCycleCard({
     required this.time,
     required this.cards,
@@ -135,6 +135,14 @@ class _DecisionCycleCard extends StatelessWidget {
   final List<_DecisionCardData> cards;
   final String summary;
   final int cycleNumber;
+
+  @override
+  State<_DecisionCycleCard> createState() => _DecisionCycleCardState();
+}
+
+
+class _DecisionCycleCardState extends State<_DecisionCycleCard> {
+  bool _summaryExpanded = false;
 
   int _rank(String action) {
     switch (action.toUpperCase()) {
@@ -149,10 +157,10 @@ class _DecisionCycleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int count(String action) => cards
+    int count(String action) => widget.cards
         .where((item) => item.action.toUpperCase() == action)
         .length;
-    final ordered = [...cards]
+    final ordered = [...widget.cards]
       ..sort((a, b) {
         final byAction = _rank(a.action).compareTo(_rank(b.action));
         if (byAction != 0) return byAction;
@@ -168,12 +176,12 @@ class _DecisionCycleCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '판단 #$cycleNumber',
+                  '판단 #${widget.cycleNumber}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               Text(
-                time.isEmpty ? '-' : time,
+                widget.time.isEmpty ? '-' : widget.time,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -183,13 +191,39 @@ class _DecisionCycleCard extends StatelessWidget {
             'BUY ${count('BUY')} · SELL ${count('SELL')} · HOLD ${count('HOLD')}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          if (summary.isNotEmpty) ...[
+          if (widget.summary.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              summary,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => setState(() {
+                _summaryExpanded = !_summaryExpanded;
+              }),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.summary,
+                        maxLines: _summaryExpanded ? null : 2,
+                        overflow: _summaryExpanded
+                            ? TextOverflow.visible
+                            : TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      _summaryExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
           const SizedBox(height: 10),
@@ -446,6 +480,45 @@ class _DecisionParser {
 
 
 
+String _localizeBlockReason(String raw) {
+  final value = raw.trim();
+  final cooldown = RegExp(
+    r'Automatic symbol cooldown is active \\((\\d+)s remaining\\)\\.',
+    caseSensitive: false,
+  ).firstMatch(value);
+  if (cooldown != null) {
+    final seconds = int.tryParse(cooldown.group(1) ?? '0') ?? 0;
+    final minutes = seconds ~/ 60;
+    final remainSeconds = seconds % 60;
+    final remain = minutes > 0
+        ? '${minutes}분 ${remainSeconds}초'
+        : '${remainSeconds}초';
+    return '동일 종목 자동 주문 대기시간이 남아 있어 차단됐어요. (남은 시간 $remain)';
+  }
+
+  final lower = value.toLowerCase();
+  if (lower.contains('daily order') && lower.contains('limit')) {
+    return '일일 최대 주문 횟수에 도달해 차단됐어요.';
+  }
+  if (lower.contains('daily loss')) {
+    return '일일 손실 한도에 도달해 차단됐어요.';
+  }
+  if (lower.contains('cash reserve')) {
+    return '최소 현금 보유 기준을 지키기 위해 차단됐어요.';
+  }
+  if (lower.contains('position') && lower.contains('limit')) {
+    return '최대 보유 종목 수 제한 때문에 차단됐어요.';
+  }
+  if (lower.contains('market') && lower.contains('closed')) {
+    return '현재 시장이 열려 있지 않아 주문이 차단됐어요.';
+  }
+  if (lower.contains('minimum') && lower.contains('order')) {
+    return '최소 주문 금액 또는 수량 조건을 충족하지 못해 차단됐어요.';
+  }
+  return value;
+}
+
+
 class _DecisionCard extends StatefulWidget {
   const _DecisionCard({required this.data});
 
@@ -611,7 +684,7 @@ class _DecisionCardState extends State<_DecisionCard> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '차단 사유 · ${data.blockReason}',
+                    '차단 사유 · ${_localizeBlockReason(data.blockReason!)}',
                     style: const TextStyle(
                       color: AppColors.negative,
                       fontSize: 12,
