@@ -27,20 +27,20 @@ class AppSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.large),
         border: Border.all(
           color: emphasized
-              ? AppColors.primaryBlue.withOpacity(0.34)
+              ? AppColors.primaryBlue.withValues(alpha: 0.34)
               : AppColors.borderSoft,
           width: emphasized ? 1.0 : 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.22),
+            color: Colors.black.withValues(alpha: 0.22),
             blurRadius: 20,
             spreadRadius: -10,
             offset: const Offset(0, 12),
           ),
           if (emphasized)
             BoxShadow(
-              color: AppColors.primaryBlue.withOpacity(0.10),
+              color: AppColors.primaryBlue.withValues(alpha: 0.10),
               blurRadius: 24,
               spreadRadius: -12,
             ),
