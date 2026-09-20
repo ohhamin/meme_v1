@@ -43,7 +43,7 @@ class CombinedPaperRunner:
 
         portfolios = self.paper_cycle._portfolios()
         try:
-            await self.upbit_universe_selector.select(limit=10)
+            await self.upbit_universe_selector.refresh_if_auto()
         except (UpbitMarketDataError, ValueError) as exc:
             failures.append(f"Upbit universe refresh: {exc}")
         upbit_markets = merge_decision_universe(
