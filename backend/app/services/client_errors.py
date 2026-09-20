@@ -14,7 +14,7 @@ class ClientErrorStore:
         self.path: Path = self.config.data_path / "state" / "client_errors.json"
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def list(self) -> list[dict]:
+    def list(self) -> list:
         data = self._read()
         return sorted(
             data,
@@ -78,7 +78,7 @@ class ClientErrorStore:
                 return item
         raise KeyError(error_id)
 
-    def _read(self) -> list[dict]:
+    def _read(self) -> list:
         if not self.path.exists():
             return []
         try:
@@ -87,7 +87,7 @@ class ClientErrorStore:
         except (OSError, json.JSONDecodeError, TypeError):
             return []
 
-    def _write(self, items: list[dict]) -> None:
+    def _write(self, items: list) -> None:
         # Keep a practical history without letting runtime state grow forever.
         items = sorted(
             items,
