@@ -32,6 +32,7 @@ async def backtest(
     symbol: str = Query(..., min_length=3, max_length=30),
     fee_bps: float = Query(5.0, ge=0, le=100),
     slippage_bps: float = Query(5.0, ge=0, le=100),
+    model: str = Query("current", pattern="^(current|pure_math)$"),
 ):
     try:
         if market == "stock":
@@ -66,6 +67,7 @@ async def backtest(
         candles=candles,
         fee_bps=fee_bps,
         slippage_bps=slippage_bps,
+        model=model,
     )
     result["symbol"] = normalized
     result["note"] = (
