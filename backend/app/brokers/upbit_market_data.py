@@ -12,6 +12,7 @@ from backend.app.models.schemas import (
     UpbitQuote,
 )
 from backend.app.services.technical_features import TechnicalFeatureService
+from backend.app.services.quant_signal import QuantSignalService
 
 
 class UpbitMarketDataError(RuntimeError):
@@ -184,6 +185,54 @@ class UpbitMarketDataAdapter:
 
         return candles
 
+    async def daily_candles(
+        self,
+        market: str,
+        *,
+        count: int = 64,
+    ) -> list[dict]:
+        normalized = self._normalize_markets([market])[0]
+        raw = await self._get(
+            "/candles/days",
+            params={
+                "market": normalized,
+                "count": str(max(2, min(count, 200))),
+            },
+        )
+
+        candles: list[dict] = []
+        for item in raw:
+            try:
+                close = float(item.get("trade_price") or 0)
+                open_price = float(item.get("opening_price") or 0)
+                high = float(item.get("high_price") or 0)
+                low = float(item.get("low_price") or 0)
+                volume = float(
+                    item.get("candle_acc_trade_volume") or 0
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if close <= 0:
+                continue
+
+            candles.append(
+                {
+                    "timestamp": str(
+                        item.get("candle_date_time_utc")
+                        or item.get("timestamp")
+                        or ""
+                    ),
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": close,
+                    "volume": volume,
+                }
+            )
+
+        return candles
+
     async def snapshots(
         self,
         markets: Iterable[str],
@@ -197,24 +246,30 @@ class UpbitMarketDataAdapter:
             features: dict[str, float | int | str | None] = {}
             if with_features:
                 try:
-                    candles = await self.candles(
+                    candles = await self.daily_candles(
                         quote.market,
-                        unit=60,
-                        count=25,
+                        count=64,
                     )
                     features = TechnicalFeatureService.compute(
                         candles=candles,
                         current_price=float(quote.trade_price),
-                        short_period=1,
-                        medium_period=6,
-                        long_period=24,
-                        interval_label="60m",
+                        short_period=7,
+                        medium_period=21,
+                        long_period=42,
+                        interval_label="1d",
+                    )
+                    features = QuantSignalService.enrich(
+                        market="crypto",
+                        features=features,
                     )
                 except Exception:
                     features = {
                         "features_available": 0,
-                        "feature_interval": "60m",
+                        "feature_interval": "1d",
                         "feature_samples": 0,
+                        "quant_score": 50.0,
+                        "quant_action": "HOLD",
+                        "quant_risk_scale": 0.5,
                     }
 
                 # Public candle group is currently limited per IP.
