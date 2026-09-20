@@ -99,6 +99,16 @@ async def upbit_universe():
     )
 
 
+@router.get("/upbit/universe/status")
+async def upbit_universe_status():
+    universe = UpbitUniverseService()
+    return {
+        "selection_mode": universe.selection_mode(),
+        "auto_limit": universe.auto_limit(),
+        "markets": universe.get(),
+    }
+
+
 @router.post("/upbit/universe/auto", response_model=UpbitUniverseResponse)
 async def auto_upbit_universe(limit: int = Query(10, ge=1, le=50)):
     markets = await UpbitUniverseSelector().select(limit=limit)
@@ -128,7 +138,7 @@ async def update_upbit_universe(payload: UpbitUniverseUpdate):
             },
         )
 
-    markets = UpbitUniverseService().set(requested)
+    markets = UpbitUniverseService().set_manual(requested)
     return UpbitUniverseResponse(
         markets=markets,
         count=len(markets),
