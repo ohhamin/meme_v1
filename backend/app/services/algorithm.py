@@ -124,6 +124,19 @@ SELL은 기존 보유수량 기준으로 단계적으로 축소한다.
 다만 **위 가중치와 65/35 임계값은 논문에서 그대로 가져온 숫자가 아니라 이 앱을 위한 초기 설계값**이다.
 Paper 데이터와 walk-forward 검증이 충분히 쌓이기 전에는 수익성을 입증한 값으로 취급하지 않는다.
 
+## 참고 연구
+
+- Sim et al. (2022), The Momentum Strategies and Salience: Evidence from the Korean Stock Market, DOI 10.1080/1540496X.2022.2034615
+- Eom & Park (2021), A Study on the Momentum Effect of the Korean Stock Markets Using Principal Component Analysis, DOI 10.22510/kjofm.2021.38.1.005
+- Chen et al. (2021), Non-parametric momentum based on ranks and signs, DOI 10.1016/j.jempfin.2020.11.004
+- Liu & Tsyvinski (2021), Risks and Returns of Cryptocurrency, DOI 10.1093/rfs/hhaa113
+- Liu, Tsyvinski & Wu (2022), Common Risk Factors in Cryptocurrency, DOI 10.1111/jofi.13119
+- Tzouvanas et al. (2020), Momentum trading in cryptocurrencies, DOI 10.1016/j.econlet.2019.108728
+- Dobrynskaya (2023), Cryptocurrency Momentum and Reversal, DOI 10.3905/jai.2023.1.189
+- Moreira & Muir (2017), Volatility-Managed Portfolios, DOI 10.1111/jofi.12513
+- Cederburg et al. (2020), On the performance of volatility-managed portfolios, DOI 10.1016/j.jfineco.2020.04.015
+- Harvey, Liu & Zhu (2016), … and the Cross-Section of Expected Returns, DOI 10.1093/rfs/hhv059
+
 ## Algorithm Changes
 
 수학 점수의 가중치·임계값·변동성 목표·주문크기·Risk Guard는 테스트된 Python 코드가 기준이다.
