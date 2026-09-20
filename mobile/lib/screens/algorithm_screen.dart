@@ -271,6 +271,7 @@ class _CurrentAlgorithm extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
           children: [
             AppSurface(
+              emphasized: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -282,7 +283,7 @@ class _CurrentAlgorithm extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
-                      '현재 적용 중',
+                      '현재 적용 중 · Quant v0.3',
                       style: TextStyle(
                         color: AppColors.positive,
                         fontSize: 12,
@@ -290,7 +291,73 @@ class _CurrentAlgorithm extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
+                  Text(
+                    '쉽게 말하면',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '① 거래가 활발한 후보를 고르고\n'
+                    '② 가격 흐름을 수학적으로 0~100점으로 계산한 뒤\n'
+                    '③ AI가 뉴스·경제 상황을 보고 위험하면 HOLD로 보류하고\n'
+                    '④ 변동성이 높으면 주문 금액을 줄인 다음\n'
+                    '⑤ Risk Guard가 마지막으로 주문을 검사해요.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _AlgorithmMiniCard(
+                          title: '주식',
+                          value: '60일 + 20일',
+                          description: '중기 추세 중심',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _AlgorithmMiniCard(
+                          title: '코인',
+                          value: '21일 + 7일',
+                          description: '짧은 모멘텀 중심',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    '65점 이상 BUY 후보 · 35점 이하 SELL 후보 · 그 사이는 HOLD',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'AI는 수학적 방향을 반대로 뒤집지 않고, 위험하다고 판단하면 HOLD로만 보류해요.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            AppSurface(
+              padding: EdgeInsets.zero,
+              child: ExpansionTile(
+                tilePadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                childrenPadding:
+                    const EdgeInsets.fromLTRB(18, 0, 18, 20),
+                title: Text(
+                  '상세 수식·규칙 보기',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                subtitle: const Text(
+                  '점수 계산식, 주문 크기, Risk Guard 기준',
+                ),
+                children: [
                   MarkdownBody(
                     data: snapshot.data ?? '',
                     selectable: true,
@@ -314,6 +381,46 @@ class _CurrentAlgorithm extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+
+class _AlgorithmMiniCard extends StatelessWidget {
+  const _AlgorithmMiniCard({
+    required this.title,
+    required this.value,
+    required this.description,
+  });
+
+  final String title;
+  final String value;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.chip,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }
