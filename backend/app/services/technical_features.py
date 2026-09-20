@@ -82,13 +82,25 @@ class TechnicalFeatureService:
                 closes,
                 short_period,
             ),
+            "sma_medium_gap_pct": TechnicalFeatureService._sma_gap(
+                current_price,
+                closes,
+                medium_period,
+            ),
             "sma_long_gap_pct": TechnicalFeatureService._sma_gap(
                 current_price,
                 closes,
                 long_period,
             ),
             "realized_volatility_pct": (
-                round(pstdev(returns), 4)
+                round(
+                    pstdev(
+                        returns[
+                            -min(max(long_period, 2), len(returns)):
+                        ]
+                    ),
+                    4,
+                )
                 if len(returns) >= 2
                 else 0.0
             ),
