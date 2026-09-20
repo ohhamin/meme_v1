@@ -12,6 +12,7 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
 from backend.app.services.toss_live_portfolio import TossLivePortfolioService
 from backend.app.services.live_order_service import LiveOrderService
+from backend.app.services.latest_decision import LatestDecisionService
 
 
 class TradingService:
@@ -24,6 +25,7 @@ class TradingService:
             "crypto": PaperBroker("crypto"),
         }
         self.risk = RiskGuard()
+        self.latest_decisions = LatestDecisionService()
 
     def _paper_broker(self, market: str) -> PaperBroker:
         return self.paper[market]
@@ -34,45 +36,90 @@ class TradingService:
             for broker in self.paper.values()
         )
 
+    def _latest_decision_map(self, mode: str) -> dict[str, object]:
+        latest = self.latest_decisions.get(mode=mode)
+        if latest is None:
+            return {}
+        return {
+            item.symbol: item
+            for item in latest.items
+        }
+
+    @staticmethod
+    def _with_latest_decision(
+        row: dict,
+        latest_map: dict[str, object],
+    ) -> dict:
+        item = latest_map.get(str(row.get("symbol") or ""))
+        if item is None:
+            row["entry_decision_score"] = row.get("decision_score")
+            return row
+
+        row["entry_decision_score"] = row.get("decision_score")
+        row["decision_score"] = item.score
+        row["decision_action"] = item.action
+        row["decision_reason"] = item.reason
+        row["decision_risk"] = item.risk
+        row["decision_block_reason"] = item.block_reason
+        row["decision_time"] = item.time
+        row["decision_execution_mode"] = item.execution_mode
+        return row
+
     async def stock_positions(self) -> list[dict]:
         runtime = self.runtime.get()
+        latest_map = self._latest_decision_map(runtime.mode)
         if runtime.mode == "paper":
             return [
-                {
-                    "symbol": p.symbol,
-                    "name": p.name,
-                    "invested_amount": p.invested_amount,
-                    "quantity": p.quantity,
-                    "return_rate": p.return_rate,
-                    "decision_score": p.decision_score,
-                    "current_price": p.last_price,
-                    "market_value": p.market_value,
-                    "source": "paper",
-                }
+                self._with_latest_decision(
+                    {
+                        "symbol": p.symbol,
+                        "name": p.name,
+                        "invested_amount": p.invested_amount,
+                        "quantity": p.quantity,
+                        "return_rate": p.return_rate,
+                        "decision_score": p.decision_score,
+                        "current_price": p.last_price,
+                        "market_value": p.market_value,
+                        "source": "paper",
+                    },
+                    latest_map,
+                )
                 for p in self.paper["stock"].portfolio().positions
             ]
 
-        return await TossLivePortfolioService().positions()
+        rows = await TossLivePortfolioService().positions()
+        return [
+            self._with_latest_decision(dict(row), latest_map)
+            for row in rows
+        ]
 
     async def crypto_positions(self) -> list[dict]:
         runtime = self.runtime.get()
+        latest_map = self._latest_decision_map(runtime.mode)
         if runtime.mode == "paper":
             return [
-                {
-                    "symbol": p.symbol,
-                    "name": p.name,
-                    "invested_amount": p.invested_amount,
-                    "quantity": p.quantity,
-                    "return_rate": p.return_rate,
-                    "decision_score": p.decision_score,
-                    "current_price": p.last_price,
-                    "market_value": p.market_value,
-                    "source": "paper",
-                }
+                self._with_latest_decision(
+                    {
+                        "symbol": p.symbol,
+                        "name": p.name,
+                        "invested_amount": p.invested_amount,
+                        "quantity": p.quantity,
+                        "return_rate": p.return_rate,
+                        "decision_score": p.decision_score,
+                        "current_price": p.last_price,
+                        "market_value": p.market_value,
+                        "source": "paper",
+                    },
+                    latest_map,
+                )
                 for p in self.paper["crypto"].portfolio().positions
             ]
 
-        return await UpbitLivePortfolioService().positions()
+        rows = await UpbitLivePortfolioService().positions()
+        return [
+            self._with_latest_decision(dict(row), latest_map)
+            for row in rows
+        ]
 
     async def manual_stock_order(
         self,
