@@ -20,6 +20,7 @@ def test_stock_positive_medium_momentum_can_create_buy_prior():
         features=features,
     )
 
+    assert result["quant_model_version"] == "v0.4"
     assert result["quant_score"] >= 65
     assert result["quant_action"] == "BUY"
     assert 0.35 <= result["quant_risk_scale"] <= 1.0
