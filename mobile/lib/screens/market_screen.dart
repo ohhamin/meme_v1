@@ -1185,7 +1185,9 @@ class _MarketScreenState extends State<MarketScreen> {
               ],
               const SizedBox(height: 12),
               Text(
-                reason.isEmpty ? '저장된 판단 근거가 없어요.' : reason,
+                reason.isEmpty
+                    ? '저장된 판단 근거가 없어요.'
+                    : localizeDecisionReason(reason),
                 style: Theme.of(dialogContext).textTheme.bodyMedium,
               ),
               if (blockReason.isNotEmpty) ...[
