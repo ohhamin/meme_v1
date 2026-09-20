@@ -43,16 +43,61 @@ class UpbitUniverseService:
             self._write(initial)
             return initial
 
+    def selection_mode(self) -> str:
+        if not self.path.exists():
+            self.get()
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            mode = str(raw.get("selection_mode") or "manual").lower()
+            return mode if mode in {"manual", "auto"} else "manual"
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return "manual"
+
+    def auto_limit(self) -> int:
+        if not self.path.exists():
+            self.get()
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            return max(1, min(int(raw.get("auto_limit") or 10), 50))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return 10
+
     def set(self, markets: list[str]) -> list[str]:
+        return self.set_manual(markets)
+
+    def set_manual(self, markets: list[str]) -> list[str]:
         normalized = self._normalize(markets)
-        self._write(normalized)
+        self._write(
+            normalized,
+            selection_mode="manual",
+            auto_limit=self.auto_limit(),
+        )
         return normalized
 
-    def _write(self, markets: list[str]) -> None:
+    def set_auto(self, markets: list[str], *, limit: int) -> list[str]:
+        normalized = self._normalize(markets)
+        self._write(
+            normalized,
+            selection_mode="auto",
+            auto_limit=max(1, min(limit, 50)),
+        )
+        return normalized
+
+    def _write(
+        self,
+        markets: list[str],
+        *,
+        selection_mode: str = "manual",
+        auto_limit: int = 10,
+    ) -> None:
         temp = self.path.with_suffix(".tmp")
         temp.write_text(
             json.dumps(
-                {"markets": markets},
+                {
+                    "markets": markets,
+                    "selection_mode": selection_mode,
+                    "auto_limit": auto_limit,
+                },
                 ensure_ascii=False,
                 indent=2,
             ),
