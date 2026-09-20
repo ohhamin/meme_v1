@@ -78,13 +78,6 @@ class _DecisionScreenState extends State<DecisionScreen> {
 
               final markdown = snapshot.data ?? '';
               final cards = _DecisionParser.parse(markdown);
-              final latestTime =
-                  cards.isEmpty ? '' : cards.last.time;
-              final latestCards = latestTime.isEmpty
-                  ? <_DecisionCardData>[]
-                  : cards.where((item) => item.time == latestTime).toList();
-              final latestSummary =
-                  _DecisionParser.latestSummary(markdown);
 
               if (cards.isEmpty) {
                 return Padding(
@@ -95,35 +88,28 @@ class _DecisionScreenState extends State<DecisionScreen> {
                 );
               }
 
-              final displayCards = cards.reversed.toList();
+              final summaries = _DecisionParser.cycleSummaries(markdown);
+              final grouped = <String, List<_DecisionCardData>>{};
+              for (final card in cards) {
+                grouped.putIfAbsent(card.time, () => <_DecisionCardData>[])
+                    .add(card);
+              }
+              final cycles = grouped.entries.toList().reversed.toList();
+
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                  itemCount: displayCards.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemCount: cycles.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return FutureBuilder<Map<String, dynamic>?>(
-                        future: _latestFuture,
-                        builder: (context, latestSnapshot) {
-                          final latest = latestSnapshot.data;
-                          final structuredCards = latest == null
-                              ? <_DecisionCardData>[]
-                              : _DecisionParser.fromLatestApi(latest);
-                          return _LatestCycleSummary(
-                            time: latest?['time']?.toString() ?? latestTime,
-                            cards: structuredCards.isNotEmpty
-                                ? structuredCards
-                                : latestCards,
-                            summary:
-                                latest?['cycle_summary']?.toString() ??
-                                    latestSummary,
-                          );
-                        },
-                      );
-                    }
-                    return _DecisionCard(data: displayCards[index - 1]);
+                    final cycle = cycles[index];
+                    return _DecisionCycleCard(
+                      time: cycle.key,
+                      cards: cycle.value,
+                      summary: summaries[cycle.key] ?? '',
+                      cycleNumber: cycles.length - index,
+                    );
                   },
                 ),
               );
@@ -131,6 +117,77 @@ class _DecisionScreenState extends State<DecisionScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _DecisionCycleCard extends StatelessWidget {
+  const _DecisionCycleCard({
+    required this.time,
+    required this.cards,
+    required this.summary,
+    required this.cycleNumber,
+  });
+
+  final String time;
+  final List<_DecisionCardData> cards;
+  final String summary;
+  final int cycleNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    int count(String action) => cards
+        .where((item) => item.action.toUpperCase() == action)
+        .length;
+
+    return AppSurface(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '판단 #$cycleNumber',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              Text(
+                time.isEmpty ? '-' : time,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _Metric(label: 'BUY', value: count('BUY').toString())),
+              Expanded(child: _Metric(label: 'HOLD', value: count('HOLD').toString())),
+              Expanded(child: _Metric(label: 'SELL', value: count('SELL').toString())),
+            ],
+          ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 10),
+            Text('사이클 요약', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 5),
+            Text(summary, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+          const SizedBox(height: 14),
+          Text(
+            '이 판단에서 선택한 종목 ${cards.length}개',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < cards.length; i++) ...[
+            _DecisionCard(data: cards[i]),
+            if (i != cards.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -253,6 +310,20 @@ class _DecisionParser {
             item['execution_mode']?.toString().toUpperCase() ?? 'PAPER',
       );
     }).where((item) => item.symbol.isNotEmpty).toList();
+  }
+
+  static Map<String, String> cycleSummaries(String markdown) {
+    final result = <String, String>{};
+    String time = '';
+    for (final raw in markdown.split('\n')) {
+      final line = raw.trim();
+      if (line.startsWith('## ') && line.contains('Decision Cycle')) {
+        time = line.substring(3).replaceAll('Decision Cycle', '').trim();
+      } else if (time.isNotEmpty && line.startsWith('> Cycle Summary:')) {
+        result[time] = line.substring('> Cycle Summary:'.length).trim();
+      }
+    }
+    return result;
   }
 
   static String latestSummary(String markdown) {
