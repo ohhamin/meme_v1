@@ -52,7 +52,7 @@ class AppSettings(BaseSettings):
     decision_default_interval_minutes: int = 60
     decision_min_interval_minutes: int = 30
     decision_max_interval_minutes: int = 120
-    news_collection_interval_hours: int = 6
+    news_collection_interval_hours: int = 12
     news_web_search_enabled: bool = True
     news_max_output_tokens: int = 2500
     fred_api_key: str = ""
@@ -73,7 +73,7 @@ class AppSettings(BaseSettings):
     openai_max_output_tokens: int = 4000
     llm_enabled: bool = True
     llm_daily_token_budget: int = 200000
-    llm_cycle_input_token_limit: int = 8000
+    llm_cycle_input_token_limit: int = 12000
     llm_context_news_chars: int = 12000
     llm_context_decision_chars: int = 6000
     llm_conserve_threshold_pct: int = 20
