@@ -216,6 +216,22 @@ class NewsCollector:
         period = "오전" if now.hour < 12 else "오후"
         title = f"{now.date().isoformat()} {period}"
 
+        # A date/period must have at most one newsletter block. This prevents
+        # manual tests, retries, or restarts from endlessly appending duplicates.
+        if path.exists():
+            existing = path.read_text(encoding="utf-8")
+            if f"## {title}" in existing:
+                self.audit.write(
+                    "system",
+                    {
+                        "event": "news_collection_skipped",
+                        "reason": "period_already_collected",
+                        "period": title,
+                        "local_time": now.isoformat(),
+                    },
+                )
+                return path
+
         lines: list[str] = []
         if is_new:
             lines.extend(
