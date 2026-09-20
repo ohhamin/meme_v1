@@ -3,6 +3,7 @@ from typing import Any
 
 
 class QuantSignalService:
+    MODEL_VERSION = "v0.4"
     """Deterministic, research-inspired directional prior.
 
     The score is deliberately simple and inspectable. It does not predict an
@@ -25,6 +26,7 @@ class QuantSignalService:
         if result.get("features_available") != 1:
             result.update(
                 {
+                    "quant_model_version": cls.MODEL_VERSION,
                     "quant_score": 50.0,
                     "quant_action": "HOLD",
                     "quant_risk_scale": 0.5,
@@ -37,6 +39,7 @@ class QuantSignalService:
         if vol is None or vol <= 0:
             result.update(
                 {
+                    "quant_model_version": cls.MODEL_VERSION,
                     "quant_score": 50.0,
                     "quant_action": "HOLD",
                     "quant_risk_scale": 0.5,
@@ -150,6 +153,7 @@ class QuantSignalService:
 
         result.update(
             {
+                "quant_model_version": cls.MODEL_VERSION,
                 "quant_score": round(score, 2),
                 "quant_action": action,
                 "quant_risk_scale": round(risk_scale, 4),
