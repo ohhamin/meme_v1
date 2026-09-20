@@ -31,7 +31,6 @@ data/algorithm/proposals/**/*.md
 # Flutter
 mobile/.dart_tool/
 mobile/build/
-mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
 
 # Firebase Admin

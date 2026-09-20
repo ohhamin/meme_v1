@@ -1,23 +1,21 @@
-name: Build Android APK
+name: Build App
 
 on:
   push:
     branches: [master]
-    paths:
-      - "mobile/**"
-      - ".github/workflows/build-android.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: build-app-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: mobile
@@ -48,9 +46,7 @@ jobs:
         run: |
           test -n "$API_BASE_URL" || (echo "API_BASE_URL secret is missing" && exit 1)
           test -n "$API_TOKEN" || (echo "API_TOKEN secret is missing" && exit 1)
-          flutter build apk --debug \
-            --dart-define=API_BASE_URL="$API_BASE_URL" \
-            --dart-define=API_TOKEN="$API_TOKEN"
+          flutter build apk --debug --dart-define=API_BASE_URL="$API_BASE_URL" --dart-define=API_TOKEN="$API_TOKEN"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -58,4 +54,4 @@ jobs:
           name: meme-v1-debug-apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
