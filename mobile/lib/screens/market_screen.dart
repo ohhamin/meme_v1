@@ -1236,7 +1236,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
   String _localizeMarketBlockReason(String raw) {
     final cooldown = RegExp(
-      r'Automatic symbol cooldown is active \\((\\d+)s remaining\\)\\.',
+      r'Automatic symbol cooldown is active \((\d+)s remaining\)\.',
       caseSensitive: false,
     ).firstMatch(raw);
     if (cooldown != null) {
