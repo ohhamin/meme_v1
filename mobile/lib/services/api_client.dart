@@ -281,6 +281,18 @@ class ApiClient {
     return values.map((item) => item.toString()).toList();
   }
 
+  Future<List<Map<String, dynamic>>> getTossStocks(
+    List<String> symbols,
+  ) async {
+    if (symbols.isEmpty) return <Map<String, dynamic>>[];
+    final joined = Uri.encodeQueryComponent(symbols.join(','));
+    final data = await _request(
+      'GET',
+      '/stocks/toss/stocks?symbols=$joined',
+    ) as List<dynamic>;
+    return data.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+  }
+
   Future<List<String>> getTossUniverse() async {
     final data = await _request(
       'GET',
