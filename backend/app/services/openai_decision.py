@@ -167,7 +167,7 @@ class LLMDecisionClient:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
             )
-            await self.openai_usage.refresh()
+        await self.openai_usage.refresh()
 
         raw = response.output_text.strip()
         if not raw:
