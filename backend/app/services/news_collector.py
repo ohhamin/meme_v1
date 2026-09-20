@@ -131,7 +131,7 @@ class NewsCollector:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
             )
-            await self.openai_usage.refresh()
+        await self.openai_usage.refresh()
 
         markdown = response.output_text.strip()
         if not markdown:
