@@ -37,13 +37,7 @@ class TradingService:
         )
 
     def _latest_decision_map(self, mode: str) -> dict[str, object]:
-        latest = self.latest_decisions.get(mode=mode)
-        if latest is None:
-            return {}
-        return {
-            item.symbol: item
-            for item in latest.items
-        }
+        return self.latest_decisions.latest_by_symbol(mode=mode)
 
     @staticmethod
     def _with_latest_decision(
