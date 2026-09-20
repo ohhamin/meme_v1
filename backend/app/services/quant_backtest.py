@@ -173,7 +173,7 @@ class QuantBacktestService:
                 fmean(returns) * 100 if returns else 0.0,
                 4,
             ),
-            "median_like_compound_return_pct": round(
+            "compound_return_pct": round(
                 (prod(1.0 + value for value in returns) - 1.0) * 100
                 if returns
                 else 0.0,
