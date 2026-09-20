@@ -19,7 +19,7 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.3.0-quant
+Version: 0.4.0-quant
 
 ## 한눈에 보기
 
@@ -45,14 +45,20 @@ MomentumScore_n = 50 + 25 × clip(Z_n, -2, 2)
 
 ### 주식
 
-StockScore = 0.40×M60 + 0.30×M20 + 0.15×Trend + 0.10×Stability + 0.05×VolumeConfirm - Penalty
+한국 개별주식은 전통적인 '과거 수익률이 높을수록 계속 산다' 방식의 모멘텀이 장기 반전에 취약하다는 연구가 있어,
+극단적인 하루 급등락의 영향을 줄이는 **Sign Momentum(상승한 날의 비율)** 을 핵심으로 사용한다.
 
-- M60: 최근 60거래일 위험조정 모멘텀
-- M20: 최근 20거래일 위험조정 모멘텀
+Sign_n = 최근 n일 중 수익률이 양수인 거래일 수 / 수익률이 0이 아닌 거래일 수 × 100
+
+StockScore = 0.30×Sign60 + 0.20×Sign20 + 0.20×Trend + 0.15×M20 + 0.10×Stability + 0.05×VolumeConfirm - SaliencePenalty
+
+- Sign60: 최근 60거래일 중 상승일 비율
+- Sign20: 최근 20거래일 중 상승일 비율
+- M20: 최근 20거래일 위험조정 수익률. 보조 신호로만 사용
 - Trend: 현재가가 단기/장기 평균가격 위인지 아래인지
 - Stability: 일 변동성이 낮을수록 높은 점수
 - VolumeConfirm: 가격 방향과 거래량 변화가 같은 방향인지 확인
-- 5일 급등은 추격매수를 줄이기 위한 과열 감점으로 사용
+- 5일·20일의 극단적 급등과 큰 누적수익은 추격매수/반전 위험으로 감점
 
 ### 코인
 
@@ -112,7 +118,8 @@ SELL은 기존 보유수량 기준으로 단계적으로 축소한다.
 
 ## 연구 근거와 한계
 
-핵심 방향은 주식의 중기 모멘텀, 코인의 단기 모멘텀, 고변동성 시 노출 축소, 유동성 필터에 관한 학술 연구를 참고했다.
+핵심 방향은 한국 주식시장의 sign/rank momentum 연구, 코인의 단기 모멘텀과 장기 반전 연구,
+그리고 고변동성 시 노출 축소와 유동성 필터에 관한 학술 연구를 참고했다.
 
 다만 **위 가중치와 65/35 임계값은 논문에서 그대로 가져온 숫자가 아니라 이 앱을 위한 초기 설계값**이다.
 Paper 데이터와 walk-forward 검증이 충분히 쌓이기 전에는 수익성을 입증한 값으로 취급하지 않는다.
@@ -149,7 +156,10 @@ class AlgorithmService:
         else:
             current = self.current_path.read_text(encoding="utf-8")
             if (
-                "Version: 0.2.0-baseline" in current
+                (
+                    "Version: 0.2.0-baseline" in current
+                    or "Version: 0.3.0-quant" in current
+                )
                 and "### Applied:" not in current
             ):
                 self.current_path.write_text(_BASELINE, encoding="utf-8")
