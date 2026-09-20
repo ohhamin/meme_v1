@@ -632,7 +632,7 @@ class _BacktestCard extends StatelessWidget {
                   _ValidationMetric(
                     label: '복리수익',
                     value: _pct(
-                      result!['median_like_compound_return_pct'],
+                      result!['compound_return_pct'],
                     ),
                   ),
                   _ValidationMetric(
