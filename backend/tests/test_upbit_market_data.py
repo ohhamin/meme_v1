@@ -165,7 +165,7 @@ def test_upbit_snapshots_include_daily_quant_features(monkeypatch):
         assert count == 64
         return [
             {
-                "timestamp": f"2026-07-{index + 1:02d}",
+                "timestamp": f"{index:03d}",
                 "open": 99 + index,
                 "high": 101 + index,
                 "low": 98 + index,
