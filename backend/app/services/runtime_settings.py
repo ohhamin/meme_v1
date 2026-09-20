@@ -17,6 +17,7 @@ class RuntimeSettingsService:
             kill_switch=self.config.kill_switch,
             live_order_allowed=False,
             scheduler_enabled=self.config.scheduler_enabled,
+            llm_daily_token_budget=self._initial_llm_daily_budget(),
         )
 
     def get(self) -> RuntimeSettings:
@@ -33,6 +34,9 @@ class RuntimeSettingsService:
             if "scheduler_enabled" not in raw:
                 raw["scheduler_enabled"] = self.config.scheduler_enabled
                 migrated = True
+            if "llm_daily_token_budget" not in raw:
+                raw["llm_daily_token_budget"] = self._initial_llm_daily_budget()
+                migrated = True
             state = RuntimeSettings(**raw)
             if migrated:
                 self._write(state)
@@ -48,6 +52,7 @@ class RuntimeSettingsService:
                 kill_switch=True,
                 live_order_allowed=False,
                 scheduler_enabled=False,
+                llm_daily_token_budget=self._initial_llm_daily_budget(),
             )
             self._write(state)
 
@@ -81,6 +86,17 @@ class RuntimeSettingsService:
         state.scheduler_enabled = enabled
         self._write(state)
         return self._decorate(state)
+
+    def set_llm_daily_token_budget(self, tokens: int) -> RuntimeSettings:
+        state = self.get()
+        state.llm_daily_token_budget = tokens
+        self._write(state)
+        return self._decorate(state)
+
+    def _initial_llm_daily_budget(self) -> int:
+        if self.config.llm_daily_token_budget == 200_000:
+            return 2_000_000
+        return self.config.llm_daily_token_budget
 
     def _decorate(self, state: RuntimeSettings) -> RuntimeSettings:
         state.live_order_allowed = (
