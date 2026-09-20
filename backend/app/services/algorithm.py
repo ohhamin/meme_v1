@@ -17,109 +17,109 @@ _RULE_RE = re.compile(
 )
 
 
-_BASELINE = """# Current Trading Algorithm
+_BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.2.0-baseline
+Version: 0.3.0-quant
 
-이 문서는 Decision Engine이 참조하는 승인된 판단 규칙이다.
-주문 실행 안전장치(Risk Guard)는 이 문서와 별도의 deterministic 코드로 동작한다.
+## 한눈에 보기
 
-## Portfolio Philosophy
+이 알고리즘은 **수학적 정량 신호가 방향을 먼저 정하고, AI는 그 판단을 확인하거나 HOLD로 보류만 하는 구조**다.
 
-- 주식(Toss)과 코인(Upbit)은 서로 다른 계좌로 판단한다.
-- 실제 보유 종목 수는 전체 0~10개다.
-- 10개를 채우는 것이 목표가 아니다.
-- 시장에 매력적인 기회가 없으면 0개 보유 / 현금 100%도 정상이다.
-- 현금 비중이 높다는 이유만으로 BUY하지 않는다.
-- 이미 보유한 종목도 매 사이클 다시 평가한다.
+1. 거래가 충분한 종목만 후보로 고른다.
+2. 일봉 가격으로 모멘텀·추세·변동성·거래량을 계산해 0~100점을 만든다.
+3. 정량점수 65 이상은 BUY 후보, 35 이하는 SELL 후보, 사이는 HOLD다.
+4. AI는 뉴스·거시환경·계좌상태를 보고 BUY/SELL을 HOLD로 보류할 수 있지만 반대 방향으로 뒤집을 수 없다.
+5. 변동성이 높을수록 주문 크기를 줄이고, 마지막에는 Risk Guard가 주문 가능 여부를 다시 검사한다.
 
-## Inputs
+즉 **후보 선정 → 정량 점수 → AI 보수적 검토 → 주문크기 계산 → Risk Guard** 순서다.
 
-- 현재 계좌별 현금/평가금액/보유 포지션/손익
-- 판단 대상 종목의 최신 가격 및 시장 상태
-- 가능할 경우 OHLCV 기반 단기/중기 수익률, 평균가격 괴리, 변동성, 거래량 변화
-- 압축된 최근 뉴스/거시경제 Context
-- 최근 판단 Context
-- 사용자가 승인한 Applied Proposal 규칙
+## 수학적 핵심
 
-## Decision Semantics
+기간수익률: R_n = P_t / P_(t-n) - 1
 
-각 종목마다 하나만 출력한다.
+위험조정 모멘텀: Z_n = R_n / (sigma × sqrt(n))
 
-- BUY: 신규 또는 추가 매수를 원하는 방향
-- SELL: 기존 포지션의 일부/전부 축소를 원하는 방향
-- HOLD: 지금은 주문을 만들 근거가 충분하지 않음
+MomentumScore_n = 50 + 25 × clip(Z_n, -2, 2)
 
-판단점수는 방향성을 0~100으로 표현한다.
+여기서 sigma는 최근 일별 수익률의 표준편차다.
 
-- 0~40: SELL 영역
-- 41~59: HOLD 영역
-- 60~100: BUY 영역
+### 주식
 
-Action과 Score는 반드시 같은 방향이어야 한다.
-데이터가 부족하거나 서로 충돌하면 HOLD를 우선한다.
+StockScore = 0.40×M60 + 0.30×M20 + 0.15×Trend + 0.10×Stability + 0.05×VolumeConfirm - Penalty
 
-## Decision Discipline
+- M60: 최근 60거래일 위험조정 모멘텀
+- M20: 최근 20거래일 위험조정 모멘텀
+- Trend: 현재가가 단기/장기 평균가격 위인지 아래인지
+- Stability: 일 변동성이 낮을수록 높은 점수
+- VolumeConfirm: 가격 방향과 거래량 변화가 같은 방향인지 확인
+- 5일 급등은 추격매수를 줄이기 위한 과열 감점으로 사용
 
-- 단순히 지난 사이클의 판단을 반복하지 말고 새 정보가 있는지 확인한다.
-- 반대로 작은 가격 움직임만으로 BUY↔SELL을 자주 뒤집지 않는다.
-- 최근 판단 이후 의미 있는 변화가 없으면 HOLD를 선호한다.
-- 뉴스 한 건만으로 강한 결론을 만들지 않고 가격/계좌/시장 Context와 함께 본다.
-- 기술지표 하나만으로 BUY/SELL을 강제하지 않고 여러 근거 중 하나로 사용한다.
-- 기술 feature가 없거나 표본이 부족하면 없는 값을 추정하지 않는다.
-- 확인되지 않은 사실이나 제공되지 않은 가격/잔고를 만들어내지 않는다.
-- 이미 발생한 손실을 만회하기 위한 보복성 매수/물타기를 가정하지 않는다.
-- '항상 투자되어 있어야 한다'는 전제를 두지 않는다.
+### 코인
 
-## Position Sizing Boundary
+CryptoScore = 0.40×M21 + 0.30×M7 + 0.15×Trend + 0.10×Stability + 0.05×VolumeConfirm - ReversalPenalty
 
-Decision Engine은 주문 금액을 직접 정하지 않는다.
-BUY/SELL/HOLD + Score만 결정하고 실제 주문 후보 크기는 Position Sizer가 계산한다.
+- M21: 최근 21일 위험조정 모멘텀
+- M7: 최근 7일 위험조정 모멘텀
+- 42일 강한 상승이 21일 신호보다 과도하게 앞서 있으면 장기 반전 가능성을 고려해 감점
+- 장기 낙폭이 크다는 이유만으로 자동 매수하지는 않음
 
-초기 실행 기준:
+## BUY / HOLD / SELL
 
-- BUY score 60~69: 계좌 평가금액의 1% 후보
-- BUY score 70~79: 2%
-- BUY score 80~89: 3%
-- BUY score 90~100: 4%
-- SELL score 31~40: 보유수량 25% 후보
-- SELL score 21~30: 40%
-- SELL score 0~20: 60%
+- Quant Score >= 65: BUY 후보
+- 36~64: HOLD
+- Quant Score <= 35: SELL 후보
 
-이 값은 후보 크기이며 Risk Guard가 최종 PASS/BLOCK한다.
+AI는 이 방향을 반대로 바꿀 수 없다.
 
-## Risk Boundary
+- Quant BUY → AI 결과는 BUY 또는 HOLD
+- Quant SELL → AI 결과는 SELL 또는 HOLD
+- Quant HOLD → AI 결과는 HOLD
 
-Decision Engine은 Risk Guard를 우회할 수 없다.
+## 변동성에 따른 주문 크기
 
-현재 hard-risk의 핵심:
+기본 BUY 크기는 판단점수에 따라 계좌 평가금액의 1~4%다.
+
+- 60~69: 1%
+- 70~79: 2%
+- 80~89: 3%
+- 90~100: 4%
+
+RiskScale = min(1, TargetVol / RealizedVol)
+
+- 주식 TargetVol: 일 2%
+- 코인 TargetVol: 일 4%
+- RiskScale 하한: 0.35
+- 저변동성이라고 주문을 1배보다 키우지는 않는다.
+
+SELL은 기존 보유수량 기준으로 단계적으로 축소한다.
+
+- 점수 31~40: 25%
+- 점수 21~30: 40%
+- 점수 0~20: 60%
+
+## Risk Guard
 
 - Kill switch
-- stale data 차단
+- 오래된 시세 차단
 - 주식 장 운영 여부
-- 일일 손실/주문 횟수 제한
-- 한 종목 최대 40%
-- 전체 보유종목 최대 10개
-- 계좌별 최소 현금 reserve
-- 미확인 Live 주문이 있는 종목의 신규 Live 주문 차단
+- 일일 손실 한도
+- 일일 주문 횟수
+- 한 종목 최대 비중
+- 전체 최대 보유 종목 수
+- 최소 현금 보유
+- 같은 종목 자동 주문 cooldown
+- 미확인 Live 주문 중복 방지
 
-Risk Guard가 BLOCK한 것을 BUY/SELL 판단의 성공으로 간주하지 않는다.
+## 연구 근거와 한계
 
-## Scheduler
+핵심 방향은 주식의 중기 모멘텀, 코인의 단기 모멘텀, 고변동성 시 노출 축소, 유동성 필터에 관한 학술 연구를 참고했다.
 
-전체 Decision Cycle에 대해 하나의 next_check_minutes를 제안한다.
-
-- 허용 범위: 30~120분
-- 높은 변동성/중요 이벤트: 30~45분 고려
-- 일반적인 시장: 약 60분 고려
-- 변화가 작고 긴급성이 낮음: 90~120분 고려
-- 단순히 주문을 만들기 위해 짧은 간격을 선택하지 않는다.
+다만 **위 가중치와 65/35 임계값은 논문에서 그대로 가져온 숫자가 아니라 이 앱을 위한 초기 설계값**이다.
+Paper 데이터와 walk-forward 검증이 충분히 쌓이기 전에는 수익성을 입증한 값으로 취급하지 않는다.
 
 ## Algorithm Changes
 
-실행 중 Python/Dart 코드를 스스로 수정하지 않는다.
-운영 데이터를 보고 개선이 필요하면 별도 Proposal을 만들 수 있지만,
-사용자가 Apply한 Markdown 규칙만 다음 Decision Cycle부터 적용된다.
+성과 데이터가 충분히 쌓이면 변경 제안을 만들 수 있지만 사용자가 승인한 변경만 적용한다.
 
 ## Applied Proposals
 
@@ -146,6 +146,13 @@ class AlgorithmService:
 
         if not self.current_path.exists():
             self.current_path.write_text(_BASELINE, encoding="utf-8")
+        else:
+            current = self.current_path.read_text(encoding="utf-8")
+            if (
+                "Version: 0.2.0-baseline" in current
+                and "### Applied:" not in current
+            ):
+                self.current_path.write_text(_BASELINE, encoding="utf-8")
 
     def current(self) -> str:
         return self.current_path.read_text(encoding="utf-8")
