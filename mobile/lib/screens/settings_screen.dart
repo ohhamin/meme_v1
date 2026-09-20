@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
@@ -716,6 +717,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _openOpenAiBilling() async {
+    final uri = Uri.parse(
+      'https://platform.openai.com/settings/organization/billing/overview',
+    );
+    final opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('OpenAI API 결제 페이지를 열지 못했어요.'),
+        ),
+      );
+    }
+  }
+
   Future<void> _refreshOpenAiUsage() async {
     try {
       await ApiClient.instance.refreshOpenAiUsage();
@@ -1394,6 +1412,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _openOpenAiBilling,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('OpenAI API 크레딧 확인'),
                 ),
                 if (runtimeMode == 'paused') ...[
                   const SizedBox(height: 18),
