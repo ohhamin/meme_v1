@@ -5,6 +5,7 @@ from statistics import fmean
 from typing import Any
 
 from backend.app.services.quant_signal import QuantSignalService
+from backend.app.services.pure_math_signal import PureMathSignalService
 from backend.app.services.technical_features import TechnicalFeatureService
 
 
@@ -24,9 +25,12 @@ class QuantBacktestService:
         candles: list[dict[str, Any]],
         fee_bps: float = 5.0,
         slippage_bps: float = 5.0,
+        model: str = "current",
     ) -> dict[str, Any]:
         if market not in {"stock", "crypto"}:
             raise ValueError("market must be stock or crypto")
+        if model not in {"current", "pure_math"}:
+            raise ValueError("model must be current or pure_math")
 
         ordered = sorted(
             candles,
@@ -50,6 +54,7 @@ class QuantBacktestService:
             return {
                 "status": "insufficient_history",
                 "market": market,
+                "model": model,
                 "samples": len(cleaned),
                 "required_samples": minimum,
                 "trade_count": 0,
@@ -73,18 +78,28 @@ class QuantBacktestService:
                 long_period=long_period,
                 interval_label="1d",
             )
-            quant = QuantSignalService.enrich(
-                market=market,
-                features=features,
-            )
+            if model == "pure_math":
+                quant = PureMathSignalService.enrich(
+                    market=market,
+                    features=features,
+                )
+                action_key = "math_action"
+                score_key = "math_score"
+            else:
+                quant = QuantSignalService.enrich(
+                    market=market,
+                    features=features,
+                )
+                action_key = "quant_action"
+                score_key = "quant_score"
 
             next_bar = cleaned[index + 1]
             next_open = cls._price(next_bar, "open")
             if next_open <= 0:
                 continue
 
-            action = str(quant.get("quant_action") or "HOLD")
-            score = float(quant.get("quant_score") or 50)
+            action = str(quant.get(action_key) or "HOLD")
+            score = float(quant.get(score_key) or 50)
 
             if position is None and action == "BUY":
                 entry_price = next_open * (1.0 + slippage)
@@ -148,6 +163,7 @@ class QuantBacktestService:
         return {
             "status": "completed",
             "market": market,
+            "model": model,
             "samples": len(cleaned),
             "signal_start": str(
                 cleaned[long_period].get("timestamp") or ""
