@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
+import '../utils/decision_text.dart';
 import '../widgets/app_surface.dart';
 import '../widgets/date_selector.dart';
 
@@ -480,45 +481,6 @@ class _DecisionParser {
 
 
 
-String _localizeBlockReason(String raw) {
-  final value = raw.trim();
-  final cooldown = RegExp(
-    r'Automatic symbol cooldown is active \((\d+)s remaining\)\.',
-    caseSensitive: false,
-  ).firstMatch(value);
-  if (cooldown != null) {
-    final seconds = int.tryParse(cooldown.group(1) ?? '0') ?? 0;
-    final minutes = seconds ~/ 60;
-    final remainSeconds = seconds % 60;
-    final remain = minutes > 0
-        ? '${minutes}분 ${remainSeconds}초'
-        : '${remainSeconds}초';
-    return '동일 종목 자동 주문 대기시간이 남아 있어 차단됐어요. (남은 시간 $remain)';
-  }
-
-  final lower = value.toLowerCase();
-  if (lower.contains('daily order') && lower.contains('limit')) {
-    return '일일 최대 주문 횟수에 도달해 차단됐어요.';
-  }
-  if (lower.contains('daily loss')) {
-    return '일일 손실 한도에 도달해 차단됐어요.';
-  }
-  if (lower.contains('cash reserve')) {
-    return '최소 현금 보유 기준을 지키기 위해 차단됐어요.';
-  }
-  if (lower.contains('position') && lower.contains('limit')) {
-    return '최대 보유 종목 수 제한 때문에 차단됐어요.';
-  }
-  if (lower.contains('market') && lower.contains('closed')) {
-    return '현재 시장이 열려 있지 않아 주문이 차단됐어요.';
-  }
-  if (lower.contains('minimum') && lower.contains('order')) {
-    return '최소 주문 금액 또는 수량 조건을 충족하지 못해 차단됐어요.';
-  }
-  return value;
-}
-
-
 class _DecisionCard extends StatefulWidget {
   const _DecisionCard({required this.data});
 
@@ -684,7 +646,7 @@ class _DecisionCardState extends State<_DecisionCard> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '차단 사유 · ${_localizeBlockReason(data.blockReason!)}',
+                    '차단 사유 · ${localizeDecisionReason(data.blockReason!)}',
                     style: const TextStyle(
                       color: AppColors.negative,
                       fontSize: 12,
