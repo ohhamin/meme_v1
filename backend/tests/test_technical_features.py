@@ -35,6 +35,9 @@ def test_technical_features_compute_returns_and_sma_gaps():
     assert result["return_short_pct"] == round((124 / 123 - 1) * 100, 4)
     assert result["return_medium_pct"] == round((124 / 118 - 1) * 100, 4)
     assert result["return_long_pct"] == 24.0
+    assert result["positive_day_ratio_short"] == 100.0
+    assert result["positive_day_ratio_medium"] == 100.0
+    assert result["positive_day_ratio_long"] == 100.0
     assert result["realized_volatility_pct"] >= 0
     assert result["range_long_pct"] is not None
     assert result["volume_recent_ratio"] is not None
