@@ -664,6 +664,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _editDailyTokenLimit(int current) async {
+    final controller = TextEditingController(text: current.toString());
+    final value = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('하루 토큰 제한'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: '토큰',
+            helperText: '50,000 ~ 100,000,000',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final parsed = int.tryParse(
+                controller.text.replaceAll(',', '').trim(),
+              );
+              if (parsed == null || parsed < 50000 || parsed > 100000000) {
+                return;
+              }
+              Navigator.pop(context, parsed);
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null) return;
+
+    try {
+      await ApiClient.instance.setLlmDailyTokenBudget(value);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('하루 토큰 제한을 변경했어요.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  Future<void> _refreshOpenAiUsage() async {
+    try {
+      await ApiClient.instance.refreshOpenAiUsage();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OpenAI 사용량을 최신화했어요.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -727,37 +795,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final dailyBudget =
         (llmBudget['daily'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
-    final monthlyBudget =
-        (llmBudget['monthly'] as Map?)?.cast<String, dynamic>() ??
+    final openaiUsage =
+        (status['openai_usage'] as Map?)?.cast<String, dynamic>() ??
             <String, dynamic>{};
-
-    final dailyUsed = (dailyBudget['used_tokens'] as num?)?.toInt() ??
-        (llmBudget['used_tokens'] as num?)?.toInt() ??
-        0;
+    final openaiSynced = openaiUsage['status'] == 'ok';
+    final dailyUsed = openaiSynced
+        ? (openaiUsage['total_tokens'] as num?)?.toInt() ?? 0
+        : (dailyBudget['used_tokens'] as num?)?.toInt() ??
+            (llmBudget['used_tokens'] as num?)?.toInt() ??
+            0;
     final dailyLimit = (dailyBudget['budget_tokens'] as num?)?.toInt() ??
-        (llmBudget['budget_tokens'] as num?)?.toInt() ??
+        (settings['llm_daily_token_budget'] as num?)?.toInt() ??
         0;
     final dailyRemaining =
         (dailyBudget['remaining_tokens'] as num?)?.toInt() ??
-            (llmBudget['remaining_tokens'] as num?)?.toInt() ??
-            0;
-
-    final monthlyUsed =
-        (monthlyBudget['used_tokens'] as num?)?.toInt() ?? dailyUsed;
-    final monthlyLimit =
-        (monthlyBudget['budget_tokens'] as num?)?.toInt() ?? 0;
-    final monthlyRemaining =
-        (monthlyBudget['remaining_tokens'] as num?)?.toInt() ??
-            (monthlyLimit > 0
-                ? (monthlyLimit - monthlyUsed).clamp(0, monthlyLimit)
+            (dailyLimit > 0
+                ? (dailyLimit - dailyUsed).clamp(0, dailyLimit)
                 : 0);
-
     final dailyProgress = dailyLimit > 0
         ? (dailyUsed / dailyLimit).clamp(0.0, 1.0).toDouble()
         : null;
-    final monthlyProgress = monthlyLimit > 0
-        ? (monthlyUsed / monthlyLimit).clamp(0.0, 1.0).toDouble()
-        : null;
+    final todayCostUsd = (openaiUsage['cost_usd'] as num?)?.toDouble();
+    final creditBalanceAvailable =
+        openaiUsage['credit_balance_available'] == true;
+    final creditBalanceUsd =
+        (openaiUsage['credit_balance_usd'] as num?)?.toDouble();
+    final usageSyncStatus = openaiUsage['status']?.toString() ?? 'unavailable';
+    final usageSyncedAt = openaiUsage['last_synced_at']?.toString();
 
     final number = NumberFormat('#,###');
     final stockPaper =
@@ -1065,60 +1129,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            _aiStatusDescription(
-                              runtimeMode,
-                              budgetMode,
-                              llmRuntime,
-                            ),
+                            openaiSynced
+                                ? 'OpenAI 공식 Usage/Costs 기준'
+                                : _aiStatusDescription(
+                                    runtimeMode,
+                                    budgetMode,
+                                    llmRuntime,
+                                  ),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  '이번 달',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                if (monthlyProgress != null) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      minHeight: 8,
-                      value: monthlyProgress,
-                      backgroundColor: AppColors.chip,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: _UsageMetric(
-                        label: '이번 달 사용량',
-                        value: number.format(monthlyUsed),
-                      ),
-                    ),
-                    Expanded(
-                      child: _UsageMetric(
-                        label: '남은 월간 토큰',
-                        value: monthlyLimit > 0
-                            ? number.format(monthlyRemaining)
-                            : '제한 없음',
-                      ),
+                    IconButton(
+                      tooltip: 'OpenAI 사용량 새로고침',
+                      onPressed: _refreshOpenAiUsage,
+                      icon: const Icon(Icons.refresh_rounded),
                     ),
                   ],
                 ),
                 const SizedBox(height: 18),
-                Text(
-                  '오늘',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
                 if (dailyProgress != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
@@ -1126,40 +1156,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       minHeight: 8,
                       value: dailyProgress,
                       backgroundColor: AppColors.chip,
-                      color: aiConserve
-                          ? AppColors.warning
-                          : aiBlocked
-                              ? AppColors.negative
+                      color: aiBlocked
+                          ? AppColors.negative
+                          : aiConserve
+                              ? AppColors.warning
                               : AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                 ],
                 Row(
                   children: [
                     Expanded(
                       child: _UsageMetric(
-                        label: '오늘 사용량',
+                        label: '오늘 사용 토큰',
                         value: number.format(dailyUsed),
                       ),
                     ),
                     Expanded(
-                      child: _UsageMetric(
-                        label: '일일 제한 토큰량',
-                        value: dailyLimit > 0
-                            ? number.format(dailyLimit)
-                            : '제한 없음',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _editDailyTokenLimit(dailyLimit),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: _UsageMetric(
+                            label: '하루 토큰 제한 · 변경',
+                            value: dailyLimit > 0
+                                ? number.format(dailyLimit)
+                                : '제한 없음',
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                if (dailyLimit > 0) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '오늘 남은 내부 예산 ${number.format(dailyRemaining)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _UsageMetric(
+                        label: '오늘 사용 크레딧',
+                        value: todayCostUsd == null
+                            ? '확인 필요'
+                            : '\$${todayCostUsd.toStringAsFixed(4)}',
+                      ),
+                    ),
+                    Expanded(
+                      child: _UsageMetric(
+                        label: 'API 잔여 크레딧',
+                        value: creditBalanceAvailable &&
+                                creditBalanceUsd != null
+                            ? '\$${creditBalanceUsd.toStringAsFixed(2)}'
+                            : '공식 API 미지원',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  openaiSynced
+                      ? '오늘 남은 내부 토큰 ${number.format(dailyRemaining)}'
+                          '${usageSyncedAt == null ? '' : ' · 최근 동기화 ${_formatDateTime(usageSyncedAt)}'}'
+                      : usageSyncStatus == 'admin_key_required'
+                          ? 'OpenAI Admin key를 연결하면 공식 토큰 사용량과 비용을 자동 동기화해요.'
+                          : 'OpenAI 사용량 동기화 상태: $usageSyncStatus',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'OpenAI는 선불 잔여 크레딧을 조회하는 공식 API를 제공하지 않아 '
+                  '잔액은 추정하지 않고 대시보드에서 확인하도록 표시해요.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
                 if (runtimeMode == 'paused') ...[
                   const SizedBox(height: 18),
                   SizedBox(
