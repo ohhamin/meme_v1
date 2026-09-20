@@ -52,7 +52,7 @@ class PaperDashboardService:
         trading = self._trading_stats(journal)
         score_performance = self._score_performance(journal)
         candidate_performance = self._candidate_score_performance(journal)
-        recent_orders = journal[:10]
+        recent_orders = self.orders.recent(limit=5000, days=3650)
 
         return {
             "combined": {
