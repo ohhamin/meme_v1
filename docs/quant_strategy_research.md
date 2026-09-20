@@ -85,6 +85,8 @@ AI는 정량 방향을 반대로 바꾸지 않는다.
 
 Barroso & Santa-Clara (2015), Moreira & Muir (2017)의 변동성 관리 아이디어를 참고하되
 저변동성 자산을 레버리지하지 않고 고변동성에서만 노출을 줄인다.
+Cederburg et al. (2020)은 변동성 관리의 우위가 실시간 out-of-sample에서는 체계적으로 유지되지 않을 수 있다고 지적하므로,
+본 앱에서는 이를 수익원으로 보지 않고 **고변동성 시 주문 크기를 줄이는 안전장치**로만 사용한다.
 
 RiskScale = clip(TargetDailyVol / RealizedDailyVol, 0.35, 1.0)
 
