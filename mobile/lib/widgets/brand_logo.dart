@@ -32,7 +32,7 @@ class AppBackdrop extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primaryBlue.withOpacity(0.16),
+                    AppColors.primaryBlue.withValues(alpha: 0.16),
                     Colors.transparent,
                   ],
                 ),
@@ -51,7 +51,7 @@ class AppBackdrop extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primaryPurple.withOpacity(0.12),
+                    AppColors.primaryPurple.withValues(alpha: 0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -148,7 +148,7 @@ class BrandAppBarTitle extends StatelessWidget {
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: AppColors.surfaceElevated.withOpacity(0.72),
+            color: AppColors.surfaceElevated.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
               color: AppColors.borderSoft,
@@ -212,14 +212,14 @@ class BrandNavIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: selected
-              ? AppColors.primaryBlue.withOpacity(0.72)
+              ? AppColors.primaryBlue.withValues(alpha: 0.72)
               : AppColors.borderSoft,
           width: selected ? 1.0 : 0.8,
         ),
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: AppColors.primaryBlue.withOpacity(0.18),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.18),
                   blurRadius: 14,
                   spreadRadius: -4,
                 ),
@@ -262,11 +262,11 @@ class BrandHero extends StatelessWidget {
         gradient: AppGradients.hero,
         borderRadius: BorderRadius.circular(AppRadius.extraLarge),
         border: Border.all(
-          color: AppColors.primaryBlue.withOpacity(0.30),
+          color: AppColors.primaryBlue.withValues(alpha: 0.30),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.11),
+            color: AppColors.primaryBlue.withValues(alpha: 0.11),
             blurRadius: 28,
             spreadRadius: -10,
             offset: const Offset(0, 14),
@@ -313,171 +313,3 @@ class BrandHero extends StatelessWidget {
 }
 
 
-class _BrandMarkPainter extends CustomPainter {
-  const _BrandMarkPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-
-    final shadowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.19
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = AppColors.primaryBlue.withOpacity(0.22)
-      ..maskFilter = MaskFilter.blur(
-        BlurStyle.normal,
-        size.width * 0.055,
-      );
-
-    final left = Path()
-      ..moveTo(size.width * 0.15, size.height * 0.73)
-      ..cubicTo(
-        size.width * 0.23,
-        size.height * 0.57,
-        size.width * 0.27,
-        size.height * 0.39,
-        size.width * 0.37,
-        size.height * 0.37,
-      )
-      ..cubicTo(
-        size.width * 0.44,
-        size.height * 0.36,
-        size.width * 0.49,
-        size.height * 0.48,
-        size.width * 0.56,
-        size.height * 0.62,
-      );
-
-    final rise = Path()
-      ..moveTo(size.width * 0.56, size.height * 0.62)
-      ..cubicTo(
-        size.width * 0.60,
-        size.height * 0.70,
-        size.width * 0.67,
-        size.height * 0.67,
-        size.width * 0.72,
-        size.height * 0.58,
-      )
-      ..lineTo(size.width * 0.86, size.height * 0.31);
-
-    canvas.drawPath(left, shadowPaint);
-    canvas.drawPath(rise, shadowPaint);
-
-    final leftPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.18
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [
-          Color(0xFF087EFF),
-          Color(0xFF12CFFC),
-          Color(0xFF355DFF),
-        ],
-        stops: [0.0, 0.58, 1.0],
-      ).createShader(rect);
-    canvas.drawPath(left, leftPaint);
-
-    final fold = Path()
-      ..moveTo(size.width * 0.40, size.height * 0.39)
-      ..cubicTo(
-        size.width * 0.46,
-        size.height * 0.44,
-        size.width * 0.50,
-        size.height * 0.55,
-        size.width * 0.56,
-        size.height * 0.63,
-      )
-      ..cubicTo(
-        size.width * 0.61,
-        size.height * 0.70,
-        size.width * 0.67,
-        size.height * 0.68,
-        size.width * 0.72,
-        size.height * 0.59,
-      );
-
-    final foldPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.18
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF315CFF),
-          Color(0xFF6D50FF),
-          Color(0xFFCE4DF2),
-        ],
-      ).createShader(rect);
-    canvas.drawPath(fold, foldPaint);
-
-    final risePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.18
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [
-          Color(0xFF824CFF),
-          Color(0xFF079BFF),
-          Color(0xFF22E6F4),
-        ],
-        stops: [0.0, 0.48, 1.0],
-      ).createShader(rect);
-    canvas.drawPath(rise, risePaint);
-
-    final arrow = Path()
-      ..moveTo(size.width * 0.72, size.height * 0.26)
-      ..lineTo(size.width * 0.92, size.height * 0.18)
-      ..quadraticBezierTo(
-        size.width * 0.95,
-        size.height * 0.17,
-        size.width * 0.94,
-        size.height * 0.21,
-      )
-      ..lineTo(size.width * 0.92, size.height * 0.41)
-      ..lineTo(size.width * 0.85, size.height * 0.33)
-      ..close();
-
-    final arrowPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = const LinearGradient(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-        colors: [
-          Color(0xFF079BFF),
-          Color(0xFF23E4F2),
-        ],
-      ).createShader(rect);
-    canvas.drawPath(arrow, arrowPaint);
-
-    final highlight = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.022
-      ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withOpacity(0.16);
-
-    final highlightPath = Path()
-      ..moveTo(size.width * 0.18, size.height * 0.67)
-      ..cubicTo(
-        size.width * 0.28,
-        size.height * 0.46,
-        size.width * 0.32,
-        size.height * 0.34,
-        size.width * 0.39,
-        size.height * 0.39,
-      );
-    canvas.drawPath(highlightPath, highlight);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
