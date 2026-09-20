@@ -25,7 +25,7 @@ class ClientErrorImprovedUpdate(BaseModel):
 
 @router.get("")
 async def list_client_errors():
-    return {"items": ClientErrorStore().list()}
+    return {"items": ClientErrorStore().list_items()}
 
 
 @router.post("")
