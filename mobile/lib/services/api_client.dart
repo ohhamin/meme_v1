@@ -154,6 +154,7 @@ class ApiClient {
     required String symbol,
     double feeBps = 5,
     double slippageBps = 5,
+    String model = 'current',
   }) async {
     final query = Uri(
       queryParameters: {
@@ -161,6 +162,7 @@ class ApiClient {
         'symbol': symbol,
         'fee_bps': feeBps.toString(),
         'slippage_bps': slippageBps.toString(),
+        'model': model,
       },
     ).query;
     return (await _request(
