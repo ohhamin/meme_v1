@@ -125,3 +125,25 @@ def test_stock_buy_rounds_down_to_whole_share():
     assert result.status == "ORDER"
     assert result.order_quantity == Decimal("1")
     assert result.order_notional == Decimal("70000")
+
+
+def test_buy_size_is_reduced_by_quant_volatility_scale():
+    sizer = PositionSizer()
+    decision = SymbolDecision(
+        market="crypto",
+        symbol="BTC",
+        action="BUY",
+        score=85,
+        reason="test",
+    )
+    value = instrument()
+    value.features = {"quant_risk_scale": 0.5}
+
+    result = sizer.size(
+        decision=decision,
+        instrument=value,
+        portfolio=portfolio(),
+    )
+
+    assert result.status == "ORDER"
+    assert result.order_notional == Decimal("30000.00000000")
