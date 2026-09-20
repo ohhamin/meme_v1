@@ -149,6 +149,27 @@ class ApiClient {
     return data['markdown']?.toString() ?? '';
   }
 
+  Future<Map<String, dynamic>> runQuantBacktest({
+    required String market,
+    required String symbol,
+    double feeBps = 5,
+    double slippageBps = 5,
+  }) async {
+    final query = Uri(
+      queryParameters: {
+        'market': market,
+        'symbol': symbol,
+        'fee_bps': feeBps.toString(),
+        'slippage_bps': slippageBps.toString(),
+      },
+    ).query;
+    return (await _request(
+      'POST',
+      '/algorithm/backtest?$query',
+      timeout: const Duration(seconds: 90),
+    )) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> reviewAlgorithmNow() async {
     return (await _request(
       'POST',
