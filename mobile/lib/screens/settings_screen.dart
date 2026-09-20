@@ -723,13 +723,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final budgetMode = llmBudget['mode']?.toString() ?? 'unknown';
     final runtimeMode = llmRuntime['mode']?.toString() ?? 'unknown';
-    final usedTokens = (llmBudget['used_tokens'] as num?)?.toInt() ?? 0;
-    final budgetTokens = (llmBudget['budget_tokens'] as num?)?.toInt() ?? 0;
-    final remainingTokens =
-        (llmBudget['remaining_tokens'] as num?)?.toInt() ?? 0;
 
-    final progress = budgetTokens > 0
-        ? (usedTokens / budgetTokens).clamp(0.0, 1.0).toDouble()
+    final dailyBudget =
+        (llmBudget['daily'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+    final monthlyBudget =
+        (llmBudget['monthly'] as Map?)?.cast<String, dynamic>() ??
+            <String, dynamic>{};
+
+    final dailyUsed = (dailyBudget['used_tokens'] as num?)?.toInt() ??
+        (llmBudget['used_tokens'] as num?)?.toInt() ??
+        0;
+    final dailyLimit = (dailyBudget['budget_tokens'] as num?)?.toInt() ??
+        (llmBudget['budget_tokens'] as num?)?.toInt() ??
+        0;
+    final dailyRemaining =
+        (dailyBudget['remaining_tokens'] as num?)?.toInt() ??
+            (llmBudget['remaining_tokens'] as num?)?.toInt() ??
+            0;
+
+    final monthlyUsed =
+        (monthlyBudget['used_tokens'] as num?)?.toInt() ?? dailyUsed;
+    final monthlyLimit =
+        (monthlyBudget['budget_tokens'] as num?)?.toInt() ?? 0;
+    final monthlyRemaining =
+        (monthlyBudget['remaining_tokens'] as num?)?.toInt() ??
+            (monthlyLimit > 0
+                ? (monthlyLimit - monthlyUsed).clamp(0, monthlyLimit)
+                : 0);
+
+    final dailyProgress = dailyLimit > 0
+        ? (dailyUsed / dailyLimit).clamp(0.0, 1.0).toDouble()
+        : null;
+    final monthlyProgress = monthlyLimit > 0
+        ? (monthlyUsed / monthlyLimit).clamp(0.0, 1.0).toDouble()
         : null;
 
     final number = NumberFormat('#,###');
@@ -1051,12 +1078,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 18),
-                if (progress != null) ...[
+                Text(
+                  '이번 달',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                if (monthlyProgress != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
                     child: LinearProgressIndicator(
                       minHeight: 8,
-                      value: progress,
+                      value: monthlyProgress,
+                      backgroundColor: AppColors.chip,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: _UsageMetric(
+                        label: '이번 달 사용량',
+                        value: number.format(monthlyUsed),
+                      ),
+                    ),
+                    Expanded(
+                      child: _UsageMetric(
+                        label: '남은 월간 토큰',
+                        value: monthlyLimit > 0
+                            ? number.format(monthlyRemaining)
+                            : '제한 없음',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  '오늘',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                if (dailyProgress != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      minHeight: 8,
+                      value: dailyProgress,
                       backgroundColor: AppColors.chip,
                       color: aiConserve
                           ? AppColors.warning
@@ -1071,20 +1139,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Expanded(
                       child: _UsageMetric(
-                        label: '오늘 사용',
-                        value: number.format(usedTokens),
+                        label: '오늘 사용량',
+                        value: number.format(dailyUsed),
                       ),
                     ),
                     Expanded(
                       child: _UsageMetric(
-                        label: '남은 내부 예산',
-                        value: budgetTokens > 0
-                            ? number.format(remainingTokens)
+                        label: '일일 제한 토큰량',
+                        value: dailyLimit > 0
+                            ? number.format(dailyLimit)
                             : '제한 없음',
                       ),
                     ),
                   ],
                 ),
+                if (dailyLimit > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '오늘 남은 내부 예산 ${number.format(dailyRemaining)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
                 if (runtimeMode == 'paused') ...[
                   const SizedBox(height: 18),
                   SizedBox(
