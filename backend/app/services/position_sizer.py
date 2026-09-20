@@ -59,7 +59,9 @@ class PositionSizer:
                     ),
                 )
 
-            target_pct = Decimal(str(self._buy_pct(decision.score)))
+            base_target_pct = Decimal(str(self._buy_pct(decision.score)))
+            risk_scale = self._risk_scale(instrument)
+            target_pct = base_target_pct * risk_scale
             notional = (
                 portfolio.equity * target_pct / Decimal("100")
             ).quantize(Decimal("1"), rounding=ROUND_DOWN)
@@ -99,7 +101,10 @@ class PositionSizer:
                 score=decision.score,
                 order_notional=notional,
                 order_quantity=quantity,
-                reason=f"BUY sized at {target_pct}% of current equity.",
+                reason=(
+                    f"BUY base {base_target_pct}% × volatility scale "
+                    f"{risk_scale} = {target_pct}% of current equity."
+                ),
             )
 
         # SELL
@@ -168,6 +173,17 @@ class PositionSizer:
                 "0-20": self.config.position_sell_pct_score_20,
             },
         }
+
+    @staticmethod
+    def _risk_scale(
+        instrument: MarketInstrumentSnapshot,
+    ) -> Decimal:
+        raw = instrument.features.get("quant_risk_scale", 1.0)
+        try:
+            scale = Decimal(str(raw))
+        except Exception:
+            scale = Decimal("1")
+        return max(Decimal("0.35"), min(scale, Decimal("1")))
 
     def _buy_pct(self, score: int) -> float:
         if score >= 90:
