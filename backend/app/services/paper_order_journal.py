@@ -33,6 +33,8 @@ class PaperOrderJournal:
         entry_score: Decimal | None = None,
         candidate_score: Decimal | None = None,
         realized_return_pct: Decimal | None = None,
+        decision_score: int | None = None,
+        decision_reason: str | None = None,
     ) -> Path:
         day = created_at.astimezone(self.tz).date().isoformat()
         path = self.base_dir / f"{day}.jsonl"
@@ -67,6 +69,8 @@ class PaperOrderJournal:
                 if realized_return_pct is not None
                 else None
             ),
+            "decision_score": decision_score,
+            "decision_reason": decision_reason,
         }
         with path.open("a", encoding="utf-8") as fp:
             fp.write(
