@@ -42,6 +42,30 @@ class LatestDecisionService:
             items=items,
         )
 
+    def latest_by_symbol(
+        self,
+        mode: str | None = None,
+        *,
+        limit_days: int = 7,
+    ) -> dict[str, LatestDecisionItem]:
+        target = mode.upper() if mode else None
+        result: dict[str, LatestDecisionItem] = {}
+
+        for day in self.store.available_dates(limit=limit_days):
+            markdown = self.store.read(day)
+            cycles = self._cycles(markdown)
+            for cycle in reversed(cycles):
+                if (
+                    target is not None
+                    and cycle["execution_mode"] != target
+                ):
+                    continue
+                for item in cycle["items"]:
+                    if item.symbol not in result:
+                        result[item.symbol] = item
+
+        return result
+
     def filter_markdown(self, markdown: str, mode: str) -> str:
         target = mode.upper()
         chunks: list[list[str]] = []
