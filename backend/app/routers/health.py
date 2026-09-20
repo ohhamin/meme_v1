@@ -5,6 +5,7 @@ from backend.app.core.security import require_api_token
 from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
+from backend.app.services.openai_usage_sync import OpenAIUsageSyncService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.upbit_universe import UpbitUniverseService
 from backend.app.services.toss_universe import TossUniverseService
@@ -43,6 +44,7 @@ async def status():
         "data_retention_days": config.data_retention_days,
         "llm_budget": LLMBudgetService().status(),
         "llm_runtime": LLMRuntimeStateService().status(),
+        "openai_usage": OpenAIUsageSyncService().status(),
         "risk_policy": RiskGuard().policy(),
         "live_orders": {
             "enablement": LiveOrderService().enablement(),
