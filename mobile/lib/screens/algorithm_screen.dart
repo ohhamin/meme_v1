@@ -642,7 +642,7 @@ class _BacktestCard extends StatelessWidget {
                   _ValidationMetric(
                     label: '최대낙폭',
                     value: _pct(
-                      result!['max_closed_trade_drawdown_pct'],
+                      result!['max_drawdown_pct'],
                     ),
                   ),
                   _ValidationMetric(
