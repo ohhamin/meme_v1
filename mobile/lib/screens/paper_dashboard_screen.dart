@@ -113,11 +113,7 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
         orders: orders,
         money: _money,
         onOrderTap: (order) {
-          Navigator.of(sheetContext).pop();
-          Future<void>.delayed(
-            Duration.zero,
-            () => _showOrderDecision(context, order),
-          );
+          _showOrderDecision(sheetContext, order);
         },
       ),
     );
@@ -453,10 +449,9 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 if (recentOrders.length > 5)
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
+                    child: OutlinedButton(
                       onPressed: () => _showOrdersSheet(context, recentOrders),
-                      icon: const Icon(Icons.keyboard_arrow_up_rounded),
-                      label: const Text('최근 체결 더보기'),
+                      child: const Text('최근 체결 더보기'),
                     ),
                   ),
               ],
