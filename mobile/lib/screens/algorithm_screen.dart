@@ -283,7 +283,7 @@ class _CurrentAlgorithm extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
-                      '현재 적용 중 · Quant v0.3',
+                      '현재 적용 중 · Quant v0.4',
                       style: TextStyle(
                         color: AppColors.positive,
                         fontSize: 12,
@@ -313,8 +313,8 @@ class _CurrentAlgorithm extends StatelessWidget {
                       Expanded(
                         child: _AlgorithmMiniCard(
                           title: '주식',
-                          value: '60일 + 20일',
-                          description: '중기 추세 중심',
+                          value: '상승일 비율 + 추세',
+                          description: '한국시장 반전 위험 보정',
                         ),
                       ),
                       const SizedBox(width: 10),
