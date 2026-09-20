@@ -239,6 +239,7 @@ class PaperBroker:
         quantity: Decimal,
         market_price: Decimal,
         decision_score: int | None = None,
+        decision_reason: str | None = None,
         source: str = "auto",
         market_open: bool = True,
     ) -> PaperOrderExecution:
@@ -467,6 +468,8 @@ class PaperBroker:
             entry_score=entry_score,
             candidate_score=candidate_score,
             realized_return_pct=realized_return_pct,
+            decision_score=decision_score,
+            decision_reason=decision_reason,
         )
 
         self.audit.write(
