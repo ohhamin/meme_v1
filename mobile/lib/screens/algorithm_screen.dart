@@ -159,7 +159,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           Container(
@@ -195,6 +195,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
               ),
               tabs: const [
                 Tab(text: '현재'),
+                Tab(text: '검증'),
                 Tab(text: '제안'),
               ],
             ),
@@ -203,6 +204,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
             child: TabBarView(
               children: [
                 _CurrentAlgorithm(future: _current),
+                const _QuantValidationTab(),
                 Column(
                   children: [
                     Padding(
@@ -420,6 +422,271 @@ class _AlgorithmMiniCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+class _QuantValidationTab extends StatefulWidget {
+  const _QuantValidationTab();
+
+  @override
+  State<_QuantValidationTab> createState() => _QuantValidationTabState();
+}
+
+
+class _QuantValidationTabState extends State<_QuantValidationTab> {
+  final _stockController = TextEditingController(text: '005930');
+  final _cryptoController = TextEditingController(text: 'KRW-BTC');
+
+  Map<String, dynamic>? _stockResult;
+  Map<String, dynamic>? _cryptoResult;
+  bool _stockLoading = false;
+  bool _cryptoLoading = false;
+
+  @override
+  void dispose() {
+    _stockController.dispose();
+    _cryptoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(String market) async {
+    final isStock = market == 'stock';
+    final controller = isStock ? _stockController : _cryptoController;
+    final symbol = controller.text.trim().toUpperCase();
+    if (symbol.isEmpty) return;
+
+    setState(() {
+      if (isStock) {
+        _stockLoading = true;
+      } else {
+        _cryptoLoading = true;
+      }
+    });
+
+    try {
+      final result = await ApiClient.instance.runQuantBacktest(
+        market: market,
+        symbol: symbol,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (isStock) {
+          _stockResult = result;
+        } else {
+          _cryptoResult = result;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (isStock) {
+            _stockLoading = false;
+          } else {
+            _cryptoLoading = false;
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      children: [
+        AppSurface(
+          emphasized: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '과거 데이터로 수학 신호 점검',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '미래 데이터를 미리 보지 않도록 오늘 종가로 신호를 만들고 '
+                '다음 거래일 시가에 체결한 것으로 계산해요. '
+                '편도 수수료 0.05%와 슬리피지 0.05%를 기본 가정해요.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '이 결과는 한 종목의 정량 방향 신호만 확인하는 도구예요. '
+                'AI 보류 판단, 여러 종목 동시 운용, 실제 체결 지연은 포함하지 않아요.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _BacktestCard(
+          title: '주식 정량 신호',
+          hint: '6자리 종목코드',
+          controller: _stockController,
+          loading: _stockLoading,
+          result: _stockResult,
+          onRun: () => _run('stock'),
+        ),
+        const SizedBox(height: 14),
+        _BacktestCard(
+          title: '코인 정량 신호',
+          hint: '예: KRW-BTC',
+          controller: _cryptoController,
+          loading: _cryptoLoading,
+          result: _cryptoResult,
+          onRun: () => _run('crypto'),
+        ),
+      ],
+    );
+  }
+}
+
+
+class _BacktestCard extends StatelessWidget {
+  const _BacktestCard({
+    required this.title,
+    required this.hint,
+    required this.controller,
+    required this.loading,
+    required this.result,
+    required this.onRun,
+  });
+
+  final String title;
+  final String hint;
+  final TextEditingController controller;
+  final bool loading;
+  final Map<String, dynamic>? result;
+  final VoidCallback onRun;
+
+  String _pct(Object? value) {
+    final number = num.tryParse(value?.toString() ?? '');
+    return number == null ? '-' : '${number.toStringAsFixed(2)}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: hint,
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: loading ? null : onRun,
+              icon: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.science_outlined),
+              label: Text(loading ? '검증 중...' : '최근 200일 백테스트'),
+            ),
+          ),
+          if (result != null) ...[
+            const SizedBox(height: 14),
+            const Divider(),
+            const SizedBox(height: 8),
+            if (result!['status'] != 'completed')
+              Text(
+                '데이터가 충분하지 않아요. '
+                '현재 ${result!['samples'] ?? 0}개 / '
+                '필요 ${result!['required_samples'] ?? '-'}개',
+              )
+            else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _ValidationMetric(
+                    label: '거래',
+                    value: '${result!['trade_count'] ?? 0}회',
+                  ),
+                  _ValidationMetric(
+                    label: '승률',
+                    value: _pct(result!['win_rate_pct']),
+                  ),
+                  _ValidationMetric(
+                    label: '복리수익',
+                    value: _pct(
+                      result!['median_like_compound_return_pct'],
+                    ),
+                  ),
+                  _ValidationMetric(
+                    label: 'Buy & Hold',
+                    value: _pct(result!['buy_hold_return_pct']),
+                  ),
+                  _ValidationMetric(
+                    label: '최대낙폭',
+                    value: _pct(
+                      result!['max_closed_trade_drawdown_pct'],
+                    ),
+                  ),
+                  _ValidationMetric(
+                    label: '평균보유',
+                    value: '${result!['average_holding_days'] ?? '-'}일',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                result!['note']?.toString() ?? '',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+
+class _ValidationMetric extends StatelessWidget {
+  const _ValidationMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.chip,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '$label $value',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
