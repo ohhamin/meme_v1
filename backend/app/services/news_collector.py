@@ -18,7 +18,7 @@ from backend.app.services.rolling_context import RollingContextService
 
 
 class NewsCollector:
-    """6시간 간격 경제/시장 뉴스 수집.
+    """매일 오전 9시 / 오후 9시 경제·시장 뉴스 수집.
 
     OpenAI Responses API의 web_search tool로 최신 뉴스를 확인하고
     날짜별 Markdown에 append 한다.
@@ -172,7 +172,7 @@ class NewsCollector:
         already_seen = previous.strip() or "(없음)"
         return f"""현재 시각: {now.isoformat()}
 
-최근 약 8시간 동안 한국 주식과 글로벌 금융시장, 암호화폐에 영향을 줄 수 있는
+최근 약 12시간 동안 한국 주식과 글로벌 금융시장, 암호화폐에 영향을 줄 수 있는
 주요 경제/시장 뉴스를 웹 검색으로 확인해 주세요.
 
 우선순위:
@@ -210,18 +210,21 @@ class NewsCollector:
         path = self.base_dir / f"{now.date().isoformat()}.md"
         is_new = not path.exists()
 
+        period = "오전" if now.hour < 12 else "오후"
+        title = f"{now.date().isoformat()} 뉴스 {period}"
+
         lines: list[str] = []
         if is_new:
             lines.extend(
                 [
-                    f"# {now.date().isoformat()} News",
+                    f"# {now.date().isoformat()} 뉴스",
                     "",
                 ]
             )
 
         lines.extend(
             [
-                f"## {now.strftime('%H:%M')} Collection",
+                f"## {title}",
                 "",
                 markdown,
                 "",
