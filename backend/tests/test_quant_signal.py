@@ -7,6 +7,8 @@ def test_stock_positive_medium_momentum_can_create_buy_prior():
         "return_short_pct": 4.0,
         "return_medium_pct": 12.0,
         "return_long_pct": 28.0,
+        "positive_day_ratio_medium": 65.0,
+        "positive_day_ratio_long": 63.0,
         "sma_short_gap_pct": 3.0,
         "sma_long_gap_pct": 8.0,
         "realized_volatility_pct": 1.6,
