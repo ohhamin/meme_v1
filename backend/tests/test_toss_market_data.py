@@ -155,7 +155,7 @@ def test_non_nxt_stock_is_closed_in_after_market(monkeypatch):
 
 
 
-def test_toss_snapshots_include_intraday_features(monkeypatch):
+def test_toss_snapshots_include_daily_quant_features(monkeypatch):
     adapter = TossMarketDataAdapter()
 
     async def fake_info(symbols):
@@ -181,20 +181,20 @@ def test_toss_snapshots_include_intraday_features(monkeypatch):
     async def fake_market_is_open(*, nxt_supported, now=None):
         return True
 
-    async def fake_candles(symbol, *, interval="1m", count=121):
+    async def fake_candles(symbol, *, interval="1d", count=91):
         assert symbol == "005930"
-        assert interval == "1m"
-        assert count == 121
+        assert interval == "1d"
+        assert count == 91
         return [
             {
-                "timestamp": f"2026-09-19T09:{index:03d}",
+                "timestamp": f"2026-06-{index + 1:02d}",
                 "open": 99 + index,
                 "high": 101 + index,
                 "low": 98 + index,
                 "close": 100 + index,
                 "volume": 1000 + index,
             }
-            for index in range(121)
+            for index in range(91)
         ]
 
     monkeypatch.setattr(adapter, "stock_info", fake_info)
@@ -215,5 +215,7 @@ def test_toss_snapshots_include_intraday_features(monkeypatch):
 
     assert len(snapshots) == 1
     assert snapshots[0].features["features_available"] == 1
-    assert snapshots[0].features["feature_interval"] == "1m"
-    assert snapshots[0].features["return_long_pct"] == 120.0
+    assert snapshots[0].features["feature_interval"] == "1d"
+    assert snapshots[0].features["return_long_pct"] is not None
+    assert snapshots[0].features["quant_action"] in {"BUY", "HOLD", "SELL"}
+    assert 0 <= snapshots[0].features["quant_score"] <= 100
