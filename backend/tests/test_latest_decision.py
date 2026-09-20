@@ -55,3 +55,49 @@ def test_latest_decision_returns_last_cycle_only():
     assert [item.symbol for item in latest["items"]] == ["005930", "KRW-BTC"]
     assert latest["items"][0].action == "BUY"
     assert latest["items"][0].order_notional == "70000"
+
+
+def test_latest_by_symbol_keeps_each_symbols_newest_decision():
+    markdown = """# 2026-09-20 Decisions
+
+## 22:00 Decision Cycle
+
+- Execution Mode: PAPER
+
+### 이더리움 (KRW-ETH)
+- Market: crypto
+- Action: HOLD
+- Score: 64
+- Reason: earlier
+- Risk Guard: NO_ORDER
+
+### 에테나 (KRW-ENA)
+- Market: crypto
+- Action: BUY
+- Score: 70
+- Reason: buy
+- Risk Guard: PASS
+
+## 23:00 Decision Cycle
+
+- Execution Mode: PAPER
+
+### 이더리움 (KRW-ETH)
+- Market: crypto
+- Action: SELL
+- Score: 37
+- Reason: latest
+- Risk Guard: BLOCK
+- Block Reason: Automatic symbol cooldown is active (900s remaining).
+"""
+
+    service = LatestDecisionService()
+    service.store.available_dates = lambda limit=7: ["2026-09-20"]
+    service.store.read = lambda day: markdown
+
+    result = service.latest_by_symbol(mode="paper")
+
+    assert result["KRW-ETH"].score == 37
+    assert result["KRW-ETH"].action == "SELL"
+    assert result["KRW-ENA"].score == 70
+    assert result["KRW-ENA"].action == "BUY"
