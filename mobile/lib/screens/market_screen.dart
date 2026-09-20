@@ -695,8 +695,8 @@ class _MarketScreenState extends State<MarketScreen> {
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    '유동성 45% · 20일 추세 20% · 5일 추세 10% · '
-                    '거래활성도 15% · 변동성 안정성 10%',
+                    '유동성 35% · 60일 추세 30% · 20일 추세 20% · '
+                    '변동성 안정성 10% · 거래활성도 5%',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -720,6 +720,10 @@ class _MarketScreenState extends State<MarketScreen> {
                           0;
                       final return20 = num.tryParse(
                             item['return_20d_pct']?.toString() ?? '0',
+                          ) ??
+                          0;
+                      final return60 = num.tryParse(
+                            item['return_60d_pct']?.toString() ?? '0',
                           ) ??
                           0;
                       final volatility = num.tryParse(
@@ -798,12 +802,12 @@ class _MarketScreenState extends State<MarketScreen> {
                                   value: item['liquidity_score'],
                                 ),
                                 _SelectorMetric(
-                                  label: '20일추세',
-                                  value: item['momentum_20d_score'],
+                                  label: '60일추세',
+                                  value: item['momentum_60d_score'],
                                 ),
                                 _SelectorMetric(
-                                  label: '5일추세',
-                                  value: item['momentum_5d_score'],
+                                  label: '20일추세',
+                                  value: item['momentum_20d_score'],
                                 ),
                                 _SelectorMetric(
                                   label: '거래활성',
@@ -820,6 +824,7 @@ class _MarketScreenState extends State<MarketScreen> {
                               '20일 평균 거래대금 ${money.format(turnover)}원'
                               ' · 5일 ${return5 >= 0 ? '+' : ''}${return5.toStringAsFixed(1)}%'
                               ' · 20일 ${return20 >= 0 ? '+' : ''}${return20.toStringAsFixed(1)}%'
+                              ' · 60일 ${return60 >= 0 ? '+' : ''}${return60.toStringAsFixed(1)}%'
                               ' · 변동성 ${volatility.toStringAsFixed(1)}%',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
@@ -1516,8 +1521,8 @@ class _StockUniverseRankCard extends StatelessWidget {
             runSpacing: 5,
             children: [
               _UniverseMetric(label: '유동성', value: _number('liquidity_score')),
+              _UniverseMetric(label: '60일추세', value: _number('momentum_60d_score')),
               _UniverseMetric(label: '20일추세', value: _number('momentum_20d_score')),
-              _UniverseMetric(label: '5일추세', value: _number('momentum_5d_score')),
               _UniverseMetric(label: '거래활성', value: _number('activity_score')),
               _UniverseMetric(label: '안정성', value: _number('stability_score')),
             ],
