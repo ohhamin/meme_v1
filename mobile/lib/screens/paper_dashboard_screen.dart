@@ -54,6 +54,90 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
     return '$prefix${_money.format(number)}원';
   }
 
+
+  void _showOrderDecision(
+    BuildContext context,
+    Map<String, dynamic> order,
+  ) {
+    final side = order['side']?.toString().toUpperCase() ?? '-';
+    final symbol = order['symbol']?.toString() ?? '-';
+    final score = order['decision_score'] ?? order['entry_score'];
+    final reason = order['decision_reason']?.toString().trim() ?? '';
+    final createdAt = DateTime.tryParse(order['created_at']?.toString() ?? '');
+    final time = createdAt == null
+        ? '-'
+        : DateFormat('yyyy.MM.dd HH:mm').format(createdAt.toLocal());
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('$symbol · $side'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(time, style: Theme.of(dialogContext).textTheme.bodySmall),
+            const SizedBox(height: 14),
+            Text(
+              '판단점수 ${score ?? '-'}',
+              style: Theme.of(dialogContext).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              reason.isEmpty
+                  ? '이 체결에는 저장된 판단 근거가 없어요. 앞으로 자동 체결은 당시 판단 근거를 함께 저장해요.'
+                  : reason,
+              style: Theme.of(dialogContext).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOrdersSheet(
+    BuildContext context,
+    List<Map<String, dynamic>> orders,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      builder: (_) => _OrderHistorySheet(
+        orders: orders,
+        money: _money,
+        onOrderTap: (order) {
+          Navigator.of(context).pop();
+          Future<void>.delayed(
+            Duration.zero,
+            () => _showOrderDecision(context, order),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showPositionsSheet(
+    BuildContext context,
+    List<Map<String, dynamic>> positions,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      builder: (_) => _PositionHistorySheet(
+        positions: positions,
+        money: _money,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
@@ -355,13 +439,27 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     ),
                   ),
                 )
-              else
+              else ...[
                 ...recentOrders.take(5).map(
                   (order) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _OrderCard(data: order, money: _money),
+                    child: _OrderCard(
+                      data: order,
+                      money: _money,
+                      onTap: () => _showOrderDecision(context, order),
+                    ),
                   ),
                 ),
+                if (recentOrders.length > 5)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showOrdersSheet(context, recentOrders),
+                      icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                      label: const Text('최근 체결 더보기'),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 24),
               SectionTitle(
                 '보유 종목',
@@ -381,8 +479,8 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     ),
                   ),
                 )
-              else
-                ...positions.map(
+              else ...[
+                ...positions.take(5).map(
                   (position) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _PositionCard(
@@ -391,6 +489,16 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     ),
                   ),
                 ),
+                if (positions.length > 5)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showPositionsSheet(context, positions),
+                      icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                      label: const Text('보유 종목 더보기'),
+                    ),
+                  ),
+              ],
             ],
           ),
         );
@@ -577,14 +685,17 @@ class _PositionCard extends StatelessWidget {
 
 
 
+
 class _OrderCard extends StatelessWidget {
   const _OrderCard({
     required this.data,
     required this.money,
+    this.onTap,
   });
 
   final Map<String, dynamic> data;
   final NumberFormat money;
+  final VoidCallback? onTap;
 
   num _number(dynamic value) =>
       num.tryParse(value?.toString() ?? '0') ?? 0;
@@ -600,46 +711,213 @@ class _OrderCard extends StatelessWidget {
     final sideColor =
         side == 'BUY' ? AppColors.primary : AppColors.negative;
 
-    return AppSurface(
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$symbol · $side',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: sideColor,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$market · ${money.format(notional)}원',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          if (realized != null)
-            Text(
-              '${realized > 0 ? '+' : ''}${money.format(realized)}원',
-              style: TextStyle(
-                color: realized > 0
-                    ? AppColors.positive
-                    : realized < 0
-                        ? AppColors.negative
-                        : AppColors.textSecondary,
-                fontWeight: FontWeight.w800,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AppSurface(
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$symbol · $side',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: sideColor,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$market · ${money.format(notional)}원',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
             ),
-        ],
+            if (realized != null)
+              Text(
+                '${realized > 0 ? '+' : ''}${money.format(realized)}원',
+                style: TextStyle(
+                  color: realized > 0
+                      ? AppColors.positive
+                      : realized < 0
+                          ? AppColors.negative
+                          : AppColors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
+
+class _OrderHistorySheet extends StatelessWidget {
+  const _OrderHistorySheet({
+    required this.orders,
+    required this.money,
+    required this.onOrderTap,
+  });
+
+  final List<Map<String, dynamic>> orders;
+  final NumberFormat money;
+  final ValueChanged<Map<String, dynamic>> onOrderTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <Object>[];
+    String? lastDay;
+    for (final order in orders) {
+      final parsed = DateTime.tryParse(order['created_at']?.toString() ?? '');
+      final day = parsed == null
+          ? '날짜 미상'
+          : DateFormat('yyyy.MM.dd').format(parsed.toLocal());
+      if (day != lastDay) {
+        entries.add(day);
+        lastDay = day;
+      }
+      entries.add(order);
+    }
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.82,
+      minChildSize: 0.45,
+      maxChildSize: 0.95,
+      builder: (context, controller) => SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '최근 체결',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  Text(
+                    '${orders.length}건',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final item = entries[index];
+                  if (item is String) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(2, 14, 2, 9),
+                      child: Text(
+                        item,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    );
+                  }
+                  final order = item as Map<String, dynamic>;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _OrderCard(
+                      data: order,
+                      money: money,
+                      onTap: () => onOrderTap(order),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _PositionHistorySheet extends StatelessWidget {
+  const _PositionHistorySheet({
+    required this.positions,
+    required this.money,
+  });
+
+  final List<Map<String, dynamic>> positions;
+  final NumberFormat money;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.82,
+      minChildSize: 0.45,
+      maxChildSize: 0.95,
+      builder: (context, controller) => SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '보유 종목',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  Text(
+                    '${positions.length}개',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+                itemCount: positions.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) => _PositionCard(
+                  data: positions[index],
+                  money: money,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 
 class _CandidatePerformanceCard extends StatelessWidget {
