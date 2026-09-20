@@ -122,6 +122,7 @@ class _DecisionScreenState extends State<DecisionScreen> {
 }
 
 
+
 class _DecisionCycleCard extends StatelessWidget {
   const _DecisionCycleCard({
     required this.time,
@@ -135,14 +136,31 @@ class _DecisionCycleCard extends StatelessWidget {
   final String summary;
   final int cycleNumber;
 
+  int _rank(String action) {
+    switch (action.toUpperCase()) {
+      case 'BUY':
+        return 0;
+      case 'SELL':
+        return 1;
+      default:
+        return 2;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int count(String action) => cards
         .where((item) => item.action.toUpperCase() == action)
         .length;
+    final ordered = [...cards]
+      ..sort((a, b) {
+        final byAction = _rank(a.action).compareTo(_rank(b.action));
+        if (byAction != 0) return byAction;
+        return a.symbol.compareTo(b.symbol);
+      });
 
     return AppSurface(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -151,7 +169,7 @@ class _DecisionCycleCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '판단 #$cycleNumber',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               Text(
@@ -160,31 +178,24 @@ class _DecisionCycleCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _Metric(label: 'BUY', value: count('BUY').toString())),
-              Expanded(child: _Metric(label: 'HOLD', value: count('HOLD').toString())),
-              Expanded(child: _Metric(label: 'SELL', value: count('SELL').toString())),
-            ],
+          const SizedBox(height: 8),
+          Text(
+            'BUY ${count('BUY')} · SELL ${count('SELL')} · HOLD ${count('HOLD')}',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           if (summary.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 10),
-            Text('사이클 요약', style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 5),
-            Text(summary, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            Text(
+              summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
-          const SizedBox(height: 14),
-          Text(
-            '이 판단에서 선택한 종목 ${cards.length}개',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
           const SizedBox(height: 10),
-          for (var i = 0; i < cards.length; i++) ...[
-            _DecisionCard(data: cards[i]),
-            if (i != cards.length - 1) const SizedBox(height: 10),
+          for (var i = 0; i < ordered.length; i++) ...[
+            _DecisionCard(data: ordered[i]),
+            if (i != ordered.length - 1) const SizedBox(height: 7),
           ],
         ],
       ),
@@ -232,8 +243,8 @@ class _LatestCycleSummary extends StatelessWidget {
           Row(
             children: [
               Expanded(child: _Metric(label: 'BUY', value: count('BUY').toString())),
-              Expanded(child: _Metric(label: 'HOLD', value: count('HOLD').toString())),
               Expanded(child: _Metric(label: 'SELL', value: count('SELL').toString())),
+              Expanded(child: _Metric(label: 'HOLD', value: count('HOLD').toString())),
             ],
           ),
           if (summary.isNotEmpty) ...[
@@ -434,10 +445,21 @@ class _DecisionParser {
 }
 
 
-class _DecisionCard extends StatelessWidget {
+
+class _DecisionCard extends StatefulWidget {
   const _DecisionCard({required this.data});
 
   final _DecisionCardData data;
+
+  @override
+  State<_DecisionCard> createState() => _DecisionCardState();
+}
+
+
+class _DecisionCardState extends State<_DecisionCard> {
+  bool _expanded = false;
+
+  _DecisionCardData get data => widget.data;
 
   Color get _actionColor {
     switch (data.action.toUpperCase()) {
@@ -468,153 +490,139 @@ class _DecisionCard extends StatelessWidget {
     final pending = risk.contains('PENDING');
     final noOrder = risk.contains('NO_ORDER');
 
-    return AppSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data.symbol,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      data.time.isEmpty ? '판단 사이클' : data.time,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _actionBackground,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  data.action.isEmpty ? 'HOLD' : data.action,
-                  style: TextStyle(
-                    color: _actionColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: AppSurface(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data.symbol,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              _Metric(
-                label: '판단점수',
-                value: data.score.isEmpty ? '-' : data.score,
-              ),
-              const SizedBox(width: 28),
-              _Metric(
-                label: 'Risk Guard',
-                value: blocked
-                    ? '차단'
-                    : pending
-                        ? '대기'
-                        : noOrder
-                            ? '주문없음'
-                            : '통과',
-                valueColor: blocked
-                    ? AppColors.negative
-                    : pending
-                        ? AppColors.warning
-                        : noOrder
-                            ? AppColors.textSecondary
-                            : AppColors.positive,
-              ),
-            ],
-          ),
-          if (data.reason.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            const Divider(),
-            const SizedBox(height: 14),
-            Text(
-              '판단 근거',
-              style: Theme.of(context).textTheme.bodySmall,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _actionBackground,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    data.action.isEmpty ? 'HOLD' : data.action,
+                    style: TextStyle(
+                      color: _actionColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              data.reason,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-          if (data.orderSide?.isNotEmpty == true) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primarySoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
+            if (_expanded) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  const Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: AppColors.primary,
-                    size: 19,
+                  _Metric(
+                    label: '판단점수',
+                    value: data.score.isEmpty ? '-' : data.score,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      (data.executionMode == 'LIVE'
-                              ? 'Live 주문 · '
-                              : 'Paper 주문 · ') +
-                          (data.orderSide ?? '') +
-                          ' · ' +
-                          (data.orderQuantity ?? '-') +
-                          ' · ' +
-                          (data.orderNotional ?? '-') +
-                          '원',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  const SizedBox(width: 28),
+                  _Metric(
+                    label: 'Risk Guard',
+                    value: blocked
+                        ? '차단'
+                        : pending
+                            ? '대기'
+                            : noOrder
+                                ? '주문없음'
+                                : '통과',
+                    valueColor: blocked
+                        ? AppColors.negative
+                        : pending
+                            ? AppColors.warning
+                            : noOrder
+                                ? AppColors.textSecondary
+                                : AppColors.positive,
                   ),
                 ],
               ),
-            ),
-          ],
-          if (data.blockReason?.isNotEmpty == true) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.negativeSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                '차단 사유 · ${data.blockReason}',
-                style: const TextStyle(
-                  color: AppColors.negative,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+              if (data.reason.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  '판단 근거',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-              ),
-            ),
+                const SizedBox(height: 5),
+                Text(
+                  data.reason,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+              if (data.orderSide?.isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    (data.executionMode == 'LIVE'
+                            ? 'Live 주문 · '
+                            : 'Paper 주문 · ') +
+                        (data.orderSide ?? '') +
+                        ' · ' +
+                        (data.orderQuantity ?? '-') +
+                        ' · ' +
+                        (data.orderNotional ?? '-') +
+                        '원',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              if (data.blockReason?.isNotEmpty == true) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: AppColors.negativeSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '차단 사유 · ${data.blockReason}',
+                    style: const TextStyle(
+                      color: AppColors.negative,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ],
-          if (data.nextCheck?.isNotEmpty == true) ...[
-            const SizedBox(height: 12),
-            Text(
-              '다음 판단 ${data.nextCheck}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
