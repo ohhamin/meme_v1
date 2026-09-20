@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,12 +10,48 @@ import 'screens/market_screen.dart';
 import 'screens/paper_dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/push_registration.dart';
+import 'services/api_client.dart';
 import 'theme/app_theme.dart';
 import 'widgets/brand_logo.dart';
 
 
+Future<void> _reportFlutterError(
+  Object error,
+  StackTrace stack, {
+  String library = 'flutter',
+  String context = '',
+}) async {
+  try {
+    await ApiClient.instance.reportClientError(
+      message: error.toString(),
+      stack: stack.toString(),
+      library: library,
+      context: context,
+    );
+  } catch (_) {
+    // Error reporting must never create another user-visible failure.
+  }
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    unawaited(
+      _reportFlutterError(
+        details.exception,
+        details.stack ?? StackTrace.current,
+        library: details.library ?? 'flutter',
+        context: details.context?.toDescription() ?? '',
+      ),
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    unawaited(_reportFlutterError(error, stack, library: 'platform'));
+    return true;
+  };
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
