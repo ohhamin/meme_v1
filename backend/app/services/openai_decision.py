@@ -16,6 +16,7 @@ from backend.app.services.audit import AuditLogger
 from backend.app.services.context_compactor import CompactDecisionContext
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
+from backend.app.services.openai_usage_sync import OpenAIUsageSyncService
 
 
 class LLMUnavailableError(RuntimeError):
@@ -84,6 +85,7 @@ class LLMDecisionClient:
         self.config = get_settings()
         self.budget = LLMBudgetService()
         self.runtime = LLMRuntimeStateService()
+        self.openai_usage = OpenAIUsageSyncService()
         self.audit = AuditLogger()
         self.client = (
             AsyncOpenAI(
@@ -165,6 +167,7 @@ class LLMDecisionClient:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
             )
+            await self.openai_usage.refresh()
 
         raw = response.output_text.strip()
         if not raw:
