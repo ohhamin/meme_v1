@@ -441,7 +441,9 @@ class _QuantValidationTabState extends State<_QuantValidationTab> {
   final _cryptoController = TextEditingController(text: 'KRW-BTC');
 
   Map<String, dynamic>? _stockResult;
+  Map<String, dynamic>? _stockMathResult;
   Map<String, dynamic>? _cryptoResult;
+  Map<String, dynamic>? _cryptoMathResult;
   bool _stockLoading = false;
   bool _cryptoLoading = false;
 
@@ -467,16 +469,26 @@ class _QuantValidationTabState extends State<_QuantValidationTab> {
     });
 
     try {
-      final result = await ApiClient.instance.runQuantBacktest(
-        market: market,
-        symbol: symbol,
-      );
+      final results = await Future.wait([
+        ApiClient.instance.runQuantBacktest(
+          market: market,
+          symbol: symbol,
+          model: 'current',
+        ),
+        ApiClient.instance.runQuantBacktest(
+          market: market,
+          symbol: symbol,
+          model: 'pure_math',
+        ),
+      ]);
       if (!mounted) return;
       setState(() {
         if (isStock) {
-          _stockResult = result;
+          _stockResult = results[0];
+          _stockMathResult = results[1];
         } else {
-          _cryptoResult = result;
+          _cryptoResult = results[0];
+          _cryptoMathResult = results[1];
         }
       });
     } catch (e) {
@@ -537,6 +549,7 @@ class _QuantValidationTabState extends State<_QuantValidationTab> {
           controller: _stockController,
           loading: _stockLoading,
           result: _stockResult,
+          mathResult: _stockMathResult,
           onRun: () => _run('stock'),
         ),
         const SizedBox(height: 14),
@@ -546,6 +559,7 @@ class _QuantValidationTabState extends State<_QuantValidationTab> {
           controller: _cryptoController,
           loading: _cryptoLoading,
           result: _cryptoResult,
+          mathResult: _cryptoMathResult,
           onRun: () => _run('crypto'),
         ),
       ],
@@ -561,6 +575,7 @@ class _BacktestCard extends StatelessWidget {
     required this.controller,
     required this.loading,
     required this.result,
+    required this.mathResult,
     required this.onRun,
   });
 
@@ -569,6 +584,7 @@ class _BacktestCard extends StatelessWidget {
   final TextEditingController controller;
   final bool loading;
   final Map<String, dynamic>? result;
+  final Map<String, dynamic>? mathResult;
   final VoidCallback onRun;
 
   String _pct(Object? value) {
@@ -607,60 +623,115 @@ class _BacktestCard extends StatelessWidget {
               label: Text(loading ? '검증 중...' : '최근 200일 백테스트'),
             ),
           ),
-          if (result != null) ...[
+          if (result != null || mathResult != null) ...[
             const SizedBox(height: 14),
             const Divider(),
             const SizedBox(height: 8),
-            if (result!['status'] != 'completed')
-              Text(
-                '데이터가 충분하지 않아요. '
-                '현재 ${result!['samples'] ?? 0}개 / '
-                '필요 ${result!['required_samples'] ?? '-'}개',
-              )
-            else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _ValidationMetric(
-                    label: '거래',
-                    value: '${result!['trade_count'] ?? 0}회',
+            Text(
+              '두 모델 비교',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '현재 모델은 논문 근거를 반영한 규칙형 Quant이고, '
+              '순수수학 후보는 가중치를 학습하지 않고 z-score와 '
+              '90% 신뢰기준만 사용해요.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                  _ValidationMetric(
-                    label: '승률',
-                    value: _pct(result!['win_rate_pct']),
-                  ),
-                  _ValidationMetric(
-                    label: '복리수익',
-                    value: _pct(
-                      result!['compound_return_pct'],
-                    ),
-                  ),
-                  _ValidationMetric(
-                    label: 'Buy & Hold',
-                    value: _pct(result!['buy_hold_return_pct']),
-                  ),
-                  _ValidationMetric(
-                    label: '최대낙폭',
-                    value: _pct(
-                      result!['max_drawdown_pct'],
-                    ),
-                  ),
-                  _ValidationMetric(
-                    label: '평균보유',
-                    value: '${result!['average_holding_days'] ?? '-'}일',
-                  ),
-                ],
+            ),
+            const SizedBox(height: 12),
+            if (result != null)
+              _BacktestResultPanel(
+                title: '현재 Quant v0.4',
+                result: result!,
               ),
+            if (mathResult != null) ...[
               const SizedBox(height: 10),
-              Text(
-                result!['note']?.toString() ?? '',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+              _BacktestResultPanel(
+                title: '순수수학 후보',
+                result: mathResult!,
               ),
             ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+
+class _BacktestResultPanel extends StatelessWidget {
+  const _BacktestResultPanel({
+    required this.title,
+    required this.result,
+  });
+
+  final String title;
+  final Map<String, dynamic> result;
+
+  String _pct(Object? value) {
+    final number = num.tryParse(value?.toString() ?? '');
+    return number == null ? '-' : '${number.toStringAsFixed(2)}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (result['status'] != 'completed') {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.chip,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '$title · 데이터 부족 '
+          '(${result['samples'] ?? 0}/${result['required_samples'] ?? '-'})',
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.chip,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ValidationMetric(
+                label: '거래',
+                value: '${result['trade_count'] ?? 0}회',
+              ),
+              _ValidationMetric(
+                label: '승률',
+                value: _pct(result['win_rate_pct']),
+              ),
+              _ValidationMetric(
+                label: '복리수익',
+                value: _pct(result['compound_return_pct']),
+              ),
+              _ValidationMetric(
+                label: 'Buy & Hold',
+                value: _pct(result['buy_hold_return_pct']),
+              ),
+              _ValidationMetric(
+                label: '최대낙폭',
+                value: _pct(result['max_drawdown_pct']),
+              ),
+              _ValidationMetric(
+                label: '평균보유',
+                value: '${result['average_holding_days'] ?? '-'}일',
+              ),
+            ],
+          ),
         ],
       ),
     );
