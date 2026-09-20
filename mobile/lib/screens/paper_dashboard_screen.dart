@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
+import '../utils/decision_text.dart';
 import '../widgets/app_surface.dart';
 
 
@@ -86,7 +87,7 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
             Text(
               reason.isEmpty
                   ? '이 체결에는 저장된 판단 근거가 없어요. 앞으로 자동 체결은 당시 판단 근거를 함께 저장해요.'
-                  : reason,
+                  : localizeDecisionReason(reason),
               style: Theme.of(dialogContext).textTheme.bodyMedium,
             ),
           ],
