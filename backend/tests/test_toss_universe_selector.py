@@ -45,7 +45,7 @@ class _MarketData:
 
     async def candles(self, symbol, *, interval, count):
         assert interval == "1d"
-        assert count == 61
+        assert count == 91
         configs = {
             "005930": (70000, 2000000, 0.002),
             "000660": (180000, 1200000, 0.004),
@@ -56,7 +56,7 @@ class _MarketData:
         base, volume, drift = configs[symbol]
         rows = []
         price = float(base)
-        for index in range(61):
+        for index in range(91):
             price *= 1 + drift
             rows.append(
                 {
@@ -96,6 +96,7 @@ def test_stock_selector_builds_auto_universe_from_objective_metrics(tmp_path):
     assert len(selected_rows) == 3
     assert selected_rows[0]["rank"] == 1
     assert 0 <= selected_rows[0]["liquidity_score"] <= 100
+    assert 0 <= selected_rows[0]["momentum_60d_score"] <= 100
     assert 0 <= selected_rows[0]["momentum_20d_score"] <= 100
     assert 0 <= selected_rows[0]["activity_score"] <= 100
     assert "penalty_reasons" in selected_rows[0]
