@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
+import '../utils/decision_text.dart';
 import '../widgets/app_surface.dart';
 
 
@@ -1134,121 +1135,79 @@ class _MarketScreenState extends State<MarketScreen> {
   Future<void> _showLatestPositionDecision(
     Map<String, dynamic> position,
   ) async {
-    try {
-      final latest = await ApiClient.instance.getLatestDecision();
-      if (!mounted) return;
+    final symbol = position['symbol']?.toString() ?? '';
+    final action =
+        position['decision_action']?.toString().toUpperCase() ?? 'HOLD';
+    final score = position['decision_score']?.toString() ?? '-';
+    final reason = position['decision_reason']?.toString().trim() ?? '';
+    final risk = position['decision_risk']?.toString() ?? '';
+    final blockReason =
+        position['decision_block_reason']?.toString().trim() ?? '';
+    final time = position['decision_time']?.toString() ?? '-';
+    final name = position['name']?.toString() ?? symbol;
 
-      final symbol = position['symbol']?.toString() ?? '';
-      final items = latest?['items'] as List<dynamic>? ?? <dynamic>[];
-      Map<String, dynamic>? decision;
-      for (final raw in items) {
-        if (raw is! Map) continue;
-        final item = raw.cast<String, dynamic>();
-        if (item['symbol']?.toString() == symbol) {
-          decision = item;
-          break;
-        }
-      }
-
-      if (decision == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이 종목의 최근 판단 기록을 찾지 못했어요.'),
-          ),
-        );
-        return;
-      }
-
-      final action = decision['action']?.toString().toUpperCase() ?? 'HOLD';
-      final score = decision['score']?.toString() ?? '-';
-      final reason = decision['reason']?.toString().trim() ?? '';
-      final risk = decision['risk']?.toString().toUpperCase() ?? '';
-      final blockReason = decision['block_reason']?.toString().trim() ?? '';
-      final time = decision['time']?.toString() ??
-          latest?['time']?.toString() ??
-          '-';
-      final name = position['name']?.toString() ?? symbol;
-
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text('$name · $action'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  time,
-                  style: Theme.of(dialogContext).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  '판단점수 $score',
-                  style: Theme.of(dialogContext).textTheme.titleMedium,
-                ),
-                if (risk.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Risk Guard · ${_riskGuardLabel(risk)}',
-                    style: Theme.of(dialogContext).textTheme.bodyMedium,
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Text(
-                  reason.isEmpty ? '저장된 판단 근거가 없어요.' : reason,
-                  style: Theme.of(dialogContext).textTheme.bodyMedium,
-                ),
-                if (blockReason.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    '차단 사유 · ${_localizeMarketBlockReason(blockReason)}',
-                    style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
-                          color: AppColors.negative,
-                        ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
+    if (position['decision_action'] == null &&
+        position['decision_reason'] == null &&
+        position['decision_time'] == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        const SnackBar(
+          content: Text('이 종목의 최근 판단 기록을 찾지 못했어요.'),
+        ),
       );
+      return;
     }
-  }
 
-  String _riskGuardLabel(String raw) {
-    if (raw.contains('BLOCK')) return '차단';
-    if (raw.contains('PENDING')) return '대기';
-    if (raw.contains('NO_ORDER')) return '주문없음';
-    return '통과';
-  }
-
-  String _localizeMarketBlockReason(String raw) {
-    final cooldown = RegExp(
-      r'Automatic symbol cooldown is active \((\d+)s remaining\)\.',
-      caseSensitive: false,
-    ).firstMatch(raw);
-    if (cooldown != null) {
-      final seconds = int.tryParse(cooldown.group(1) ?? '0') ?? 0;
-      final minutes = seconds ~/ 60;
-      final remainder = seconds % 60;
-      final remain = minutes > 0
-          ? '${minutes}분 ${remainder}초'
-          : '${remainder}초';
-      return '동일 종목 자동 주문 대기시간이 남아 있어 차단됐어요. (남은 시간 $remain)';
-    }
-    return raw;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('$name · $action'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                time,
+                style: Theme.of(dialogContext).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '판단점수 $score',
+                style: Theme.of(dialogContext).textTheme.titleMedium,
+              ),
+              if (risk.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Risk Guard · ${riskGuardLabel(risk)}',
+                  style: Theme.of(dialogContext).textTheme.bodyMedium,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                reason.isEmpty ? '저장된 판단 근거가 없어요.' : reason,
+                style: Theme.of(dialogContext).textTheme.bodyMedium,
+              ),
+              if (blockReason.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '차단 사유 · ${localizeDecisionReason(blockReason)}',
+                  style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                        color: AppColors.negative,
+                      ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
