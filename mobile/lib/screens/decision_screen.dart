@@ -483,7 +483,7 @@ class _DecisionParser {
 String _localizeBlockReason(String raw) {
   final value = raw.trim();
   final cooldown = RegExp(
-    r'Automatic symbol cooldown is active \\((\\d+)s remaining\\)\\.',
+    r'Automatic symbol cooldown is active \((\d+)s remaining\)\.',
     caseSensitive: false,
   ).firstMatch(value);
   if (cooldown != null) {
