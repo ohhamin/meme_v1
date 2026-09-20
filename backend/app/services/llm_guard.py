@@ -36,11 +36,12 @@ class LLMExecutionGuard:
                 reason="LLM is disabled.",
             )
 
-        if not self.budget.can_start_cycle(estimated_input_tokens):
+        block_reason = self.budget.block_reason(estimated_input_tokens)
+        if block_reason is not None:
             return LLMExecutionDecision(
                 allowed=False,
                 mode="paused",
-                reason="LLM token budget or per-cycle input limit reached.",
+                reason=block_reason,
             )
 
         return LLMExecutionDecision(
