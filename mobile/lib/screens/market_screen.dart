@@ -304,6 +304,9 @@ class _MarketScreenState extends State<MarketScreen> {
               return Padding(
                 padding: EdgeInsets.only(bottom: bottomInset),
                 child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
                   decoration: const BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.vertical(
@@ -313,10 +316,11 @@ class _MarketScreenState extends State<MarketScreen> {
                   padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
                   child: SafeArea(
                     top: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                         Center(
                           child: Container(
                             width: 38,
@@ -603,7 +607,8 @@ class _MarketScreenState extends State<MarketScreen> {
                             ),
                           ],
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -856,6 +861,7 @@ class _MarketScreenState extends State<MarketScreen> {
         ...(results[1] as List<String>),
       };
       final searchController = TextEditingController();
+      var autoRunning = false;
 
       final saved = await showModalBottomSheet<bool>(
         context: context,
@@ -934,6 +940,63 @@ class _MarketScreenState extends State<MarketScreen> {
                           ],
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: autoRunning
+                                ? null
+                                : () async {
+                                    setSheetState(() => autoRunning = true);
+                                    try {
+                                      final markets = await ApiClient.instance
+                                          .autoSelectUpbitUniverse(limit: 10);
+                                      if (!context.mounted) return;
+                                      setSheetState(() {
+                                        selected
+                                          ..clear()
+                                          ..addAll(markets);
+                                        autoRunning = false;
+                                      });
+                                      if (mounted) {
+                                        setState(() {
+                                          _upbitUniverseCount = markets.length;
+                                        });
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '거래대금 기준으로 ${markets.length}개 코인을 자동 선정했어요.',
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!context.mounted) return;
+                                      setSheetState(() => autoRunning = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())),
+                                      );
+                                    }
+                                  },
+                            icon: autoRunning
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.auto_awesome_rounded),
+                            label: Text(
+                              autoRunning
+                                  ? '후보 분석 중...'
+                                  : '거래대금 기준 10개 자동 선정',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: TextField(
@@ -1038,8 +1101,8 @@ class _MarketScreenState extends State<MarketScreen> {
                             },
                             child: Text(
                               selected.isEmpty
-                                  ? '판단 대상 없이 저장'
-                                  : '${selected.length}개 저장',
+                                  ? '판단 대상 없이 수동 저장'
+                                  : '${selected.length}개 수동 저장',
                             ),
                           ),
                         ),
