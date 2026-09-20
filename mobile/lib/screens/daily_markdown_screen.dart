@@ -43,6 +43,36 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
     });
   }
 
+  String _normalizeMarkdown(String markdown) {
+    if (widget.kind != 'news' || markdown.trim().isEmpty) {
+      return markdown;
+    }
+
+    final day =
+        '${_selected.year.toString().padLeft(4, '0')}-'
+        '${_selected.month.toString().padLeft(2, '0')}-'
+        '${_selected.day.toString().padLeft(2, '0')}';
+
+    return markdown.split('\n').map((raw) {
+      final line = raw.trim();
+
+      if (line.startsWith('## ') && line.contains('Collection')) {
+        final timeMatch = RegExp(r'(\d{2}):(\d{2})').firstMatch(line);
+        final hour = int.tryParse(timeMatch?.group(1) ?? '') ?? 0;
+        return '## $day ${hour < 12 ? '오전' : '오후'}';
+      }
+
+      if (line.startsWith('## ') &&
+          (line.contains('뉴스 오전') || line.contains('뉴스 오후'))) {
+        return line
+            .replaceFirst(' 뉴스 오전', ' 오전')
+            .replaceFirst(' 뉴스 오후', ' 오후');
+      }
+
+      return raw;
+    }).join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -77,7 +107,7 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
                 );
               }
 
-              final markdown = snapshot.data ?? '';
+              final markdown = _normalizeMarkdown(snapshot.data ?? '');
               if (markdown.trim().isEmpty) {
                 return AppEmptyState(
                   icon: Icons.inbox_outlined,
