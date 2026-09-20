@@ -6,6 +6,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from backend.app.core.config import get_settings
+from backend.app.services.openai_usage_sync import OpenAIUsageSyncService
+from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
 @dataclass
@@ -49,8 +51,11 @@ class LLMBudgetService:
             month=self._month(),
         )
 
+    def _daily_budget(self) -> int:
+        return RuntimeSettingsService().get().llm_daily_token_budget
+
     def _monthly_budget(self) -> int:
-        daily = self.config.llm_daily_token_budget
+        daily = self._daily_budget()
         if daily <= 0:
             return 0
         now = self._now()
@@ -93,11 +98,20 @@ class LLMBudgetService:
 
     def status(self) -> dict:
         state = self.get()
-        daily_budget = self.config.llm_daily_token_budget
+        daily_budget = self._daily_budget()
         monthly_budget = self._monthly_budget()
+        openai_usage = OpenAIUsageSyncService().status()
+        synced_today = (
+            openai_usage.get("status") == "ok"
+            and openai_usage.get("date") == self._today()
+        )
+        effective_daily_used = max(
+            state.total_tokens,
+            int(openai_usage.get("total_tokens") or 0) if synced_today else 0,
+        )
 
         daily_remaining = (
-            max(0, daily_budget - state.total_tokens)
+            max(0, daily_budget - effective_daily_used)
             if daily_budget > 0
             else None
         )
@@ -134,7 +148,7 @@ class LLMBudgetService:
             "mode": mode,
             # Backward-compatible daily fields.
             "budget_tokens": daily_budget,
-            "used_tokens": state.total_tokens,
+            "used_tokens": effective_daily_used,
             "input_tokens": state.input_tokens,
             "output_tokens": state.output_tokens,
             "remaining_tokens": daily_remaining,
@@ -142,11 +156,22 @@ class LLMBudgetService:
             "cycle_input_token_limit": self.config.llm_cycle_input_token_limit,
             "daily": {
                 "budget_tokens": daily_budget,
-                "used_tokens": state.total_tokens,
+                "used_tokens": effective_daily_used,
                 "remaining_tokens": daily_remaining,
-                "input_tokens": state.input_tokens,
-                "output_tokens": state.output_tokens,
+                "input_tokens": (
+                    int(openai_usage.get("input_tokens") or 0)
+                    if synced_today
+                    else state.input_tokens
+                ),
+                "output_tokens": (
+                    int(openai_usage.get("output_tokens") or 0)
+                    if synced_today
+                    else state.output_tokens
+                ),
+                "source": "openai" if synced_today else "local_response_usage",
+                "local_used_tokens": state.total_tokens,
             },
+            "openai_usage": openai_usage,
             "monthly": {
                 "month": state.month,
                 "budget_tokens": monthly_budget,
