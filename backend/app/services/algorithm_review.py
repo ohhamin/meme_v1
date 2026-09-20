@@ -16,6 +16,7 @@ from backend.app.services.algorithm import AlgorithmService
 from backend.app.services.audit import AuditLogger
 from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
+from backend.app.services.openai_usage_sync import OpenAIUsageSyncService
 from backend.app.services.push import PushService
 from backend.app.services.algorithm_metrics import AlgorithmMetricsService
 
@@ -50,6 +51,7 @@ class AlgorithmReviewService:
         self.audit = AuditLogger()
         self.budget = LLMBudgetService()
         self.runtime = LLMRuntimeStateService()
+        self.openai_usage = OpenAIUsageSyncService()
         self.push = PushService()
         self.metrics = AlgorithmMetricsService()
         self.context_dir: Path = self.config.data_path / "context"
@@ -192,6 +194,7 @@ class AlgorithmReviewService:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
             )
+            await self.openai_usage.refresh()
 
         try:
             data = json.loads(response.output_text)
