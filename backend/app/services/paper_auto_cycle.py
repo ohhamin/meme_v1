@@ -228,6 +228,7 @@ class PaperAutoCycleService:
                         quantity=sizing.order_quantity,
                         market_price=instrument.price,
                         decision_score=decision.score,
+                        decision_reason=decision.reason,
                         source="auto",
                         market_open=instrument.market_open,
                     )
