@@ -10,6 +10,7 @@ from backend.app.models.schemas import (
     TossStockInfo,
 )
 from backend.app.services.technical_features import TechnicalFeatureService
+from backend.app.services.quant_signal import QuantSignalService
 
 
 class TossMarketDataAdapter:
@@ -281,22 +282,29 @@ class TossMarketDataAdapter:
                 try:
                     candles = await self.candles(
                         symbol,
-                        interval="1m",
-                        count=121,
+                        interval="1d",
+                        count=91,
                     )
                     features = TechnicalFeatureService.compute(
                         candles=candles,
                         current_price=float(quote.last_price),
                         short_period=5,
-                        medium_period=30,
-                        long_period=120,
-                        interval_label="1m",
+                        medium_period=20,
+                        long_period=60,
+                        interval_label="1d",
+                    )
+                    features = QuantSignalService.enrich(
+                        market="stock",
+                        features=features,
                     )
                 except Exception:
                     features = {
                         "features_available": 0,
-                        "feature_interval": "1m",
+                        "feature_interval": "1d",
                         "feature_samples": 0,
+                        "quant_score": 50.0,
+                        "quant_action": "HOLD",
+                        "quant_risk_scale": 0.5,
                     }
 
                 if symbol != normalized[-1]:
