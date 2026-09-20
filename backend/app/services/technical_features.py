@@ -77,6 +77,18 @@ class TechnicalFeatureService:
                 closes,
                 long_period,
             ),
+            "positive_day_ratio_short": TechnicalFeatureService._positive_day_ratio(
+                returns,
+                short_period,
+            ),
+            "positive_day_ratio_medium": TechnicalFeatureService._positive_day_ratio(
+                returns,
+                medium_period,
+            ),
+            "positive_day_ratio_long": TechnicalFeatureService._positive_day_ratio(
+                returns,
+                long_period,
+            ),
             "sma_short_gap_pct": TechnicalFeatureService._sma_gap(
                 current_price,
                 closes,
@@ -155,6 +167,20 @@ class TechnicalFeatureService:
             (closes[-1] / base - 1) * 100,
             4,
         )
+
+    @staticmethod
+    def _positive_day_ratio(
+        returns: list[float],
+        periods: int,
+    ) -> float | None:
+        if periods < 1 or not returns:
+            return None
+        window = returns[-min(periods, len(returns)):]
+        nonzero = [value for value in window if value != 0]
+        if not nonzero:
+            return 50.0
+        positive = sum(1 for value in nonzero if value > 0)
+        return round(positive / len(nonzero) * 100, 4)
 
     @staticmethod
     def _sma_gap(
