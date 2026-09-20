@@ -38,4 +38,9 @@ class UpbitUniverseSelector:
             if item.acc_trade_price_24h is not None
             and item.acc_trade_price_24h > 0
         ][:limit]
-        return self.universe.set(selected)
+        return self.universe.set_auto(selected, limit=limit)
+
+    async def refresh_if_auto(self) -> list[str]:
+        if self.universe.selection_mode() != "auto":
+            return self.universe.get()
+        return await self.select(limit=self.universe.auto_limit())
