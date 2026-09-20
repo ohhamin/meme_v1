@@ -34,7 +34,7 @@ def test_backtest_is_no_lookahead_and_returns_metrics():
     assert result["samples"] == 100
     assert result["trade_count"] >= 1
     assert "buy_hold_return_pct" in result
-    assert "max_closed_trade_drawdown_pct" in result
+    assert "max_drawdown_pct" in result
     assert result["trades"][0]["holding_bars"] > 0
 
 
