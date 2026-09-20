@@ -331,6 +331,22 @@ class ApiClient {
     )) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> setLlmDailyTokenBudget(int tokens) async {
+    return (await _request(
+      'PUT',
+      '/settings/llm/daily-token-budget',
+      body: {'tokens': tokens},
+    )) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> refreshOpenAiUsage() async {
+    return (await _request(
+      'POST',
+      '/settings/llm/usage/refresh',
+      timeout: const Duration(seconds: 30),
+    )) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> resumeLlm() async {
     return (await _request('POST', '/settings/llm/resume'))
         as Map<String, dynamic>;
