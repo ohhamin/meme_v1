@@ -66,17 +66,42 @@ class CompactContextBuilder:
         algorithm = self.algorithms.current()
         macro_context = self.macro.read()
 
-        rough_text = "\n".join(
-            [
-                algorithm,
-                news_context,
-                decision_context,
-                str(macro_context),
-                str(market_snapshot),
-                str(account_snapshot),
-            ]
+        estimated = self._estimate(
+            algorithm=algorithm,
+            news_context=news_context,
+            decision_context=decision_context,
+            macro_context=macro_context,
+            market_snapshot=market_snapshot,
+            account_snapshot=account_snapshot,
         )
-        estimated = self.budget.estimate_tokens(rough_text)
+
+        # Optional historical context must never block an otherwise valid cycle.
+        # Keep a safety margin for JSON/instruction overhead and trim the oldest
+        # news/decision context until the request fits the configured cycle cap.
+        cycle_limit = self.config.llm_cycle_input_token_limit
+        target = max(1000, cycle_limit - 750) if cycle_limit > 0 else 0
+        while target > 0 and estimated > target and (
+            len(news_context) > 1000 or len(decision_context) > 750
+        ):
+            if len(news_context) >= len(decision_context) and len(news_context) > 1000:
+                news_context = self._tail(
+                    news_context,
+                    max(1000, int(len(news_context) * 0.8)),
+                )
+            elif len(decision_context) > 750:
+                decision_context = self._tail(
+                    decision_context,
+                    max(750, int(len(decision_context) * 0.8)),
+                )
+
+            estimated = self._estimate(
+                algorithm=algorithm,
+                news_context=news_context,
+                decision_context=decision_context,
+                macro_context=macro_context,
+                market_snapshot=market_snapshot,
+                account_snapshot=account_snapshot,
+            )
 
         return CompactDecisionContext(
             algorithm_markdown=algorithm,
@@ -111,6 +136,28 @@ class CompactContextBuilder:
                 continue
 
         return self._tail("\n\n".join(chunks), max_chars)
+
+    def _estimate(
+        self,
+        *,
+        algorithm: str,
+        news_context: str,
+        decision_context: str,
+        macro_context: dict,
+        market_snapshot: dict,
+        account_snapshot: dict,
+    ) -> int:
+        rough_text = "\n".join(
+            [
+                algorithm,
+                news_context,
+                decision_context,
+                str(macro_context),
+                str(market_snapshot),
+                str(account_snapshot),
+            ]
+        )
+        return self.budget.estimate_tokens(rough_text)
 
     @staticmethod
     def _tail(text: str, max_chars: int) -> str:
