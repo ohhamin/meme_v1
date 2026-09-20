@@ -14,7 +14,7 @@ class ClientErrorStore:
         self.path: Path = self.config.data_path / "state" / "client_errors.json"
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def list(self) -> list:
+    def list_items(self) -> list:
         data = self._read()
         return sorted(
             data,
