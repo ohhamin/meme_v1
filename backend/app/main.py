@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from backend.app.routers import (
     algorithm,
     crypto,
+    client_errors,
     decisions,
     devices,
     health,
@@ -56,6 +57,7 @@ app = FastAPI(
 )
 
 app.include_router(health.router)
+app.include_router(client_errors.router)
 app.include_router(devices.router)
 app.include_router(live_orders.router)
 app.include_router(stocks.router)
