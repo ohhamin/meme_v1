@@ -147,7 +147,7 @@ def test_non_krw_market_is_rejected():
 
 
 
-def test_upbit_snapshots_include_hourly_features(monkeypatch):
+def test_upbit_snapshots_include_daily_quant_features(monkeypatch):
     adapter = UpbitMarketDataAdapter()
 
     async def fake_quotes(markets):
@@ -160,24 +160,23 @@ def test_upbit_snapshots_include_hourly_features(monkeypatch):
             )
         ]
 
-    async def fake_candles(market, *, unit=60, count=25):
+    async def fake_daily_candles(market, *, count=64):
         assert market == "KRW-BTC"
-        assert unit == 60
-        assert count == 25
+        assert count == 64
         return [
             {
-                "timestamp": f"2026-09-18T{index:02d}:00:00",
+                "timestamp": f"2026-07-{index + 1:02d}",
                 "open": 99 + index,
                 "high": 101 + index,
                 "low": 98 + index,
                 "close": 100 + index,
                 "volume": 1000 + index,
             }
-            for index in range(25)
+            for index in range(64)
         ]
 
     monkeypatch.setattr(adapter, "quotes", fake_quotes)
-    monkeypatch.setattr(adapter, "candles", fake_candles)
+    monkeypatch.setattr(adapter, "daily_candles", fake_daily_candles)
 
     snapshots = asyncio.run(
         adapter.snapshots(
@@ -188,5 +187,7 @@ def test_upbit_snapshots_include_hourly_features(monkeypatch):
 
     assert len(snapshots) == 1
     assert snapshots[0].features["features_available"] == 1
-    assert snapshots[0].features["feature_interval"] == "60m"
-    assert snapshots[0].features["return_long_pct"] == 24.0
+    assert snapshots[0].features["feature_interval"] == "1d"
+    assert snapshots[0].features["return_long_pct"] is not None
+    assert snapshots[0].features["quant_action"] in {"BUY", "HOLD", "SELL"}
+    assert 0 <= snapshots[0].features["quant_score"] <= 100
