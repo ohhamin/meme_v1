@@ -368,6 +368,39 @@ class ApiClient {
     )) as Map<String, dynamic>;
   }
 
+  Future<void> reportClientError({
+    required String message,
+    String stack = '',
+    String library = '',
+    String context = '',
+  }) async {
+    await _request(
+      'POST',
+      '/client-errors',
+      body: {
+        'message': message,
+        'stack': stack,
+        'library': library,
+        'context': context,
+      },
+      timeout: const Duration(seconds: 8),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getClientErrors() async {
+    final data = await _request('GET', '/client-errors') as Map<String, dynamic>;
+    final items = data['items'] as List<dynamic>? ?? <dynamic>[];
+    return items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+  }
+
+  Future<void> markClientErrorImproved(String id, bool improved) async {
+    await _request(
+      'PUT',
+      '/client-errors/$id/improved',
+      body: {'improved': improved},
+    );
+  }
+
   String _idempotencyKey(String symbol, String side) {
     return '$symbol-$side-${DateTime.now().microsecondsSinceEpoch}';
   }
