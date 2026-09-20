@@ -732,6 +732,171 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _openFlutterErrors() async {
+    try {
+      var items = await ApiClient.instance.getClientErrors();
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (sheetContext, setSheetState) {
+              return Container(
+                height: MediaQuery.of(sheetContext).size.height * 0.82,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(26),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Container(
+                          width: 38,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.divider,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Flutter 오류 기록',
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .titleLarge,
+                              ),
+                            ),
+                            Text(
+                              '${items.length}건',
+                              style:
+                                  Theme.of(sheetContext).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: items.isEmpty
+                            ? const Center(
+                                child: Text('수집된 Flutter 오류가 없어요.'),
+                              )
+                            : ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  final improved =
+                                      item['improved'] == true;
+                                  final message =
+                                      item['message']?.toString() ?? '-';
+                                  return ListTile(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
+                                    title: Text(
+                                      message,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      '발생 ${item['count'] ?? 1}회 · '
+                                      '개선여부 ${improved ? 'Y' : 'N'}',
+                                    ),
+                                    trailing: Icon(
+                                      improved
+                                          ? Icons.check_circle_rounded
+                                          : Icons.error_outline_rounded,
+                                      color: improved
+                                          ? AppColors.positive
+                                          : AppColors.warning,
+                                    ),
+                                    onTap: () async {
+                                      final id =
+                                          item['id']?.toString() ?? '';
+                                      final stack =
+                                          item['stack']?.toString() ?? '';
+                                      final mark = await showDialog<bool>(
+                                        context: sheetContext,
+                                        builder: (dialogContext) {
+                                          return AlertDialog(
+                                            title: Text(
+                                              '개선여부 ${improved ? 'Y' : 'N'}',
+                                            ),
+                                            content: SingleChildScrollView(
+                                              child: SelectableText(
+                                                '$message\n\n$stack',
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(
+                                                  dialogContext,
+                                                  false,
+                                                ),
+                                                child: const Text('닫기'),
+                                              ),
+                                              if (!improved && id.isNotEmpty)
+                                                FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                    dialogContext,
+                                                    true,
+                                                  ),
+                                                  child:
+                                                      const Text('개선 완료(Y)'),
+                                                ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (mark == true && id.isNotEmpty) {
+                                        await ApiClient.instance
+                                            .markClientErrorImproved(
+                                          id,
+                                          true,
+                                        );
+                                        items = await ApiClient.instance
+                                            .getClientErrors();
+                                        setSheetState(() {});
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -1242,6 +1407,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const SectionTitle('앱 오류'),
+          const SizedBox(height: 12),
+          AppSurface(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              leading: const Icon(
+                Icons.bug_report_outlined,
+                color: AppColors.warning,
+              ),
+              title: Text(
+                'Flutter 오류 기록',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  '렌더링·프레임워크 오류를 모아두고 개선 여부를 Y/N으로 관리해요.',
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _openFlutterErrors,
             ),
           ),
           const SizedBox(height: 20),
