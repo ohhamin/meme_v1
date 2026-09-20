@@ -73,6 +73,35 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
     }).join('\n');
   }
 
+  List<String> _newsBlocks(String markdown) {
+    final normalized = _normalizeMarkdown(markdown);
+    if (widget.kind != 'news') return <String>[normalized];
+
+    final blocks = <String>[];
+    List<String>? current;
+
+    for (final raw in normalized.split('\n')) {
+      final line = raw.trim();
+      if (line.startsWith('## ')) {
+        if (current != null && current!.isNotEmpty) {
+          blocks.add(current!.join('\n').trim());
+        }
+        current = <String>[raw];
+        continue;
+      }
+
+      if (current != null) {
+        current!.add(raw);
+      }
+    }
+
+    if (current != null && current!.isNotEmpty) {
+      blocks.add(current!.join('\n').trim());
+    }
+
+    return blocks.where((item) => item.isNotEmpty).toList().reversed.toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -116,17 +145,20 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
                 );
               }
 
-              return ListView(
+              final blocks = _newsBlocks(snapshot.data ?? '');
+              return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                children: [
-                  AppSurface(
+                itemCount: blocks.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
+                itemBuilder: (context, index) {
+                  return AppSurface(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
                     child: MarkdownBody(
-                      data: markdown,
+                      data: blocks[index],
                       selectable: true,
                       styleSheet: MarkdownStyleSheet(
                         h1: Theme.of(context).textTheme.titleLarge,
-                        h2: Theme.of(context).textTheme.titleMedium,
+                        h2: Theme.of(context).textTheme.titleLarge,
                         h3: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontSize: 15,
                             ),
@@ -147,8 +179,8 @@ class _DailyMarkdownScreenState extends State<DailyMarkdownScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  );
+                },
               );
             },
           ),
