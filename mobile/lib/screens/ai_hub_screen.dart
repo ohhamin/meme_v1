@@ -49,11 +49,11 @@ class AiHubScreen extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppColors.primaryBlue.withOpacity(0.42),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.42),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.10),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.10),
                     blurRadius: 14,
                     spreadRadius: -6,
                   ),
