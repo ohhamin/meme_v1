@@ -71,7 +71,7 @@ class TossUniverseSelector:
             candles = await self.market_data.candles(
                 item.symbol,
                 interval="1d",
-                count=61,
+                count=91,
             )
             metrics = self._metrics(candles)
             if metrics is None:
@@ -127,7 +127,7 @@ class TossUniverseSelector:
             for item in ordered
             if float(item.get("close") or 0) > 0
         ]
-        if len(closes) < 25 or len(volumes) != len(closes):
+        if len(closes) < 61 or len(volumes) != len(closes):
             return None
 
         daily_returns = [
@@ -156,6 +156,7 @@ class TossUniverseSelector:
             "avg_turnover_20d": avg_turnover,
             "return_5d_pct": TossUniverseSelector._return_pct(closes, 5),
             "return_20d_pct": TossUniverseSelector._return_pct(closes, 20),
+            "return_60d_pct": TossUniverseSelector._return_pct(closes, 60),
             "volatility_20d_pct": (
                 pstdev(daily_returns[-20:])
                 if len(daily_returns) >= 2
@@ -178,6 +179,7 @@ class TossUniverseSelector:
             math.log1p(item["avg_turnover_20d"])
             for item in rows
         ]
+        long_momentum = [item["return_60d_pct"] for item in rows]
         medium_momentum = [item["return_20d_pct"] for item in rows]
         short_momentum = [item["return_5d_pct"] for item in rows]
         activity = [item["volume_ratio_5d"] for item in rows]
@@ -187,6 +189,10 @@ class TossUniverseSelector:
             liquidity_score = cls._percentile(
                 liquidity,
                 liquidity[index],
+            )
+            long_score = cls._percentile(
+                long_momentum,
+                long_momentum[index],
             )
             medium_score = cls._percentile(
                 medium_momentum,
@@ -206,10 +212,10 @@ class TossUniverseSelector:
             )
 
             raw_score = (
-                liquidity_score * 0.45
+                liquidity_score * 0.35
+                + long_score * 0.30
                 + medium_score * 0.20
-                + short_score * 0.10
-                + activity_score * 0.15
+                + activity_score * 0.05
                 + stability_score * 0.10
             )
 
@@ -222,11 +228,15 @@ class TossUniverseSelector:
             if item["return_20d_pct"] > 30:
                 penalty += 7
                 penalty_reasons.append("20일 과열")
+            if item["return_60d_pct"] > 50:
+                penalty += 7
+                penalty_reasons.append("60일 과열")
             if item["volatility_20d_pct"] > 5:
                 penalty += 8
                 penalty_reasons.append("높은 변동성")
 
             item["liquidity_score"] = round(liquidity_score, 2)
+            item["momentum_60d_score"] = round(long_score, 2)
             item["momentum_20d_score"] = round(medium_score, 2)
             item["momentum_5d_score"] = round(short_score, 2)
             item["activity_score"] = round(activity_score, 2)
@@ -272,6 +282,7 @@ class TossUniverseSelector:
                     "name": item["name"],
                     "score": item["score"],
                     "liquidity_score": item["liquidity_score"],
+                    "momentum_60d_score": item["momentum_60d_score"],
                     "momentum_20d_score": item["momentum_20d_score"],
                     "momentum_5d_score": item["momentum_5d_score"],
                     "activity_score": item["activity_score"],
@@ -284,6 +295,7 @@ class TossUniverseSelector:
                     ),
                     "return_5d_pct": round(item["return_5d_pct"], 4),
                     "return_20d_pct": round(item["return_20d_pct"], 4),
+                    "return_60d_pct": round(item["return_60d_pct"], 4),
                     "volatility_20d_pct": round(
                         item["volatility_20d_pct"],
                         4,
