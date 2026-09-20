@@ -109,11 +109,11 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.background,
-      builder: (_) => _OrderHistorySheet(
+      builder: (sheetContext) => _OrderHistorySheet(
         orders: orders,
         money: _money,
         onOrderTap: (order) {
-          Navigator.of(context).pop();
+          Navigator.of(sheetContext).pop();
           Future<void>.delayed(
             Duration.zero,
             () => _showOrderDecision(context, order),
