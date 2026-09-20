@@ -60,7 +60,7 @@ class _MarketData:
             price *= 1 + drift
             rows.append(
                 {
-                    "timestamp": f"2026-07-{index + 1:02d}",
+                    "timestamp": f"{index:03d}",
                     "open": price * 0.995,
                     "high": price * 1.01,
                     "low": price * 0.99,
