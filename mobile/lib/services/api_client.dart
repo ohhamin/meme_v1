@@ -281,6 +281,22 @@ class ApiClient {
     return values.map((item) => item.toString()).toList();
   }
 
+  Future<Map<String, dynamic>> getUpbitUniverseStatus() async {
+    return (await _request(
+      'GET',
+      '/crypto/upbit/universe/status',
+    )) as Map<String, dynamic>;
+  }
+
+  Future<List<String>> autoSelectUpbitUniverse({int limit = 10}) async {
+    final data = await _request(
+      'POST',
+      '/crypto/upbit/universe/auto?limit=$limit',
+    ) as Map<String, dynamic>;
+    final values = data['markets'] as List<dynamic>? ?? <dynamic>[];
+    return values.map((item) => item.toString()).toList();
+  }
+
   Future<List<Map<String, dynamic>>> getTossStocks(
     List<String> symbols,
   ) async {
