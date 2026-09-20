@@ -264,15 +264,17 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _openTossUniverse() async {
     try {
+      final current = await ApiClient.instance.getTossUniverse();
       final results = await Future.wait([
-        ApiClient.instance.getTossUniverse(),
         ApiClient.instance.getTossUniverseStatus(),
+        ApiClient.instance.getTossStocks(current),
       ]);
       if (!mounted) return;
 
-      final current = results[0] as List<String>;
       final status =
-          (results[1] as Map).cast<String, dynamic>();
+          (results[0] as Map).cast<String, dynamic>();
+      var currentStocks =
+          (results[1] as List<Map<String, dynamic>>);
       final controller = TextEditingController(
         text: current.join(', '),
       );
@@ -395,6 +397,14 @@ class _MarketScreenState extends State<MarketScreen> {
                                                 item['selected'] == true,
                                           )
                                           .toList();
+                                      currentStocks = ranking
+                                          .map(
+                                            (item) => <String, dynamic>{
+                                              'symbol': item['symbol'],
+                                              'name': item['name'],
+                                            },
+                                          )
+                                          .toList();
                                       refreshedAt =
                                           latest['refreshed_at']?.toString();
                                       if (mounted) {
@@ -466,7 +476,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           ),
                           const SizedBox(height: 10),
                           SizedBox(
-                            height: 300,
+                            height: 220,
                             child: ListView.separated(
                               itemCount: ranking.length,
                               separatorBuilder: (_, __) =>
@@ -491,6 +501,35 @@ class _MarketScreenState extends State<MarketScreen> {
                           ),
                         ],
                         const SizedBox(height: 14),
+                        Text(
+                          '현재 판단 대상',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: currentStocks.isEmpty
+                              ? current
+                                  .map(
+                                    (symbol) => Chip(
+                                      label: Text(symbol),
+                                    ),
+                                  )
+                                  .toList()
+                              : currentStocks
+                                  .map(
+                                    (item) => Chip(
+                                      label: Text(
+                                        item['name']?.toString() ??
+                                            item['symbol']?.toString() ??
+                                            '-',
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                        const SizedBox(height: 14),
                         TextField(
                           controller: controller,
                           autofocus: false,
@@ -498,7 +537,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           maxLines: 4,
                           decoration: const InputDecoration(
                             hintText: '005930, 000660',
-                            labelText: '현재 판단 대상',
+                            labelText: '수동 편집용 종목코드',
                           ),
                         ),
                         const SizedBox(height: 8),
