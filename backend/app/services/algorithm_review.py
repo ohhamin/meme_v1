@@ -194,7 +194,7 @@ class AlgorithmReviewService:
                 input_tokens=response.usage.input_tokens,
                 output_tokens=response.usage.output_tokens,
             )
-            await self.openai_usage.refresh()
+        await self.openai_usage.refresh()
 
         try:
             data = json.loads(response.output_text)
