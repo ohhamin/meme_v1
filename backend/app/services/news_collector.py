@@ -214,7 +214,7 @@ class NewsCollector:
         is_new = not path.exists()
 
         period = "오전" if now.hour < 12 else "오후"
-        title = f"{now.date().isoformat()} 뉴스 {period}"
+        title = f"{now.date().isoformat()} {period}"
 
         lines: list[str] = []
         if is_new:
