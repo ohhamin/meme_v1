@@ -62,6 +62,9 @@ class NewsCollector:
                 now,
             )
 
+        if self._period_already_collected(now):
+            return self._skip("period_already_collected", now)
+
         previous = self._recent_news_context(max_chars=4000)
         prompt = self._build_prompt(now, previous)
         estimated_input = self.budget.estimate_tokens(prompt)
@@ -195,6 +198,17 @@ class NewsCollector:
 최근 이미 저장된 뉴스 context:
 {already_seen}
 """
+
+    def _period_already_collected(self, now: datetime) -> bool:
+        path = self.base_dir / f"{now.date().isoformat()}.md"
+        if not path.exists():
+            return False
+        period = "오전" if now.hour < 12 else "오후"
+        title = f"## {now.date().isoformat()} {period}"
+        try:
+            return title in path.read_text(encoding="utf-8")
+        except OSError:
+            return False
 
     def _recent_news_context(self, *, max_chars: int) -> str:
         path = self.config.data_path / "context" / "news_rolling.md"
