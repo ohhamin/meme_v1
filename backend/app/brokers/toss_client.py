@@ -59,6 +59,7 @@ class TossApiClient:
             body=None,
             account_seq=account_seq,
             retry_on_401=True,
+            retry_on_429=True,
         )
 
     async def post(
@@ -75,6 +76,7 @@ class TossApiClient:
             body=body,
             account_seq=account_seq,
             retry_on_401=True,
+            retry_on_429=False,
         )
 
     async def _request(
@@ -86,6 +88,7 @@ class TossApiClient:
         body: dict[str, Any] | None,
         account_seq: int | None,
         retry_on_401: bool,
+        retry_on_429: bool,
     ) -> dict:
         token = await self._access_token()
         headers = {
@@ -127,6 +130,23 @@ class TossApiClient:
                 body=body,
                 account_seq=account_seq,
                 retry_on_401=False,
+                retry_on_429=retry_on_429,
+            )
+
+        if response.status_code == 429 and method == "GET" and retry_on_429:
+            try:
+                wait_seconds = float(response.headers.get("retry-after") or 1)
+            except (TypeError, ValueError):
+                wait_seconds = 1
+            await asyncio.sleep(max(0.5, min(wait_seconds, 5.0)))
+            return await self._request(
+                method,
+                path,
+                params=params,
+                body=body,
+                account_seq=account_seq,
+                retry_on_401=retry_on_401,
+                retry_on_429=False,
             )
 
         try:
