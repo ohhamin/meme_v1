@@ -46,6 +46,7 @@ class RuntimeSettings(BaseModel):
     kill_switch: bool = True
     live_order_allowed: bool = False
     scheduler_enabled: bool = False
+    llm_daily_token_budget: int = Field(default=2_000_000, ge=50_000, le=100_000_000)
 
 
 class ModeUpdate(BaseModel):
@@ -58,6 +59,10 @@ class KillSwitchUpdate(BaseModel):
 
 class SchedulerToggleUpdate(BaseModel):
     enabled: bool
+
+
+class LLMDailyTokenBudgetUpdate(BaseModel):
+    tokens: int = Field(ge=50_000, le=100_000_000)
 
 
 class DailyMarkdown(BaseModel):
