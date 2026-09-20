@@ -83,16 +83,16 @@ class AdaptiveDecisionScheduler:
         return self.status()
 
     def schedule_news_collection(self) -> None:
-        """뉴스는 시작 시 즉시 1회 확인하고 이후 설정된 간격으로 수집한다."""
+        """뉴스는 매일 KST 09:00 / 21:00에 정확히 수집한다."""
         self.scheduler.add_job(
             self.news_collector.run,
-            trigger="interval",
-            hours=self.config.news_collection_interval_hours,
+            trigger="cron",
+            hour="9,21",
+            minute=0,
             id="news-collector",
             replace_existing=True,
             coalesce=True,
             max_instances=1,
-            next_run_time=datetime.now(timezone.utc),
         )
 
     def schedule_macro_context(self) -> None:
