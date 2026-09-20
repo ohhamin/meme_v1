@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from math import prod
 from statistics import fmean
 from typing import Any
@@ -129,14 +128,12 @@ class QuantBacktestService:
             )
 
         returns = [float(item["net_return_pct"]) / 100.0 for item in trades]
-        wealth = 1.0
-        peak = 1.0
-        max_drawdown = 0.0
-        for value in returns:
-            wealth *= 1.0 + value
-            peak = max(peak, wealth)
-            if peak > 0:
-                max_drawdown = min(max_drawdown, wealth / peak - 1.0)
+        max_drawdown = cls._max_mark_to_market_drawdown(
+            candles=cleaned,
+            trades=trades,
+            fee=fee,
+            slippage=slippage,
+        )
 
         first_test_open = cls._price(cleaned[long_period + 1], "open")
         final_close = cls._price(cleaned[-1], "close")
@@ -179,7 +176,7 @@ class QuantBacktestService:
                 else 0.0,
                 4,
             ),
-            "max_closed_trade_drawdown_pct": round(
+            "max_drawdown_pct": round(
                 max_drawdown * 100,
                 4,
             ),
@@ -193,7 +190,10 @@ class QuantBacktestService:
                 2,
             ),
             "buy_hold_return_pct": round(benchmark * 100, 4),
-            "trades": trades,
+            "trades": [
+                cls._public_trade(trade)
+                for trade in trades
+            ],
         }
 
     @staticmethod
@@ -232,6 +232,64 @@ class QuantBacktestService:
                 exit_index - int(position["entry_index"]),
             ),
             "forced_exit": forced_exit,
+            "_entry_index": int(position["entry_index"]),
+            "_exit_index": exit_index,
+            "_entry_price": entry_price,
+        }
+
+    @staticmethod
+    def _max_mark_to_market_drawdown(
+        *,
+        candles: list[dict[str, Any]],
+        trades: list[dict[str, Any]],
+        fee: float,
+        slippage: float,
+    ) -> float:
+        wealth = 1.0
+        peak = 1.0
+        max_drawdown = 0.0
+
+        for trade in trades:
+            entry_index = int(trade["_entry_index"])
+            exit_index = int(trade["_exit_index"])
+            entry_price = float(trade["_entry_price"])
+            entry_cost = entry_price * (1.0 + fee)
+
+            for index in range(entry_index, exit_index + 1):
+                close = QuantBacktestService._price(
+                    candles[index],
+                    "close",
+                )
+                liquidation = (
+                    close
+                    * (1.0 - slippage)
+                    * (1.0 - fee)
+                )
+                marked = (
+                    wealth * liquidation / entry_cost
+                    if entry_cost > 0
+                    else wealth
+                )
+                peak = max(peak, marked)
+                if peak > 0:
+                    max_drawdown = min(
+                        max_drawdown,
+                        marked / peak - 1.0,
+                    )
+
+            wealth *= 1.0 + (
+                float(trade["net_return_pct"]) / 100.0
+            )
+            peak = max(peak, wealth)
+
+        return max_drawdown
+
+    @staticmethod
+    def _public_trade(trade: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in trade.items()
+            if not key.startswith("_")
         }
 
     @staticmethod
