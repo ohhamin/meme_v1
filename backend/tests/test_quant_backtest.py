@@ -6,7 +6,8 @@ def _trend_candles(count: int, *, start: float = 100.0, drift: float = 0.01):
     price = start
     for index in range(count):
         open_price = price
-        close = open_price * (1.0 + drift)
+        variation = 0.001 if index % 2 == 0 else -0.0005
+        close = open_price * (1.0 + drift + variation)
         rows.append(
             {
                 "timestamp": f"2026-{(index // 28) + 1:02d}-{(index % 28) + 1:02d}",
