@@ -3,7 +3,6 @@ from typing import Any
 
 
 class QuantSignalService:
-    MODEL_VERSION = "v0.4"
     """Deterministic, research-inspired directional prior.
 
     The score is deliberately simple and inspectable. It does not predict an
@@ -12,6 +11,7 @@ class QuantSignalService:
     downgrade to HOLD.
     """
 
+    MODEL_VERSION = "v0.4"
     BUY_THRESHOLD = 65.0
     SELL_THRESHOLD = 35.0
 
