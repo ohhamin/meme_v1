@@ -93,7 +93,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '다음 판단 사이클부터 현재 알고리즘 규칙에 반영돼요.',
+                  '다음 판단부터 AI의 보수적 검토 규칙에 반영돼요. 수학 점수식과 Risk Guard는 코드 테스트를 거쳐 별도 버전으로 변경해요.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -221,7 +221,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
                                 )
                               : const Icon(Icons.analytics_outlined),
                           label: Text(
-                            _reviewing ? '성과 검토 중...' : '최근 성과로 개선안 검토',
+                            _reviewing ? '성과 검토 중...' : 'AI 검토 규칙 개선안 보기',
                           ),
                         ),
                       ),
