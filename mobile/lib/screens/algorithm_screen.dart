@@ -515,7 +515,8 @@ class _QuantValidationTabState extends State<_QuantValidationTab> {
               Text(
                 '미래 데이터를 미리 보지 않도록 오늘 종가로 신호를 만들고 '
                 '다음 거래일 시가에 체결한 것으로 계산해요. '
-                '편도 수수료 0.05%와 슬리피지 0.05%를 기본 가정해요.',
+                '비교를 위해 편도 수수료 0.05%와 슬리피지 0.05%를 '
+                '보수적인 공통 가정으로 사용해요. 실제 비용은 시장별로 달라요.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 8),
