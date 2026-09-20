@@ -63,6 +63,6 @@ def test_backtest_costs_reduce_net_return():
         slippage_bps=10,
     )
 
-    assert costly["median_like_compound_return_pct"] <= free[
-        "median_like_compound_return_pct"
+    assert costly["compound_return_pct"] <= free[
+        "compound_return_pct"
     ]
