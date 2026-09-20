@@ -171,13 +171,43 @@ class AlgorithmService:
         else:
             current = self.current_path.read_text(encoding="utf-8")
             if (
-                (
-                    "Version: 0.2.0-baseline" in current
-                    or "Version: 0.3.0-quant" in current
-                )
-                and "### Applied:" not in current
+                "Version: 0.2.0-baseline" in current
+                or "Version: 0.3.0-quant" in current
             ):
-                self.current_path.write_text(_BASELINE, encoding="utf-8")
+                legacy = self._legacy_applied_history(current)
+                backup = self.current_path.with_suffix(".pre-v0.4.md")
+                if not backup.exists():
+                    backup.write_text(current, encoding="utf-8")
+
+                migrated = _BASELINE
+                if legacy:
+                    migrated = (
+                        migrated.rstrip()
+                        + "\n\n## Legacy Applied Proposal History\n\n"
+                        + "아래 내용은 v0.4 이전 기록이며 현재 수학식이나 "
+                        + "실행 규칙으로 사용하지 않는다.\n\n"
+                        + legacy
+                        + "\n"
+                    )
+                self.current_path.write_text(
+                    migrated,
+                    encoding="utf-8",
+                )
+
+    @staticmethod
+    def _legacy_applied_history(current: str) -> str:
+        marker = "### Applied:"
+        if marker not in current:
+            return ""
+
+        chunks = current.split(marker)
+        history: list[str] = []
+        for chunk in chunks[1:]:
+            text = chunk.strip()
+            if not text:
+                continue
+            history.append("### Applied: " + text)
+        return "\n\n".join(history)
 
     def current(self) -> str:
         return self.current_path.read_text(encoding="utf-8")
