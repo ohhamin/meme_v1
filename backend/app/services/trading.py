@@ -241,6 +241,7 @@ class TradingService:
             open_position_count=self._total_open_positions(),
             daily_pnl_pct=portfolio.daily_pnl_pct,
             daily_order_count=portfolio.daily_order_count,
+            daily_buy_order_count=portfolio.daily_buy_order_count,
             data_age_seconds=data_age_seconds,
             market_open=position.last_market_open,
             same_cycle_duplicate=False,
