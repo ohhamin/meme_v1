@@ -27,6 +27,7 @@ class AppSettings(BaseSettings):
     risk_max_daily_orders: int = 20
     risk_max_data_age_seconds: int = 300
     risk_min_cash_reserve_pct: float = 10.0
+    risk_max_portfolio_exposure_pct: float = 90.0
     risk_max_open_positions: int = 10
     risk_auto_symbol_cooldown_minutes: int = 60
     risk_sell_reentry_cooldown_minutes: int = 60
@@ -46,6 +47,12 @@ class AppSettings(BaseSettings):
     position_sell_pct_score_40: float = 25.0
     position_sell_pct_score_30: float = 40.0
     position_sell_pct_score_20: float = 60.0
+    position_regime_bull_min_score: int = 60
+    position_regime_bear_max_score: int = 40
+    position_regime_threshold_shift: int = 5
+    position_target_exposure_bull_pct: float = 80.0
+    position_target_exposure_neutral_pct: float = 60.0
+    position_target_exposure_bear_pct: float = 35.0
 
     paper_stock_initial_cash_krw: float = 1000000.0
     paper_crypto_initial_cash_krw: float = 1000000.0
