@@ -514,16 +514,24 @@ class PaperBroker:
         )
         self.push.send(
             title=(
-                "Paper 자동 주문"
-                if source == "auto"
-                else "Paper 수동 주문"
+                "Paper Risk Guard 청산"
+                if source == "risk_monitor"
+                else (
+                    "Paper 자동 주문"
+                    if source == "auto"
+                    else "Paper 수동 주문"
+                )
             ),
             body=f"{symbol} {side.upper()} {quantity}",
             data={
                 "type": (
-                    "paper_auto_order"
-                    if source == "auto"
-                    else "paper_manual_order"
+                    "paper_risk_exit"
+                    if source == "risk_monitor"
+                    else (
+                        "paper_auto_order"
+                        if source == "auto"
+                        else "paper_manual_order"
+                    )
                 ),
                 "market": self.market,
                 "symbol": symbol,
