@@ -90,6 +90,14 @@ class ApiClient {
     return data.cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> refreshPositions(
+    String market,
+  ) async {
+    final data =
+        await _request('POST', '/$market/positions/refresh') as List<dynamic>;
+    return data.cast<Map<String, dynamic>>();
+  }
+
   Future<Map<String, dynamic>> getMarketPerformance(String market) async {
     return (await _request('GET', '/$market/performance'))
         as Map<String, dynamic>;
