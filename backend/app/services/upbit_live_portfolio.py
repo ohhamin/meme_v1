@@ -83,6 +83,7 @@ class UpbitLivePortfolioService:
                         else asset.currency
                     ),
                     "invested_amount": invested,
+                    "average_price": asset.avg_buy_price,
                     "quantity": asset.total,
                     "return_rate": return_rate,
                     "decision_score": None,
