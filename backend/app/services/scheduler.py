@@ -19,6 +19,7 @@ from backend.app.services.combined_paper_runner import CombinedPaperRunner
 from backend.app.services.push import PushService
 from backend.app.services.macro_market_context import MacroMarketContextService
 from backend.app.services.backend_errors import BackendErrorStore
+from backend.app.services.paper_risk_monitor import PaperRiskMonitor
 
 
 class AdaptiveDecisionScheduler:
@@ -39,6 +40,7 @@ class AdaptiveDecisionScheduler:
         self.push = PushService()
         self.macro_context = MacroMarketContextService()
         self.backend_errors = BackendErrorStore()
+        self.paper_risk_monitor = PaperRiskMonitor()
 
     def start(self) -> None:
         if not self.runtime.get().scheduler_enabled:
@@ -51,6 +53,7 @@ class AdaptiveDecisionScheduler:
         self.schedule_macro_context()
         self.schedule_algorithm_review()
         self.schedule_live_order_reconciliation()
+        self.schedule_paper_risk_monitor()
         self.schedule_retention()
 
         saved_next = self.state.next_decision_at()
@@ -80,6 +83,7 @@ class AdaptiveDecisionScheduler:
             self.schedule_macro_context()
             self.schedule_algorithm_review()
             self.schedule_live_order_reconciliation()
+            self.schedule_paper_risk_monitor()
             self.schedule_retention()
             self.schedule_next(self.config.decision_default_interval_minutes)
         else:
@@ -133,6 +137,18 @@ class AdaptiveDecisionScheduler:
             trigger="interval",
             minutes=5,
             id="live-order-reconciler",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+
+    def schedule_paper_risk_monitor(self) -> None:
+        """Fast deterministic exits for Paper holdings; never calls the LLM."""
+        self.scheduler.add_job(
+            self.paper_risk_monitor.run,
+            trigger="interval",
+            minutes=self.config.risk_monitor_interval_minutes,
+            id="paper-risk-monitor",
             replace_existing=True,
             coalesce=True,
             max_instances=1,
