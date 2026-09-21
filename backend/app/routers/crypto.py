@@ -115,7 +115,7 @@ async def upbit_universe_status():
 
 
 @router.post("/upbit/universe/auto", response_model=UpbitUniverseResponse)
-async def auto_upbit_universe(limit: int = Query(10, ge=1, le=50)):
+async def auto_upbit_universe(limit: int = Query(20, ge=1, le=50)):
     markets = await UpbitUniverseSelector().select(limit=limit)
     return UpbitUniverseResponse(markets=markets, count=len(markets))
 
