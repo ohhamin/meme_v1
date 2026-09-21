@@ -177,13 +177,21 @@ class RiskOrderIntent(BaseModel):
         default=None,
         ge=0,
     )
+    seconds_since_last_buy: int | None = Field(default=None, ge=0)
+    seconds_since_last_sell: int | None = Field(default=None, ge=0)
+    seconds_since_last_stop_exit: int | None = Field(default=None, ge=0)
 
 
 class RiskGuardResult(BaseModel):
-    status: Literal["PASS", "BLOCK", "NO_ORDER"]
+    status: Literal["ALLOW", "REDUCE", "BLOCK", "FORCE_EXIT", "NO_ORDER", "PASS"]
     reasons: list[str] = Field(default_factory=list)
     symbol: str
     action: Literal["BUY", "SELL", "HOLD"]
+    original_notional: Decimal = Decimal("0")
+    original_quantity: Decimal = Decimal("0")
+    adjusted_notional: Decimal = Decimal("0")
+    adjusted_quantity: Decimal = Decimal("0")
+    triggered_rule: str | None = None
 
 
 class MarketInstrumentSnapshot(BaseModel):
@@ -228,6 +236,7 @@ class PaperPosition(BaseModel):
         ge=0,
         le=100,
     )
+    highest_price_since_entry: Decimal = Field(default=Decimal("0"), ge=0)
 
 
 class PaperPortfolio(BaseModel):
