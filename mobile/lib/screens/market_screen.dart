@@ -466,7 +466,7 @@ class _MarketScreenState extends State<MarketScreen> {
                             ),
                           ),
                         ),
-                        if (selectionMode == 'auto' && ranking.isNotEmpty) ...[
+                        if (ranking.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           Row(
                             children: [
