@@ -42,17 +42,22 @@ class CombinedPaperRunner:
         failures: list[str] = []
 
         portfolios = self.paper_cycle._portfolios()
+        held_crypto = [
+            position.symbol
+            for position in portfolios["crypto"].positions
+        ]
         try:
-            await self.upbit_universe_selector.refresh_if_auto()
+            upbit_markets = await self.upbit_universe_selector.select(
+                limit=self.paper_cycle.risk.config.decision_crypto_universe_limit,
+                force=True,
+                required_markets=held_crypto,
+            )
         except (UpbitMarketDataError, ValueError) as exc:
             failures.append(f"Upbit universe refresh: {exc}")
-        upbit_markets = merge_decision_universe(
-            self.upbit_universe.get(),
-            [
-                position.symbol
-                for position in portfolios["crypto"].positions
-            ],
-        )
+            upbit_markets = merge_decision_universe(
+                self.upbit_universe.get(),
+                held_crypto,
+            )[: self.paper_cycle.risk.config.decision_crypto_universe_limit]
         if upbit_markets:
             try:
                 crypto = await self.upbit.snapshots(
@@ -74,18 +79,22 @@ class CombinedPaperRunner:
             except (UpbitMarketDataError, ValueError) as exc:
                 failures.append(f"Upbit: {exc}")
 
+        held_stocks = [
+            position.symbol
+            for position in portfolios["stock"].positions
+        ]
         try:
-            await self.toss_universe_selector.refresh_if_auto()
+            toss_symbols = await self.toss_universe_selector.select(
+                limit=self.paper_cycle.risk.config.decision_stock_universe_limit,
+                force=True,
+                required_symbols=held_stocks,
+            )
         except (TossApiError, ValueError) as exc:
             failures.append(f"Toss universe refresh: {exc}")
-
-        toss_symbols = merge_decision_universe(
-            self.toss_universe.get(),
-            [
-                position.symbol
-                for position in portfolios["stock"].positions
-            ],
-        )
+            toss_symbols = merge_decision_universe(
+                self.toss_universe.get(),
+                held_stocks,
+            )[: self.paper_cycle.risk.config.decision_stock_universe_limit]
         if toss_symbols:
             if not self.toss.configured:
                 failures.append(
