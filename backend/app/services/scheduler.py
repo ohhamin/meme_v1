@@ -18,6 +18,7 @@ from backend.app.services.scheduler_state import SchedulerStateService
 from backend.app.services.combined_paper_runner import CombinedPaperRunner
 from backend.app.services.push import PushService
 from backend.app.services.macro_market_context import MacroMarketContextService
+from backend.app.services.backend_errors import BackendErrorStore
 
 
 class AdaptiveDecisionScheduler:
@@ -37,6 +38,7 @@ class AdaptiveDecisionScheduler:
         self.audit = AuditLogger()
         self.push = PushService()
         self.macro_context = MacroMarketContextService()
+        self.backend_errors = BackendErrorStore()
 
     def start(self) -> None:
         if not self.runtime.get().scheduler_enabled:
@@ -297,6 +299,11 @@ class AdaptiveDecisionScheduler:
             logger.exception(
                 "Scheduled decision cycle failed: %s",
                 safe_reason,
+            )
+            self.backend_errors.report_exception(
+                exc,
+                source="scheduler.decision_cycle",
+                context=f"mode={runtime.mode}",
             )
             self.state.save_last_run(
                 {
