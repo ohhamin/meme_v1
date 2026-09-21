@@ -150,7 +150,7 @@ def test_quant_buy_cannot_be_reversed_to_sell():
     )
 
     assert value.decisions[0].action == "HOLD"
-    assert value.decisions[0].score == 50
+    assert value.decisions[0].score == 72
 
 
 def test_confirmed_quant_buy_uses_quant_score():
@@ -194,3 +194,48 @@ def test_confirmed_quant_buy_uses_quant_score():
 
     assert value.decisions[0].action == "BUY"
     assert value.decisions[0].score == 68
+
+
+
+def test_quant_hold_preserves_quant_score():
+    ctx = CompactDecisionContext(
+        algorithm_markdown="test",
+        news_context="",
+        decision_context="",
+        macro_context={},
+        market_snapshot={
+            "instruments": [
+                {
+                    "market": "stock",
+                    "symbol": "009150",
+                    "features": {
+                        "quant_action": "HOLD",
+                        "quant_score": 47,
+                    },
+                },
+            ]
+        },
+        account_snapshot={},
+        estimated_input_tokens=100,
+        budget_mode="normal",
+    )
+    value = result(
+        [
+            {
+                "market": "stock",
+                "symbol": "009150",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "context neutral",
+            }
+        ]
+    )
+
+    LLMDecisionClient._apply_quant_guardrails(
+        context=ctx,
+        result=value,
+    )
+
+    assert value.decisions[0].action == "HOLD"
+    assert value.decisions[0].score == 47
+    assert "정량 47/100 중립" in value.decisions[0].reason
