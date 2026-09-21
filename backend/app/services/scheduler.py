@@ -368,6 +368,7 @@ class AdaptiveDecisionScheduler:
     ) -> None:
         items = list(getattr(result, "items", []) or [])
         counts = {"BUY": 0, "SELL": 0, "HOLD": 0}
+        passed = {"BUY": 0, "SELL": 0}
         for item in items:
             action = getattr(
                 getattr(item, "decision", None),
@@ -377,6 +378,17 @@ class AdaptiveDecisionScheduler:
             if action in counts:
                 counts[action] += 1
 
+            risk_status = getattr(
+                getattr(item, "risk", None),
+                "status",
+                None,
+            )
+            if (
+                action in passed
+                and risk_status in {"ALLOW", "REDUCE"}
+            ):
+                passed[action] += 1
+
         order_count = sum(
             1
             for item in items
@@ -385,7 +397,8 @@ class AdaptiveDecisionScheduler:
         self.push.send(
             title="자동 판단 완료",
             body=(
-                f"BUY {counts['BUY']} / SELL {counts['SELL']} / "
+                f"실제 BUY {passed['BUY']} (전체 {counts['BUY']}) / "
+                f"실제 SELL {passed['SELL']} (전체 {counts['SELL']}) / "
                 f"HOLD {counts['HOLD']} · 주문 {order_count}건 · "
                 f"다음 판단 {next_minutes}분 후"
             ),
@@ -395,6 +408,8 @@ class AdaptiveDecisionScheduler:
                 "buy_count": str(counts["BUY"]),
                 "sell_count": str(counts["SELL"]),
                 "hold_count": str(counts["HOLD"]),
+                "passed_buy_count": str(passed["BUY"]),
+                "passed_sell_count": str(passed["SELL"]),
                 "order_count": str(order_count),
                 "next_check_minutes": str(next_minutes),
             },
