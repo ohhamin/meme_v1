@@ -319,7 +319,7 @@ class ApiClient {
     )) as Map<String, dynamic>;
   }
 
-  Future<List<String>> autoSelectUpbitUniverse({int limit = 10}) async {
+  Future<List<String>> autoSelectUpbitUniverse({int limit = 20}) async {
     final data = await _request(
       'POST',
       '/crypto/upbit/universe/auto?limit=$limit',
@@ -356,7 +356,7 @@ class ApiClient {
     )) as Map<String, dynamic>;
   }
 
-  Future<List<String>> autoSelectTossUniverse({int limit = 15}) async {
+  Future<List<String>> autoSelectTossUniverse({int limit = 25}) async {
     final data = await _request(
       'POST',
       '/stocks/toss/universe/auto?limit=$limit',
