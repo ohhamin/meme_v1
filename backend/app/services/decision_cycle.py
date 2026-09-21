@@ -3,6 +3,7 @@ from backend.app.models.schemas import (
     DecisionCycleResult,
 )
 from backend.app.services.audit import AuditLogger
+from backend.app.services.backend_errors import BackendErrorStore
 from backend.app.services.decision_engine import DecisionEngine
 from backend.app.services.decision_store import DecisionMarkdownStore
 from backend.app.services.openai_decision import (
@@ -23,6 +24,7 @@ class DecisionCycleService:
         self.llm = LLMDecisionClient()
         self.store = DecisionMarkdownStore()
         self.audit = AuditLogger()
+        self.backend_errors = BackendErrorStore()
 
     async def preview(
         self,
@@ -56,6 +58,24 @@ class DecisionCycleService:
         try:
             result = await self.llm.decide(context)
         except LLMUnavailableError as exc:
+            self.backend_errors.report_exception(
+                exc,
+                source="decision_cycle.preview",
+                context=(
+                    f"mode={gate.mode}; "
+                    f"estimated_input_tokens={context.estimated_input_tokens}"
+                ),
+            )
+            self.audit.write(
+                "system",
+                {
+                    "event": "decision_preview_llm_blocked",
+                    "mode": gate.mode,
+                    "error_type": type(exc).__name__,
+                    "error_detail": str(exc)[:1000],
+                    "estimated_input_tokens": context.estimated_input_tokens,
+                },
+            )
             return DecisionPreviewResponse(
                 status="blocked",
                 mode="unavailable",
