@@ -294,3 +294,17 @@ Feature 하나가 매수/매도 신호를 강제하지 않으며, 데이터가 �
 
 `GET /readiness`에서 Paper 자동매매, Live 수동매매, Live 자동매매의 남은 조건을 확인할 수 있다.
 앱 세팅 화면에서도 같은 준비 상태를 표시한다.
+
+
+## Composite Score v0.7
+
+자동 판단의 최종 방향 점수는 시장별 고정 가중합으로 계산한다.
+
+- 주식: Technical 40% + Market/Sector 20% + Company Fundamental 30% + Event/News 10%
+- 코인: Technical 80% + Event/News 20%
+
+Technical은 기존 deterministic 정량점수를 사용하며 LLM이 변경할 수 없다.
+나머지 context 점수는 수집된 뉴스/거시/기업 근거를 바탕으로 0~100으로 평가하되,
+확인 가능한 자료가 없으면 50(중립)으로 둔다. 최종 가중합과 BUY/HOLD/SELL 판정은
+백엔드가 다시 계산한다. 뉴스 수집기는 현재 판단 universe의 종목/코인을 함께 검색해
+실적·가이던스·밸류에이션 변화와 주요 이벤트를 context에 포함하도록 한다.
