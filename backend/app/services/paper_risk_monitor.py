@@ -5,6 +5,7 @@ from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter
 from backend.app.models.schemas import RiskOrderIntent
 from backend.app.services.audit import AuditLogger
 from backend.app.services.auto_trade_activity import AutoTradeActivityService
+from backend.app.services.decision_store import DecisionMarkdownStore
 from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
@@ -30,6 +31,7 @@ class PaperRiskMonitor:
         self.toss = TossMarketDataAdapter()
         self.activity = AutoTradeActivityService()
         self.audit = AuditLogger()
+        self.store = DecisionMarkdownStore()
 
     async def run(self) -> dict:
         runtime = self.runtime.get()
@@ -149,6 +151,24 @@ class PaperRiskMonitor:
                     "order_id": order.order_id,
                 }
                 exits.append(payload)
+                try:
+                    self.store.append_risk_exit(
+                        market=market,
+                        symbol=symbol,
+                        name=position.name,
+                        score=position.decision_score,
+                        reason=exit_reason,
+                        quantity=order.quantity,
+                        price=order.price,
+                        notional=order.notional,
+                        order_id=order.order_id,
+                        created_at=order.created_at,
+                    )
+                except Exception as exc:
+                    failures.append(
+                        f"{market}:{symbol}: risk exit decision log failed: {exc}"
+                    )
+
                 self.audit.write(
                     "system",
                     {
