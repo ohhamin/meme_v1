@@ -1047,7 +1047,9 @@ class _MarketScreenState extends State<MarketScreen> {
                             final caution = item['caution'] == true;
                             final checked = selected.contains(market);
 
-                            return CheckboxListTile(
+                            return Material(
+                              color: Colors.transparent,
+                              child: CheckboxListTile(
                               value: checked,
                               onChanged: (value) {
                                 setSheetState(() {
@@ -1093,6 +1095,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                 ],
                               ),
                               subtitle: Text(market),
+                              ),
                             );
                           },
                         ),
