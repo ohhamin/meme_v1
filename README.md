@@ -132,8 +132,8 @@ LLM Decision
     ↓
 Order Intent
     ↓
-Risk Guard
- PASS / BLOCK / NO_ORDER
+Risk Guard v0.5
+ ALLOW / REDUCE / BLOCK / FORCE_EXIT / NO_ORDER
     ↓
 Broker
 ```
