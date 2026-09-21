@@ -1,5 +1,8 @@
 String riskGuardLabel(String raw) {
   final value = raw.toUpperCase();
+  if (value.contains('FORCE_EXIT')) return '강제청산';
+  if (value.contains('REDUCE')) return '수량조정';
+  if (value.contains('ALLOW')) return '허용';
   if (value.contains('BLOCK')) return '차단';
   if (value.contains('PENDING')) return '대기';
   if (value.contains('NO_ORDER')) return '주문없음';
