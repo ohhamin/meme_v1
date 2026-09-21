@@ -166,6 +166,15 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
         final trading =
             (data['trading_7d'] as Map?)?.cast<String, dynamic>() ??
                 <String, dynamic>{};
+        final tradingByMarket =
+            (data['trading_7d_by_market'] as Map?)?.cast<String, dynamic>() ??
+                <String, dynamic>{};
+        final stockTrading =
+            (tradingByMarket['stock'] as Map?)?.cast<String, dynamic>() ??
+                trading;
+        final cryptoTrading =
+            (tradingByMarket['crypto'] as Map?)?.cast<String, dynamic>() ??
+                trading;
         final recentOrders = (data['recent_orders'] as List<dynamic>? ??
                 <dynamic>[])
             .map((item) => (item as Map).cast<String, dynamic>())
@@ -175,6 +184,19 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     <dynamic>[])
                 .map((item) => (item as Map).cast<String, dynamic>())
                 .toList();
+        final scorePerformanceByMarket =
+            (data['score_performance_7d_by_market'] as Map?)
+                    ?.cast<String, dynamic>() ??
+                <String, dynamic>{};
+        List<Map<String, dynamic>> marketScores(String market) {
+          final raw = scorePerformanceByMarket[market] as List<dynamic>?;
+          if (raw == null) return scorePerformance;
+          return raw
+              .map((item) => (item as Map).cast<String, dynamic>())
+              .toList();
+        }
+        final stockScorePerformance = marketScores('stock');
+        final cryptoScorePerformance = marketScores('crypto');
         final candidatePerformance =
             (data['candidate_score_performance_7d'] as List<dynamic>? ??
                     <dynamic>[])
@@ -312,74 +334,39 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
               const SizedBox(height: 24),
               const SectionTitle('최근 7일 매매 성과'),
               const SizedBox(height: 12),
-              AppSurface(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Metric(
-                            label: '매도 승률',
-                            value:
-                                '${_number(trading['win_rate_pct']).toStringAsFixed(1)}%',
-                          ),
-                        ),
-                        Expanded(
-                          child: _Metric(
-                            label: '실현손익',
-                            value: _signedMoney(trading['realized_pnl']),
-                            valueColor:
-                                _pnlColor(_number(trading['realized_pnl'])),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Metric(
-                            label: '익절',
-                            value: '${trading['win_count'] ?? 0}회',
-                          ),
-                        ),
-                        Expanded(
-                          child: _Metric(
-                            label: '손절',
-                            value: '${trading['loss_count'] ?? 0}회',
-                          ),
-                        ),
-                        Expanded(
-                          child: _Metric(
-                            label: '체결',
-                            value: '${trading['order_count'] ?? 0}회',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '승률은 실현손익이 기록된 매도 체결 기준이에요.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+              _MarketTradingCard(
+                title: '주식',
+                data: stockTrading,
+                money: _money,
+              ),
+              const SizedBox(height: 10),
+              _MarketTradingCard(
+                title: '코인',
+                data: cryptoTrading,
+                money: _money,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '승률은 각 시장에서 실현손익이 기록된 매도 체결 기준이에요.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
-              const SectionTitle('BUY 점수별 성과'),
+              const SectionTitle('주식 BUY 점수별 성과'),
               const SizedBox(height: 12),
-              if (scorePerformance.isEmpty)
+              if (stockScorePerformance.every(
+                (item) => (item['closed_trades'] as num? ?? 0) == 0,
+              ))
                 const AppSurface(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text(
-                      '점수별 성과 데이터가 아직 없어요.',
+                      '주식 점수별 청산 데이터가 아직 없어요.',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 )
               else
-                ...scorePerformance.map(
+                ...stockScorePerformance.map(
                   (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _ScorePerformanceCard(data: item),
@@ -387,7 +374,34 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                 ),
               const SizedBox(height: 8),
               Text(
-                '매수 당시 점수와 이후 매도 실현성과를 연결한 최근 7일 통계예요.',
+                '주식 매수 당시 판단점수와 이후 매도 실현성과를 연결한 최근 7일 통계예요.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 24),
+              const SectionTitle('코인 BUY 점수별 성과'),
+              const SizedBox(height: 12),
+              if (cryptoScorePerformance.every(
+                (item) => (item['closed_trades'] as num? ?? 0) == 0,
+              ))
+                const AppSurface(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      '코인 점수별 청산 데이터가 아직 없어요.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                )
+              else
+                ...cryptoScorePerformance.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ScorePerformanceCard(data: item),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                '코인 매수 당시 판단점수와 이후 매도 실현성과를 연결한 최근 7일 통계예요.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
@@ -540,6 +554,76 @@ class _Metric extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+
+class _MarketTradingCard extends StatelessWidget {
+  const _MarketTradingCard({
+    required this.title,
+    required this.data,
+    required this.money,
+  });
+
+  final String title;
+  final Map<String, dynamic> data;
+  final NumberFormat money;
+
+  num _number(dynamic value) =>
+      num.tryParse(value?.toString() ?? '0') ?? 0;
+
+  Color _pnlColor(num value) {
+    if (value > 0) return AppColors.positive;
+    if (value < 0) return AppColors.negative;
+    return AppColors.textPrimary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final winRate = _number(data['win_rate_pct']);
+    final realized = _number(data['realized_pnl']);
+    final winCount = (data['win_count'] as num?)?.toInt() ?? 0;
+    final lossCount = (data['loss_count'] as num?)?.toInt() ?? 0;
+    final sellCount = (data['sell_count'] as num?)?.toInt() ?? 0;
+    final orderCount = (data['order_count'] as num?)?.toInt() ?? 0;
+    final prefix = realized > 0 ? '+' : '';
+
+    return AppSurface(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _Metric(
+                  label: '매도 승률',
+                  value: '${winRate.toStringAsFixed(1)}%',
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  label: '실현손익',
+                  value: '$prefix${money.format(realized)}원',
+                  valueColor: _pnlColor(realized),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _Metric(label: '익절', value: '$winCount회')),
+              Expanded(child: _Metric(label: '손절', value: '$lossCount회')),
+              Expanded(child: _Metric(label: '청산', value: '$sellCount회')),
+              Expanded(child: _Metric(label: '체결', value: '$orderCount회')),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
