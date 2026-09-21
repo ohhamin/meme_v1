@@ -55,7 +55,7 @@ def test_buy_blocks_when_snapshot_is_stale():
 def test_buy_blocks_after_daily_loss_limit():
     result = make_guard().evaluate(make_intent(daily_pnl_pct=Decimal("-3.5")))
     assert result.status == "BLOCK"
-    assert any("Daily loss" in reason for reason in result.reasons)
+    assert any("Daily equity loss" in reason for reason in result.reasons)
 
 
 def test_buy_is_reduced_when_position_would_exceed_limit():
