@@ -118,3 +118,24 @@ def test_refresh_if_auto_preserves_manual_selection():
     selected = asyncio.run(selector.refresh_if_auto())
 
     assert selected == ["KRW-BTC"]
+
+
+def test_required_held_crypto_is_included_inside_limit(tmp_path):
+    universe = _Universe()
+    selector = UpbitUniverseSelector(
+        market_data=_MarketData(),
+        universe=universe,
+    )
+    selector.state_path = tmp_path / "upbit_selector.json"
+
+    selected = asyncio.run(
+        selector.select(
+            limit=2,
+            force=True,
+            required_markets=["KRW-WARN"],
+        )
+    )
+
+    assert len(selected) == 2
+    assert selected[0] == "KRW-WARN"
+    assert universe.limit == 2
