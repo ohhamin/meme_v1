@@ -27,6 +27,34 @@ String localizeDecisionReason(String raw) {
 
   final lower = value.toLowerCase();
 
+  if (lower == 'hold decision creates no order.') {
+    return 'HOLD 판단이라 주문하지 않았어요.';
+  }
+  if (lower == 'calculated stock quantity is below 1 share.') {
+    return '계산된 매수 수량이 1주 미만이라 주문하지 않았어요.';
+  }
+  if (lower == 'no current position to sell.') {
+    return '현재 보유 수량이 없어 매도 주문을 만들지 않았어요.';
+  }
+  if (lower == 'calculated buy notional is zero.') {
+    return '계산된 매수 금액이 0원이라 주문하지 않았어요.';
+  }
+  if (lower == 'calculated crypto quantity is zero.') {
+    return '계산된 코인 매수 수량이 0이라 주문하지 않았어요.';
+  }
+  if (lower == 'calculated sell quantity is zero.') {
+    return '계산된 매도 수량이 0이라 주문하지 않았어요.';
+  }
+  if (lower == 'decision market does not match the selected broker account.') {
+    return '판단 시장과 선택된 계좌의 시장이 일치하지 않아 주문하지 않았어요.';
+  }
+  if (lower.startsWith('buy score is below sizing threshold')) {
+    return 'BUY 점수가 주문 생성 기준보다 낮아 주문하지 않았어요.';
+  }
+  if (lower.startsWith('sell score is above sizing threshold')) {
+    return 'SELL 점수가 주문 생성 기준보다 높아 주문하지 않았어요.';
+  }
+
   if (lower.contains('daily order') && lower.contains('limit')) {
     return '일일 최대 주문 횟수에 도달해 차단됐어요.';
   }
