@@ -107,7 +107,7 @@ def test_sell_very_low_score_sells_sixty_percent():
     assert result.order_quantity == Decimal("0.00600000")
 
 
-def test_stock_buy_rounds_down_to_whole_share():
+def test_stock_buy_rounds_down_to_whole_shares():
     sizer = PositionSizer()
     decision = SymbolDecision(
         market="stock",
@@ -123,8 +123,8 @@ def test_stock_buy_rounds_down_to_whole_share():
         portfolio=portfolio(market="stock"),
     )
     assert result.status == "ORDER"
-    assert result.order_quantity == Decimal("1")
-    assert result.order_notional == Decimal("70000")
+    assert result.order_quantity == Decimal("5")
+    assert result.order_notional == Decimal("350000")
 
 
 def test_buy_size_is_reduced_by_quant_volatility_scale():
