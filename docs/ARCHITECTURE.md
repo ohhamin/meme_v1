@@ -1337,3 +1337,29 @@ Feature 계산은 deterministic하며 `MarketInstrumentSnapshot.features`에 포
 - 현재 configured/보유 기반 판단 대상
 
 앱 세팅에서도 이 상태를 표시하여 Live 전환 전에 남은 조건을 확인할 수 있다.
+
+
+## 27. Composite Score v0.7
+
+시장별 최종 판단 점수:
+
+```text
+Stock =
+  Technical 40%
++ Market/Sector 20%
++ Fundamental 30%
++ Event/News 10%
+
+Crypto =
+  Technical 80%
++ Event/News 20%
+```
+
+Technical은 QuantSignalService가 만든 deterministic 점수다.
+Context component는 OpenAI가 이미 수집된 검증 가능한 뉴스/거시 context만 사용해 평가한다.
+근거가 부족하거나 stale/상충하면 50으로 두며, 최종 가중합과 65/35 BUY/HOLD/SELL 임계값은
+Backend가 강제로 다시 계산한다. 따라서 모델이 최종 점수나 Technical 점수를 임의로 바꿀 수 없다.
+
+뉴스 수집 시 현재 Toss/Upbit 판단 universe를 함께 전달하고,
+주식은 실적·가이던스·매출/영업이익 전망·PER/PBR/ROE 등 확인 가능한 펀더멘털 변화와
+산업/기업 이벤트를 우선 검색한다. 코인은 규제·ETF/기관수급·네트워크·거래소/보안 이벤트를 우선한다.
