@@ -101,7 +101,7 @@ async def toss_universe_status():
 
 
 @router.post("/toss/universe/auto", response_model=TossUniverseResponse)
-async def auto_toss_universe(limit: int = Query(15, ge=1, le=30)):
+async def auto_toss_universe(limit: int = Query(25, ge=1, le=30)):
     symbols = await TossUniverseSelector().select(
         limit=limit,
         force=True,
