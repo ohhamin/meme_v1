@@ -316,6 +316,7 @@ class _DecisionCardData {
     this.orderQuantity,
     this.orderNotional,
     this.executionMode = 'PAPER',
+    this.decisionSource = 'AI',
   });
 
   final String time;
@@ -330,6 +331,7 @@ class _DecisionCardData {
   final String? orderQuantity;
   final String? orderNotional;
   final String executionMode;
+  final String decisionSource;
 }
 
 
@@ -354,6 +356,8 @@ class _DecisionParser {
         orderNotional: item['order_notional']?.toString(),
         executionMode:
             item['execution_mode']?.toString().toUpperCase() ?? 'PAPER',
+        decisionSource:
+            item['decision_source']?.toString().toUpperCase() ?? 'AI',
       );
     }).where((item) => item.symbol.isNotEmpty).toList();
   }
@@ -399,6 +403,7 @@ class _DecisionParser {
     String? orderQuantity;
     String? orderNotional;
     String cycleMode = 'PAPER';
+    String cycleSource = 'AI';
 
     void flush() {
       if (symbol.isEmpty) return;
@@ -416,6 +421,7 @@ class _DecisionParser {
           orderQuantity: orderQuantity,
           orderNotional: orderNotional,
           executionMode: cycleMode,
+          decisionSource: cycleSource,
         ),
       );
       symbol = '';
@@ -438,12 +444,19 @@ class _DecisionParser {
         cycleTime =
             line.substring(3).replaceAll('Decision Cycle', '').trim();
         cycleMode = 'PAPER';
+        cycleSource = 'AI';
         continue;
       }
 
       if (line.startsWith('- Execution Mode:')) {
         cycleMode =
             line.substring('- Execution Mode:'.length).trim().toUpperCase();
+        continue;
+      }
+
+      if (line.startsWith('- Decision Source:')) {
+        cycleSource =
+            line.substring('- Decision Source:'.length).trim().toUpperCase();
         continue;
       }
 
@@ -518,12 +531,20 @@ class _DecisionCardState extends State<_DecisionCard> {
     }
   }
 
+  String get _actionLabel {
+    final action = data.action.isEmpty ? 'HOLD' : data.action;
+    return data.decisionSource == 'RISK_MONITOR'
+        ? '$action · 리스크 청산'
+        : action;
+  }
+
   @override
   Widget build(BuildContext context) {
     final risk = data.risk.toUpperCase();
     final blocked = risk.contains('BLOCK');
     final pending = risk.contains('PENDING');
     final noOrder = risk.contains('NO_ORDER');
+    final forceExit = risk.contains('FORCE_EXIT');
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -559,7 +580,7 @@ class _DecisionCardState extends State<_DecisionCard> {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    data.action.isEmpty ? 'HOLD' : data.action,
+                    _actionLabel,
                     style: TextStyle(
                       color: _actionColor,
                       fontSize: 12,
@@ -590,14 +611,8 @@ class _DecisionCardState extends State<_DecisionCard> {
                   const SizedBox(width: 28),
                   _Metric(
                     label: 'Risk Guard',
-                    value: blocked
-                        ? '차단'
-                        : pending
-                            ? '대기'
-                            : noOrder
-                                ? '주문없음'
-                                : '통과',
-                    valueColor: blocked
+                    value: riskGuardLabel(data.risk),
+                    valueColor: blocked || forceExit
                         ? AppColors.negative
                         : pending
                             ? AppColors.warning
@@ -615,7 +630,7 @@ class _DecisionCardState extends State<_DecisionCard> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  data.reason,
+                  localizeDecisionReason(data.reason),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
