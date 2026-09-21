@@ -22,7 +22,7 @@ class AppSettings(BaseSettings):
     live_order_reconcile_attempts: int = 3
     live_order_reconcile_interval_seconds: float = 1.0
 
-    risk_max_position_pct: float = 40.0
+    risk_max_position_pct: float = 60.0
     risk_max_daily_loss_pct: float = 3.0
     risk_max_daily_orders: int = 20
     risk_max_data_age_seconds: int = 300
@@ -39,10 +39,10 @@ class AppSettings(BaseSettings):
 
     position_buy_min_score: int = 60
     position_sell_max_score: int = 40
-    position_buy_pct_score_60: float = 1.0
-    position_buy_pct_score_70: float = 2.0
-    position_buy_pct_score_80: float = 3.0
-    position_buy_pct_score_90: float = 4.0
+    position_buy_pct_score_60: float = 5.0
+    position_buy_pct_score_70: float = 10.0
+    position_buy_pct_score_80: float = 15.0
+    position_buy_pct_score_90: float = 20.0
     position_sell_pct_score_40: float = 25.0
     position_sell_pct_score_30: float = 40.0
     position_sell_pct_score_20: float = 60.0
