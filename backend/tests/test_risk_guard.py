@@ -208,3 +208,34 @@ def test_daily_limit_uses_buy_count_when_available():
         )
     )
     assert result.status == "ALLOW"
+
+
+def test_buy_is_capped_at_ninety_percent_total_exposure():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("100000"),
+            position_quantity=Decimal("0.001"),
+            order_notional=Decimal("100000"),
+            order_quantity=Decimal("0.001"),
+            available_cash=Decimal("150000"),
+        )
+    )
+
+    assert result.status == "REDUCE"
+    assert result.adjusted_notional == Decimal("50000")
+    assert result.adjusted_quantity == Decimal("0.00050000")
+
+
+def test_buy_blocks_when_portfolio_is_already_ninety_percent_invested():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("100000"),
+            position_quantity=Decimal("0.001"),
+            order_notional=Decimal("10000"),
+            order_quantity=Decimal("0.0001"),
+            available_cash=Decimal("100000"),
+        )
+    )
+
+    assert result.status == "BLOCK"
+    assert any("total exposure limit" in reason for reason in result.reasons)
