@@ -364,17 +364,13 @@ class _MarketScreenState extends State<MarketScreen> {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: selectionMode == 'auto'
-                                    ? AppColors.primarySoft
-                                    : AppColors.chip,
+                                color: AppColors.primarySoft,
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: Text(
-                                selectionMode == 'auto' ? '자동선정' : '수동',
+                              child: const Text(
+                                '자동갱신',
                                 style: TextStyle(
-                                  color: selectionMode == 'auto'
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                  color: AppColors.primary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -384,9 +380,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          selectionMode == 'auto'
-                              ? '유동성·추세·거래활성도·변동성을 합산해 최대 15개 후보를 자동 갱신해요.'
-                              : '국내주식 6자리 종목코드를 직접 입력할 수 있어요.',
+                          '유동성·추세·거래활성도·변동성을 합산해 매 판단 사이클마다 최대 25개 후보를 자동 선정해요.',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -401,7 +395,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                     setSheetState(() => autoRunning = true);
                                     try {
                                       final symbols = await ApiClient.instance
-                                          .autoSelectTossUniverse(limit: 15);
+                                          .autoSelectTossUniverse(limit: 25);
                                       controller.text = symbols.join(', ');
                                       selectionMode = 'auto';
                                       final latest = await ApiClient.instance
@@ -468,7 +462,7 @@ class _MarketScreenState extends State<MarketScreen> {
                             label: Text(
                               autoRunning
                                   ? '후보 분석 중...'
-                                  : '알고리즘으로 15개 자동 선정',
+                                  : '알고리즘으로 25개 자동 선정',
                             ),
                           ),
                         ),
@@ -493,7 +487,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '점수는 후보 풀 안에서의 상대점수예요. 높은 점수 자체가 매수 신호는 아닙니다.',
+                            '보유 주식은 점수와 관계없이 항상 포함돼요. 나머지 자리만 후보 풀 상대점수로 채우며, 높은 점수 자체가 매수 신호는 아닙니다.',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           const SizedBox(height: 10),
@@ -559,12 +553,12 @@ class _MarketScreenState extends State<MarketScreen> {
                           maxLines: 4,
                           decoration: const InputDecoration(
                             hintText: '005930, 000660',
-                            labelText: '수동 편집용 종목코드',
+                            labelText: '현재 후보 임시 편집',
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '직접 저장하면 자동선정이 해제되고 수동 모드로 전환돼요.',
+                          '직접 저장한 목록은 현재 후보에 반영되지만, 다음 자동 판단 사이클에서 보유 종목을 포함해 최대 25개로 다시 선정돼요.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 18),
@@ -620,7 +614,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                     );
                                   }
                                 },
-                                child: const Text('수동 저장'),
+                                child: const Text('현재 후보 저장'),
                               ),
                             ),
                           ],
@@ -640,7 +634,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
       if (saved == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('주식 판단 대상을 수동 저장했어요.')),
+          const SnackBar(content: Text('현재 주식 후보 목록을 저장했어요. 다음 판단 사이클에서 자동 갱신됩니다.')),
         );
       }
     } catch (e) {
@@ -946,7 +940,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '선택 ${selected.length}개 · 보유 종목 수 0~10개와는 별개예요.',
+                                    '최대 20개 자동 선정 · 보유 코인은 항상 포함돼요.',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall,
@@ -974,7 +968,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                     setSheetState(() => autoRunning = true);
                                     try {
                                       final markets = await ApiClient.instance
-                                          .autoSelectUpbitUniverse(limit: 10);
+                                          .autoSelectUpbitUniverse(limit: 20);
                                       if (!context.mounted) return;
                                       setSheetState(() {
                                         selected
@@ -990,7 +984,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            '거래대금 기준으로 ${markets.length}개 코인을 자동 선정했어요.',
+                                            '알고리즘으로 ${markets.length}개 코인을 자동 선정했어요.',
                                           ),
                                         ),
                                       );
@@ -1014,9 +1008,17 @@ class _MarketScreenState extends State<MarketScreen> {
                             label: Text(
                               autoRunning
                                   ? '후보 분석 중...'
-                                  : '거래대금 기준 10개 자동 선정',
+                                  : '알고리즘으로 20개 자동 선정',
                             ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          '유동성·모멘텀·거래활성도·변동성을 종합해 매 판단 사이클마다 갱신해요. 보유 코인은 선정 점수와 관계없이 유지됩니다.',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -1124,8 +1126,8 @@ class _MarketScreenState extends State<MarketScreen> {
                             },
                             child: Text(
                               selected.isEmpty
-                                  ? '판단 대상 없이 수동 저장'
-                                  : '${selected.length}개 수동 저장',
+                                  ? '현재 후보 비우기'
+                                  : '${selected.length}개 현재 후보 저장',
                             ),
                           ),
                         ),
@@ -1143,7 +1145,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
       if (saved == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('코인 판단 대상을 저장했어요.')),
+          const SnackBar(content: Text('현재 코인 후보 목록을 저장했어요. 다음 판단 사이클에서 자동 갱신됩니다.')),
         );
       }
     } catch (e) {
@@ -1639,13 +1641,9 @@ class _UniverseBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  count == null
-                      ? '불러오는 중'
-                      : count == 0
-                          ? '선택 없음 · 자동 판단은 대기'
-                          : isStock
-                              ? '$count개 주식을 현재가 기준으로 판단'
-                              : '$count개 코인을 현재가 기준으로 판단',
+                  isStock
+                      ? '보유 포함 최대 25개 주식을 자동 선정해 판단'
+                      : '보유 포함 최대 20개 코인을 자동 선정해 판단',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
