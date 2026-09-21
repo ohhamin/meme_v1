@@ -105,8 +105,8 @@ class CompactContextBuilder:
                 news_context=news_context,
                 decision_context=decision_context,
                 macro_context=macro_context,
-                market_snapshot=market_snapshot,
-                account_snapshot=account_snapshot,
+                market_snapshot=compact_market_snapshot,
+                account_snapshot=compact_account_snapshot,
             )
 
         return CompactDecisionContext(
@@ -141,15 +141,6 @@ class CompactContextBuilder:
             "quant_risk_scale",
             "quant_penalty",
             "quant_components",
-            "return_short_pct",
-            "return_medium_pct",
-            "return_long_pct",
-            "positive_day_ratio_medium",
-            "positive_day_ratio_long",
-            "sma_short_gap_pct",
-            "sma_long_gap_pct",
-            "realized_volatility_pct",
-            "volume_recent_ratio",
         )
 
         instruments: list[dict] = []
@@ -203,9 +194,7 @@ class CompactContextBuilder:
                             for key in (
                                 "symbol",
                                 "name",
-                                "quantity",
                                 "average_price",
-                                "last_price",
                                 "market_value",
                                 "return_rate",
                                 "decision_score",
