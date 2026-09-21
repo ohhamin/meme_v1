@@ -43,10 +43,12 @@ class TossUniverseSelector:
     async def select(
         self,
         *,
-        limit: int = 15,
+        limit: int = 25,
         force: bool = True,
+        required_symbols: list[str] | None = None,
     ) -> list[str]:
         limit = max(1, min(limit, 30))
+        required = self._stable_unique(required_symbols or [])[:limit]
 
         if (
             not force
@@ -55,7 +57,8 @@ class TossUniverseSelector:
         ):
             return self.universe.get()
 
-        infos = await self.market_data.stock_info(self.DEFAULT_POOL)
+        pool = self._stable_unique([*self.DEFAULT_POOL, *required])
+        infos = await self.market_data.stock_info(pool)
         eligible = [
             item
             for item in infos
@@ -87,7 +90,8 @@ class TossUniverseSelector:
             )
 
         if not rows:
-            return self.universe.get()
+            fallback = self._fill_required(required, self.DEFAULT_POOL, limit)
+            return self.universe.set_auto(fallback, limit=limit)
 
         self._score(rows)
         ranked = sorted(
@@ -98,7 +102,8 @@ class TossUniverseSelector:
             ),
             reverse=True,
         )
-        selected = [item["symbol"] for item in ranked[:limit]]
+        ranked_symbols = [item["symbol"] for item in ranked]
+        selected = self._fill_required(required, ranked_symbols, limit)
         saved = self.universe.set_auto(selected, limit=limit)
         self._save_state(ranked, saved)
         return saved
@@ -110,6 +115,26 @@ class TossUniverseSelector:
             limit=self.universe.auto_limit(),
             force=False,
         )
+
+    @staticmethod
+    def _stable_unique(values: list[str]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for raw in values:
+            value = str(raw).strip().upper()
+            if value and value not in seen:
+                seen.add(value)
+                result.append(value)
+        return result
+
+    @classmethod
+    def _fill_required(
+        cls,
+        required: list[str],
+        ranked: list[str],
+        limit: int,
+    ) -> list[str]:
+        return cls._stable_unique([*required, *ranked])[:limit]
 
     @staticmethod
     def _metrics(candles: list[dict]) -> dict | None:
