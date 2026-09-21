@@ -6,7 +6,6 @@ from backend.app.models.schemas import RiskOrderIntent
 from backend.app.services.audit import AuditLogger
 from backend.app.services.auto_trade_activity import AutoTradeActivityService
 from backend.app.services.paper_broker import PaperBroker
-from backend.app.services.push import PushService
 from backend.app.services.risk_guard import RiskGuard
 from backend.app.services.runtime_settings import RuntimeSettingsService
 
@@ -31,7 +30,6 @@ class PaperRiskMonitor:
         self.toss = TossMarketDataAdapter()
         self.activity = AutoTradeActivityService()
         self.audit = AuditLogger()
-        self.push = PushService()
 
     async def run(self) -> dict:
         runtime = self.runtime.get()
@@ -158,16 +156,6 @@ class PaperRiskMonitor:
                         "mode": "paper",
                         "risk_status": "FORCE_EXIT",
                         **payload,
-                    },
-                )
-                self.push.send(
-                    title="Risk Guard 강제 청산",
-                    body=f"{symbol} · {exit_reason}",
-                    data={
-                        "type": "risk_force_exit",
-                        "market": market,
-                        "symbol": symbol,
-                        "order_id": order.order_id,
                     },
                 )
 
