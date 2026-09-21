@@ -1692,7 +1692,8 @@ class _PositionCard extends StatelessWidget {
         num.tryParse(item['current_price']?.toString() ?? '0') ?? 0;
     final returnRate =
         num.tryParse(item['return_rate']?.toString() ?? '0') ?? 0;
-    final priceFormat = NumberFormat('#,##0.########');
+    final averagePriceFormat = NumberFormat('#,##0.0');
+    final currentPriceFormat = NumberFormat('#,##0.########');
     final score = int.tryParse(item['decision_score']?.toString() ?? '');
 
     final returnColor = returnRate > 0
@@ -1753,6 +1754,7 @@ class _PositionCard extends StatelessWidget {
                 child: _ValueBlock(
                   label: '현재 가치',
                   value: money.format(marketValue) + '원',
+                  valueColor: returnColor,
                 ),
               ),
               Expanded(
@@ -1770,13 +1772,14 @@ class _PositionCard extends StatelessWidget {
               Expanded(
                 child: _ValueBlock(
                   label: '평균매수가',
-                  value: priceFormat.format(averagePrice) + '원',
+                  value: averagePriceFormat.format(averagePrice) + '원',
                 ),
               ),
               Expanded(
                 child: _ValueBlock(
                   label: isStock ? '현재 주당가격' : '현재 코인가격',
-                  value: priceFormat.format(currentPrice) + '원',
+                  value: currentPriceFormat.format(currentPrice) + '원',
+                  valueColor: returnColor,
                 ),
               ),
               Expanded(
