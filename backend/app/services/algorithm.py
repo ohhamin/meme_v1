@@ -19,11 +19,11 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.7.0-composite
+Version: 0.8.0-evidence
 
 ## 한눈에 보기
 
-이 알고리즘은 **수학적 정량 신호가 방향을 먼저 정하고, AI는 그 판단을 확인하거나 HOLD로 보류만 하는 구조**다.
+이 알고리즘은 **가격 기반 Technical과 검증된 시장·기업·뉴스 evidence를 분리하고, Backend가 신뢰도·최신성까지 반영해 최종 점수를 계산하는 구조**다.
 
 1. 거래가 충분한 종목만 후보로 고른다.
 2. 일봉 가격으로 모멘텀·추세·변동성·거래량을 계산해 0~100점을 만든다.
@@ -96,20 +96,30 @@ CryptoScore = Technical 80% + Event / News 20%
 ```
 
 코인의 Market/Sector 및 Company Fundamental 점수는 사용하지 않는다.
-Context 점수는 LLM이 제공된 뉴스/거시자료를 읽어 산정하지만, 백엔드가 고정 가중치로 최종 점수를 다시 계산한다.
-LLM은 Technical 점수를 변경할 수 없으며 확인되지 않은 수치나 사실을 만들어내면 안 된다.
+LLM은 최종점수를 직접 결정하지 않고, 제공된 자료에서 세부 evidence score·신뢰도·데이터 나이를 구조화한다.
+Backend는 아래 규칙으로 각 Context component를 50점(중립) 쪽으로 보정한 뒤 고정 가중합을 계산한다.
+
+```text
+Adjusted = 50 + (Raw - 50) × Confidence × Freshness
+Freshness = 0.5 ^ (Age / HalfLife)
+```
+
+- Market/Sector 내부: 업종 상대강도 50% + 시장 Regime 25% + Macro 25%
+- Fundamental 내부: 실적/컨센서스 변화 35% + Quality 30% + Valuation 20% + 재무건전성·주주환원 15%
+- Market/Sector half-life: 48시간
+- Fundamental half-life: 90일
+- Event/News: 이벤트별 유효시간을 half-life로 사용하며, 없으면 기본 24시간
+- 근거가 없으면 confidence=0이므로 자동으로 50점이 된다.
+- Technical 점수는 Backend 정량값이며 LLM이 변경할 수 없다.
 
 ## BUY / HOLD / SELL
 
-- Quant Score >= 65: BUY 후보
+- Composite Score >= 65: BUY
 - 36~64: HOLD
-- Quant Score <= 35: SELL 후보
+- Composite Score <= 35: SELL
 
-AI는 이 방향을 반대로 바꿀 수 없다.
-
-- Quant BUY → AI 결과는 BUY 또는 HOLD
-- Quant SELL → AI 결과는 SELL 또는 HOLD
-- Quant HOLD → AI 결과는 HOLD
+Technical 단독 방향이 최종 방향을 강제하지 않는다.
+시장·기업·뉴스 evidence가 충분히 강하고 최신이며 신뢰도가 높을 때만 Composite Score를 의미 있게 움직인다.
 
 ## 변동성에 따른 주문 크기
 
@@ -181,7 +191,7 @@ Paper 데이터와 walk-forward 검증이 충분히 쌓이기 전에는 수익�
 ## Algorithm Changes
 
 수학 점수의 가중치·임계값·변동성 목표·주문크기·Risk Guard는 테스트된 Python 코드가 기준이다.
-앱의 자동 개선 제안은 이 숫자를 몰래 바꾸지 않으며, 뉴스·거시환경 등으로 정량 신호를 HOLD로 보류하는 AI 검토 규칙만 제안할 수 있다.
+앱의 자동 개선 제안은 이 숫자를 몰래 바꾸지 않으며, evidence 추출 기준·데이터 품질 판정·근거 해석 규칙만 제안할 수 있다.
 핵심 수학식을 바꾸려면 새 알고리즘 버전과 테스트를 함께 배포한다.
 
 ## Applied Proposals
@@ -217,9 +227,10 @@ class AlgorithmService:
                 or "Version: 0.4.0-quant" in current
                 or "Version: 0.5.0-risk" in current
                 or "Version: 0.6.0-sizing" in current
+                or "Version: 0.7.0-composite" in current
             ):
                 legacy = self._legacy_applied_history(current)
-                backup = self.current_path.with_suffix(".pre-v0.7.md")
+                backup = self.current_path.with_suffix(".pre-v0.8.md")
                 if not backup.exists():
                     backup.write_text(current, encoding="utf-8")
 
