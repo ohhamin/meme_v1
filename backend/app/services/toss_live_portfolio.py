@@ -18,6 +18,7 @@ class TossLivePortfolioService:
                 "symbol": item.symbol,
                 "name": item.name,
                 "invested_amount": item.purchase_amount,
+                "average_price": item.average_purchase_price,
                 "quantity": item.quantity,
                 "return_rate": item.return_rate,
                 "decision_score": None,
