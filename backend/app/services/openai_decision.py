@@ -329,6 +329,7 @@ class LLMDecisionClient:
                 "event": "llm_decision_completed",
                 "model": self.config.openai_decision_model,
                 "decision_count": len(result.decisions),
+                "estimated_input_tokens": context.estimated_input_tokens,
                 "next_check_minutes": result.next_check_minutes,
                 "request_id": getattr(response, "_request_id", None),
                 "usage": (
