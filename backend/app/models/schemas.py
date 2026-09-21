@@ -117,10 +117,32 @@ class SymbolDecision(BaseModel):
     action: Literal["BUY", "SELL", "HOLD"]
     score: int = Field(ge=0, le=100)
     reason: str = Field(min_length=1, max_length=1000)
+
+    # Final component scores after backend confidence/freshness adjustment.
     technical_score: int = Field(default=50, ge=0, le=100)
     market_sector_score: int = Field(default=50, ge=0, le=100)
     fundamental_score: int = Field(default=50, ge=0, le=100)
     news_event_score: int = Field(default=50, ge=0, le=100)
+
+    # Structured evidence supplied by the context reviewer. The backend,
+    # not the model, combines these into the final component scores.
+    market_regime_score: int = Field(default=50, ge=0, le=100)
+    sector_relative_strength_score: int = Field(default=50, ge=0, le=100)
+    macro_score: int = Field(default=50, ge=0, le=100)
+    market_sector_confidence: int = Field(default=0, ge=0, le=100)
+    market_sector_age_hours: int | None = Field(default=None, ge=0)
+
+    earnings_revision_score: int = Field(default=50, ge=0, le=100)
+    quality_score: int = Field(default=50, ge=0, le=100)
+    valuation_score: int = Field(default=50, ge=0, le=100)
+    balance_shareholder_score: int = Field(default=50, ge=0, le=100)
+    fundamental_confidence: int = Field(default=0, ge=0, le=100)
+    fundamental_age_hours: int | None = Field(default=None, ge=0)
+
+    raw_news_event_score: int = Field(default=50, ge=0, le=100)
+    news_event_confidence: int = Field(default=0, ge=0, le=100)
+    news_event_age_hours: int | None = Field(default=None, ge=0)
+    news_event_horizon_hours: int | None = Field(default=None, ge=1)
 
 
 class DecisionCycleResult(BaseModel):
