@@ -60,6 +60,8 @@ class AppSettings(BaseSettings):
     paper_slippage_bps: float = 0.0
 
     decision_default_interval_minutes: int = 60
+    decision_stock_universe_limit: int = 25
+    decision_crypto_universe_limit: int = 20
     decision_min_interval_minutes: int = 30
     decision_max_interval_minutes: int = 120
     news_collection_interval_hours: int = 12
