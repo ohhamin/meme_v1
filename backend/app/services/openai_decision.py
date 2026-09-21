@@ -217,7 +217,7 @@ class LLMDecisionClient:
                     },
                     "verbosity": "low",
                 },
-                prompt_cache_key="meme_v1_decision_v1",
+                prompt_cache_key="meme_v1_decision_v2",
                 store=False,
             )
         except RateLimitError as exc:
