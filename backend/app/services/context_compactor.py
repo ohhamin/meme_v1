@@ -65,14 +65,20 @@ class CompactContextBuilder:
 
         algorithm = self.algorithms.current()
         macro_context = self.macro.read()
+        compact_market_snapshot = self._compact_market_snapshot(
+            market_snapshot
+        )
+        compact_account_snapshot = self._compact_account_snapshot(
+            account_snapshot
+        )
 
         estimated = self._estimate(
             algorithm=algorithm,
             news_context=news_context,
             decision_context=decision_context,
             macro_context=macro_context,
-            market_snapshot=market_snapshot,
-            account_snapshot=account_snapshot,
+            market_snapshot=compact_market_snapshot,
+            account_snapshot=compact_account_snapshot,
         )
 
         # Optional historical context must never block an otherwise valid cycle.
@@ -108,11 +114,124 @@ class CompactContextBuilder:
             news_context=news_context,
             decision_context=decision_context,
             macro_context=macro_context,
-            market_snapshot=market_snapshot,
-            account_snapshot=account_snapshot,
+            market_snapshot=compact_market_snapshot,
+            account_snapshot=compact_account_snapshot,
             estimated_input_tokens=estimated,
             budget_mode=budget_status["mode"],
         )
+
+    @staticmethod
+    def _compact_market_snapshot(snapshot: dict) -> dict:
+        """Keep only decision-relevant per-instrument fields for the LLM.
+
+        Full broker snapshots remain in the trading pipeline; this copy is only
+        for prompt context. The deterministic quant score remains authoritative.
+        """
+        raw = snapshot.get("instruments")
+        if not isinstance(raw, list):
+            return snapshot
+
+        feature_keys = (
+            "features_available",
+            "feature_interval",
+            "feature_samples",
+            "quant_model_version",
+            "quant_score",
+            "quant_action",
+            "quant_risk_scale",
+            "quant_penalty",
+            "quant_components",
+            "return_short_pct",
+            "return_medium_pct",
+            "return_long_pct",
+            "positive_day_ratio_medium",
+            "positive_day_ratio_long",
+            "sma_short_gap_pct",
+            "sma_long_gap_pct",
+            "realized_volatility_pct",
+            "volume_recent_ratio",
+        )
+
+        instruments: list[dict] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            features = item.get("features")
+            compact_features = {}
+            if isinstance(features, dict):
+                compact_features = {
+                    key: features[key]
+                    for key in feature_keys
+                    if key in features
+                }
+
+            instruments.append(
+                {
+                    "market": item.get("market"),
+                    "symbol": item.get("symbol"),
+                    "name": item.get("name"),
+                    "price": item.get("price"),
+                    "data_age_seconds": item.get("data_age_seconds"),
+                    "market_open": item.get("market_open"),
+                    "features": compact_features,
+                }
+            )
+
+        return {"instruments": instruments}
+
+    @staticmethod
+    def _compact_account_snapshot(snapshot: dict) -> dict:
+        """Drop account fields that do not affect BUY/SELL/HOLD reasoning."""
+        if not isinstance(snapshot, dict):
+            return snapshot
+
+        result: dict = {}
+        for market in ("stock", "crypto"):
+            account = snapshot.get(market)
+            if not isinstance(account, dict):
+                continue
+
+            positions = account.get("positions")
+            compact_positions: list[dict] = []
+            if isinstance(positions, list):
+                for position in positions:
+                    if not isinstance(position, dict):
+                        continue
+                    compact_positions.append(
+                        {
+                            key: position.get(key)
+                            for key in (
+                                "symbol",
+                                "name",
+                                "quantity",
+                                "average_price",
+                                "last_price",
+                                "market_value",
+                                "return_rate",
+                                "decision_score",
+                            )
+                            if key in position
+                        }
+                    )
+
+            result[market] = {
+                key: account.get(key)
+                for key in (
+                    "broker",
+                    "cash",
+                    "equity",
+                    "daily_pnl_pct",
+                    "daily_order_count",
+                )
+                if key in account
+            }
+            result[market]["positions"] = compact_positions
+
+        policy = snapshot.get("portfolio_policy")
+        if isinstance(policy, dict):
+            result["portfolio_policy"] = policy
+
+        return result
 
     def _read_compact_or_fallback(
         self,
