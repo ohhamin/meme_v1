@@ -301,8 +301,42 @@ class LiveOrderService:
                 if source == "auto"
                 else None
             ),
+            seconds_since_last_buy=(
+                self.auto_activity.seconds_since_last(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                    side="buy",
+                )
+                if source == "auto"
+                else None
+            ),
+            seconds_since_last_sell=(
+                self.auto_activity.seconds_since_last(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                    side="sell",
+                )
+                if source == "auto"
+                else None
+            ),
+            seconds_since_last_stop_exit=(
+                self.auto_activity.seconds_since_last(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                    event="stop_exit",
+                )
+                if source == "auto"
+                else None
+            ),
         )
         risk = self.risk.evaluate(intent)
+
+        if risk.status == "REDUCE":
+            quantity = risk.adjusted_quantity
+            notional = risk.adjusted_notional
 
         record = self.journal.create(
             broker=broker,
@@ -321,7 +355,7 @@ class LiveOrderService:
             record.intent_id,
         )
 
-        if risk.status != "PASS":
+        if risk.status not in {"ALLOW", "REDUCE"}:
             record = self.journal.update(
                 record.intent_id,
                 status="REJECTED",
@@ -466,6 +500,13 @@ class LiveOrderService:
                     mode="live",
                     market=snapshot["market"],
                     symbol=symbol,
+                    at=record.updated_at,
+                )
+                self.auto_activity.record(
+                    mode="live",
+                    market=snapshot["market"],
+                    symbol=symbol,
+                    side=side,
                     at=record.updated_at,
                 )
 
