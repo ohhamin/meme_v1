@@ -117,6 +117,10 @@ class SymbolDecision(BaseModel):
     action: Literal["BUY", "SELL", "HOLD"]
     score: int = Field(ge=0, le=100)
     reason: str = Field(min_length=1, max_length=1000)
+    technical_score: int = Field(default=50, ge=0, le=100)
+    market_sector_score: int = Field(default=50, ge=0, le=100)
+    fundamental_score: int = Field(default=50, ge=0, le=100)
+    news_event_score: int = Field(default=50, ge=0, le=100)
 
 
 class DecisionCycleResult(BaseModel):
