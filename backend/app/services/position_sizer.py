@@ -30,14 +30,14 @@ class PositionSizer:
             return self._no_order(
                 decision,
                 reason=(
-                    "Decision market does not match the selected broker account."
+                    "판단 시장과 선택된 계좌의 시장이 일치하지 않아 주문하지 않았어요."
                 ),
             )
 
         if decision.action == "HOLD":
             return self._no_order(
                 decision,
-                reason="HOLD decision creates no order.",
+                reason="HOLD 판단이라 주문하지 않았어요.",
             )
 
         position = next(
@@ -54,8 +54,8 @@ class PositionSizer:
                 return self._no_order(
                     decision,
                     reason=(
-                        "BUY score is below sizing threshold "
-                        f"({decision.score} < {self.config.position_buy_min_score})."
+                        "BUY 점수가 주문 생성 기준보다 낮아 주문하지 않았어요. "
+                        f"({decision.score} < {self.config.position_buy_min_score})"
                     ),
                 )
 
@@ -69,7 +69,7 @@ class PositionSizer:
             if notional <= 0:
                 return self._no_order(
                     decision,
-                    reason="Calculated BUY notional is zero.",
+                    reason="계산된 매수 금액이 0원이라 주문하지 않았어요.",
                 )
 
             if decision.market == "stock":
@@ -79,7 +79,7 @@ class PositionSizer:
                 if quantity <= 0:
                     return self._no_order(
                         decision,
-                        reason="Calculated stock quantity is below 1 share.",
+                        reason="계산된 매수 수량이 1주 미만이라 주문하지 않았어요.",
                     )
                 notional = quantity * instrument.price
             else:
@@ -89,7 +89,7 @@ class PositionSizer:
                 if quantity <= 0:
                     return self._no_order(
                         decision,
-                        reason="Calculated crypto quantity is zero.",
+                        reason="계산된 코인 매수 수량이 0이라 주문하지 않았어요.",
                     )
                 notional = quantity * instrument.price
 
@@ -102,8 +102,8 @@ class PositionSizer:
                 order_notional=notional,
                 order_quantity=quantity,
                 reason=(
-                    f"BUY base {base_target_pct}% × volatility scale "
-                    f"{risk_scale} = {target_pct}% of current equity."
+                    f"BUY 기본 비중 {base_target_pct}% × 변동성 조정 "
+                    f"{risk_scale} = 현재 평가금액의 {target_pct}%로 계산했어요."
                 ),
             )
 
@@ -112,15 +112,15 @@ class PositionSizer:
             return self._no_order(
                 decision,
                 reason=(
-                    "SELL score is above sizing threshold "
-                    f"({decision.score} > {self.config.position_sell_max_score})."
+                    "SELL 점수가 주문 생성 기준보다 높아 주문하지 않았어요. "
+                    f"({decision.score} > {self.config.position_sell_max_score})"
                 ),
             )
 
         if position is None or position.quantity <= 0:
             return self._no_order(
                 decision,
-                reason="No current position to sell.",
+                reason="현재 보유 수량이 없어 매도 주문을 만들지 않았어요.",
             )
 
         sell_pct = Decimal(str(self._sell_pct(decision.score)))
@@ -143,7 +143,7 @@ class PositionSizer:
         if quantity <= 0:
             return self._no_order(
                 decision,
-                reason="Calculated SELL quantity is zero.",
+                reason="계산된 매도 수량이 0이라 주문하지 않았어요.",
             )
 
         return PositionSizeResult(
@@ -154,7 +154,7 @@ class PositionSizer:
             score=decision.score,
             order_notional=quantity * instrument.price,
             order_quantity=quantity,
-            reason=f"SELL sized at {sell_pct}% of current position.",
+            reason=f"현재 보유 수량의 {sell_pct}%를 매도하도록 계산했어요.",
         )
 
     def policy(self) -> dict:
