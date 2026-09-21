@@ -29,7 +29,7 @@ def test_live_order_rechecks_safety_gates_after_preflight(
         service.risk,
         "evaluate",
         lambda intent: RiskGuardResult(
-            status="PASS",
+            status="ALLOW",
             symbol=intent.symbol,
             action=intent.action,
             reasons=[],
