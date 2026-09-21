@@ -31,6 +31,9 @@ class RiskGuard:
             "max_daily_orders": self.config.risk_max_daily_orders,
             "max_data_age_seconds": self.config.risk_max_data_age_seconds,
             "min_cash_reserve_pct": self.config.risk_min_cash_reserve_pct,
+            "max_portfolio_exposure_pct": (
+                self.config.risk_max_portfolio_exposure_pct
+            ),
             "max_open_positions": self.config.risk_max_open_positions,
             "buy_cooldown_minutes": self.config.risk_auto_symbol_cooldown_minutes,
             "sell_reentry_cooldown_minutes": (
@@ -186,10 +189,24 @@ class RiskGuard:
             intent.available_cash - reserve_required,
         )
 
+        current_invested = max(
+            Decimal("0"),
+            equity - intent.available_cash,
+        )
+        max_portfolio_value = equity * (
+            Decimal(str(self.config.risk_max_portfolio_exposure_pct))
+            / Decimal("100")
+        )
+        max_by_portfolio = max(
+            Decimal("0"),
+            max_portfolio_value - current_invested,
+        )
+
         safe_notional = min(
             intent.order_notional,
             max_by_position,
             max_by_cash,
+            max_by_portfolio,
         )
 
         if safe_notional <= 0:
@@ -201,6 +218,10 @@ class RiskGuard:
             if max_by_cash <= 0:
                 detail.append(
                     "No cash is available above the configured reserve."
+                )
+            if max_by_portfolio <= 0:
+                detail.append(
+                    "Portfolio is already at the configured total exposure limit."
                 )
             return self._result(
                 intent,
@@ -231,8 +252,8 @@ class RiskGuard:
                 intent,
                 status="REDUCE",
                 reasons=[
-                    "BUY size reduced to remain inside position and cash "
-                    "reserve limits."
+                    "BUY size reduced to remain inside position, cash reserve, "
+                    "and total portfolio exposure limits."
                 ],
                 adjusted_notional=adjusted_notional,
                 adjusted_quantity=adjusted_quantity,
