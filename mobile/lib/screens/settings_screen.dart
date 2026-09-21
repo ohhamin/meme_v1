@@ -822,7 +822,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       item['improved'] == true;
                                   final message =
                                       item['message']?.toString() ?? '-';
-                                  return ListTile(
+                                  return Material(
+                                    color: Colors.transparent,
+                                    child: ListTile(
                                     contentPadding:
                                         const EdgeInsets.symmetric(
                                       vertical: 6,
@@ -894,7 +896,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             .getClientErrors();
                                         setSheetState(() {});
                                       }
-                                    },
+                                      },
+                                    ),
                                   );
                                 },
                               ),
@@ -991,7 +994,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       item['message']?.toString() ?? '-';
                                   final source =
                                       item['source']?.toString() ?? '';
-                                  return ListTile(
+                                  return Material(
+                                    color: Colors.transparent,
+                                    child: ListTile(
                                     contentPadding:
                                         const EdgeInsets.symmetric(
                                       vertical: 6,
@@ -1069,7 +1074,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             .getBackendErrors();
                                         setSheetState(() {});
                                       }
-                                    },
+                                      },
+                                    ),
                                   );
                                 },
                               ),
