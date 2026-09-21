@@ -112,3 +112,24 @@ def test_metrics_reject_insufficient_history():
             }
         ]
     ) is None
+
+
+def test_required_held_stock_is_included_inside_limit(tmp_path):
+    universe = _Universe()
+    selector = TossUniverseSelector(
+        market_data=_MarketData(),
+        universe=universe,
+    )
+    selector.state_path = tmp_path / "selector.json"
+
+    selected = asyncio.run(
+        selector.select(
+            limit=3,
+            force=True,
+            required_symbols=["123456"],
+        )
+    )
+
+    assert len(selected) == 3
+    assert selected[0] == "123456"
+    assert universe.limit == 3
