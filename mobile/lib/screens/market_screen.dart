@@ -25,6 +25,7 @@ class _MarketScreenState extends State<MarketScreen> {
   late Future<Map<String, dynamic>> _performanceFuture;
   int? _upbitUniverseCount;
   int? _tossUniverseCount;
+  bool _refreshingPositions = false;
 
   String get _market => widget.isStock ? 'stocks' : 'crypto';
   String get _title => widget.isStock ? '주식' : '코인';
@@ -66,12 +67,28 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(_reload);
-    await _future;
-    if (widget.isStock) {
-      await _loadTossUniverseCount();
-    } else {
-      await _loadUniverseCount();
+    if (_refreshingPositions) return;
+    setState(() => _refreshingPositions = true);
+    try {
+      await ApiClient.instance.refreshPositions(_market);
+      if (!mounted) return;
+      setState(_reload);
+      await _future;
+      if (widget.isStock) {
+        await _loadTossUniverseCount();
+      } else {
+        await _loadUniverseCount();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('현재 시세 새로고침 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _refreshingPositions = false);
+      }
     }
   }
 
@@ -1328,7 +1345,22 @@ class _MarketScreenState extends State<MarketScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const SectionTitle('보유 종목'),
+              Row(
+                children: [
+                  const Expanded(child: SectionTitle('보유 종목')),
+                  IconButton(
+                    tooltip: '현재 시세 새로고침',
+                    onPressed: _refreshingPositions ? null : _refresh,
+                    icon: _refreshingPositions
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               ...items.map(
                 (item) => Padding(
@@ -1652,8 +1684,15 @@ class _PositionCard extends StatelessWidget {
     final invested =
         num.tryParse(item['invested_amount']?.toString() ?? '0') ?? 0;
     final quantity = item['quantity']?.toString() ?? '0';
+    final marketValue =
+        num.tryParse(item['market_value']?.toString() ?? '0') ?? 0;
+    final averagePrice =
+        num.tryParse(item['average_price']?.toString() ?? '0') ?? 0;
+    final currentPrice =
+        num.tryParse(item['current_price']?.toString() ?? '0') ?? 0;
     final returnRate =
         num.tryParse(item['return_rate']?.toString() ?? '0') ?? 0;
+    final priceFormat = NumberFormat('#,##0.########');
     final score = int.tryParse(item['decision_score']?.toString() ?? '');
 
     final returnColor = returnRate > 0
@@ -1712,8 +1751,8 @@ class _PositionCard extends StatelessWidget {
               ),
               Expanded(
                 child: _ValueBlock(
-                  label: isStock ? '보유 수량' : '보유 코인',
-                  value: isStock ? quantity + '주' : quantity,
+                  label: '현재 가치',
+                  value: money.format(marketValue) + '원',
                 ),
               ),
               Expanded(
@@ -1721,6 +1760,29 @@ class _PositionCard extends StatelessWidget {
                   label: '수익률',
                   value: returnRate.toStringAsFixed(2) + '%',
                   valueColor: returnColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _ValueBlock(
+                  label: '평균매수가',
+                  value: priceFormat.format(averagePrice) + '원',
+                ),
+              ),
+              Expanded(
+                child: _ValueBlock(
+                  label: isStock ? '현재 주당가격' : '현재 코인가격',
+                  value: priceFormat.format(currentPrice) + '원',
+                ),
+              ),
+              Expanded(
+                child: _ValueBlock(
+                  label: '보유 수량',
+                  value: isStock ? quantity + '주' : quantity,
                 ),
               ),
             ],
