@@ -183,9 +183,21 @@ def test_stock_composite_uses_weighted_components():
                 "action": "BUY",
                 "score": 95,
                 "reason": "context confirms",
-                "market_sector_score": 80,
-                "fundamental_score": 80,
+                "market_regime_score": 80,
+                "sector_relative_strength_score": 80,
+                "macro_score": 80,
+                "market_sector_confidence": 100,
+                "market_sector_age_hours": 0,
+                "earnings_revision_score": 80,
+                "quality_score": 80,
+                "valuation_score": 80,
+                "balance_shareholder_score": 80,
+                "fundamental_confidence": 100,
+                "fundamental_age_hours": 0,
                 "news_event_score": 80,
+                "news_event_confidence": 100,
+                "news_event_age_hours": 0,
+                "news_event_horizon_hours": 24,
             }
         ]
     )
@@ -276,6 +288,9 @@ def test_crypto_composite_is_technical_80_news_20():
                 "score": 50,
                 "reason": "positive event",
                 "news_event_score": 90,
+                "news_event_confidence": 100,
+                "news_event_age_hours": 0,
+                "news_event_horizon_hours": 24,
             }
         ]
     )
@@ -286,3 +301,77 @@ def test_crypto_composite_is_technical_80_news_20():
     assert value.decisions[0].action == "BUY"
     assert value.decisions[0].market_sector_score == 50
     assert value.decisions[0].fundamental_score == 50
+
+
+
+def test_context_score_is_shrunk_to_neutral_by_low_confidence():
+    assert LLMDecisionClient._evidence_adjusted_score(
+        raw_score=90,
+        confidence=0,
+        age_hours=0,
+        half_life_hours=24,
+    ) == 50
+
+
+def test_news_score_half_life_moves_halfway_toward_neutral():
+    assert LLMDecisionClient._evidence_adjusted_score(
+        raw_score=90,
+        confidence=100,
+        age_hours=24,
+        half_life_hours=24,
+    ) == 70
+
+
+def test_stock_subfactors_are_combined_deterministically():
+    ctx = CompactDecisionContext(
+        algorithm_markdown="test",
+        news_context="",
+        decision_context="",
+        macro_context={},
+        market_snapshot={
+            "instruments": [
+                {
+                    "market": "stock",
+                    "symbol": "005930",
+                    "features": {"quant_score": 50},
+                },
+            ]
+        },
+        account_snapshot={},
+        estimated_input_tokens=100,
+        budget_mode="normal",
+    )
+    value = result(
+        [
+            {
+                "market": "stock",
+                "symbol": "005930",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "structured evidence",
+                "market_regime_score": 70,
+                "sector_relative_strength_score": 90,
+                "macro_score": 50,
+                "market_sector_confidence": 100,
+                "market_sector_age_hours": 0,
+                "earnings_revision_score": 100,
+                "quality_score": 80,
+                "valuation_score": 60,
+                "balance_shareholder_score": 40,
+                "fundamental_confidence": 100,
+                "fundamental_age_hours": 0,
+                "news_event_score": 50,
+                "news_event_confidence": 0,
+                "news_event_age_hours": None,
+                "news_event_horizon_hours": None,
+            }
+        ]
+    )
+
+    LLMDecisionClient._apply_quant_guardrails(context=ctx, result=value)
+
+    assert value.decisions[0].market_sector_score == 75
+    assert value.decisions[0].fundamental_score == 77
+    assert value.decisions[0].news_event_score == 50
+    assert value.decisions[0].score == 63
+    assert value.decisions[0].action == "HOLD"
