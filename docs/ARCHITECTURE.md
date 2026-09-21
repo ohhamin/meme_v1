@@ -489,7 +489,7 @@ LLM/알고리즘이 BUY 또는 SELL을 제안하더라도 Risk Guard가 최종�
 초기 Paper 운영용 기본값:
 
 ```text
-RISK_MAX_POSITION_PCT=40
+RISK_MAX_POSITION_PCT=60
 RISK_MAX_OPEN_POSITIONS=10
 RISK_MAX_DAILY_LOSS_PCT=3
 RISK_MAX_DAILY_ORDERS=20
@@ -834,15 +834,19 @@ Paper Broker
 Position Sizer도 LLM이 아니라 deterministic rule이다.
 LLM은 BUY/SELL/HOLD와 방향성 점수만 만들고, Sizer가 주문 후보 금액/수량을 계산한다.
 
-초기 BUY sizing:
+BUY sizing은 1회 고정 비중 대신 목표 보유비중을 사용한다.
 
 ```text
 BUY score < 60   -> NO_ORDER
-60~69            -> 현재 평가금액의 1%
-70~79            -> 2%
-80~89            -> 3%
-90~100           -> 4%
+60~69            -> 목표 보유비중 5%
+70~79            -> 10%
+80~89            -> 15%
+90~100           -> 20%
 ```
+
+현재 보유가치가 목표보다 작을 때 차이만 추가 매수한다.
+주식은 정수주 거래 때문에 목표 주문금액이 1주 가격보다 작으면 최소 1주 주문 후보를 만들고,
+Risk Guard가 종목 최대 60%, 최소 현금 10% 등 하드 한도를 최종 검사한다.
 
 초기 SELL sizing:
 
