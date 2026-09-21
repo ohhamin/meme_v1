@@ -210,12 +210,41 @@ class PaperAutoCycleService:
                         symbol=decision.symbol,
                     )
                 ),
+                seconds_since_last_buy=(
+                    self.auto_activity.seconds_since_last(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                        side="buy",
+                    )
+                ),
+                seconds_since_last_sell=(
+                    self.auto_activity.seconds_since_last(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                        side="sell",
+                    )
+                ),
+                seconds_since_last_stop_exit=(
+                    self.auto_activity.seconds_since_last(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                        event="stop_exit",
+                    )
+                ),
             )
             risk_result = self.risk.evaluate(intent)
             seen.add(key)
 
             order = None
-            if risk_result.status == "PASS":
+            if risk_result.status in {"ALLOW", "REDUCE"}:
+                effective_quantity = (
+                    risk_result.adjusted_quantity
+                    if risk_result.status == "REDUCE"
+                    else sizing.order_quantity
+                )
                 try:
                     order = broker.execute(
                         symbol=decision.symbol,
@@ -225,17 +254,29 @@ class PaperAutoCycleService:
                             if decision.action == "BUY"
                             else "sell"
                         ),
-                        quantity=sizing.order_quantity,
+                        quantity=effective_quantity,
                         market_price=instrument.price,
                         decision_score=decision.score,
                         decision_reason=decision.reason,
                         source="auto",
                         market_open=instrument.market_open,
                     )
+                    order_side = (
+                        "buy"
+                        if decision.action == "BUY"
+                        else "sell"
+                    )
                     self.auto_activity.record(
                         mode="paper",
                         market=decision.market,
                         symbol=decision.symbol,
+                        at=order.created_at,
+                    )
+                    self.auto_activity.record(
+                        mode="paper",
+                        market=decision.market,
+                        symbol=decision.symbol,
+                        side=order_side,
                         at=order.created_at,
                     )
                 except ValueError as exc:
