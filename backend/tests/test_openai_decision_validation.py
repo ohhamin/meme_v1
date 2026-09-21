@@ -149,11 +149,11 @@ def test_quant_buy_cannot_be_reversed_to_sell():
         result=value,
     )
 
-    assert value.decisions[0].action == "HOLD"
-    assert value.decisions[0].score == 72
+    assert value.decisions[0].action == "BUY"
+    assert value.decisions[0].score == 68
 
 
-def test_confirmed_quant_buy_uses_quant_score():
+def test_stock_composite_uses_weighted_components():
     ctx = CompactDecisionContext(
         algorithm_markdown="test",
         news_context="",
@@ -183,6 +183,9 @@ def test_confirmed_quant_buy_uses_quant_score():
                 "action": "BUY",
                 "score": 95,
                 "reason": "context confirms",
+                "market_sector_score": 80,
+                "fundamental_score": 80,
+                "news_event_score": 80,
             }
         ]
     )
@@ -193,7 +196,7 @@ def test_confirmed_quant_buy_uses_quant_score():
     )
 
     assert value.decisions[0].action == "BUY"
-    assert value.decisions[0].score == 68
+    assert value.decisions[0].score == 75
 
 
 
@@ -237,5 +240,49 @@ def test_quant_hold_preserves_quant_score():
     )
 
     assert value.decisions[0].action == "HOLD"
-    assert value.decisions[0].score == 47
-    assert "정량 47/100 중립" in value.decisions[0].reason
+    assert value.decisions[0].score == 49
+    assert "종합 49/100" in value.decisions[0].reason
+
+
+
+def test_crypto_composite_is_technical_80_news_20():
+    ctx = CompactDecisionContext(
+        algorithm_markdown="test",
+        news_context="",
+        decision_context="",
+        macro_context={},
+        market_snapshot={
+            "instruments": [
+                {
+                    "market": "crypto",
+                    "symbol": "KRW-BTC",
+                    "features": {
+                        "quant_action": "HOLD",
+                        "quant_score": 60,
+                    },
+                },
+            ]
+        },
+        account_snapshot={},
+        estimated_input_tokens=100,
+        budget_mode="normal",
+    )
+    value = result(
+        [
+            {
+                "market": "crypto",
+                "symbol": "KRW-BTC",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "positive event",
+                "news_event_score": 90,
+            }
+        ]
+    )
+
+    LLMDecisionClient._apply_quant_guardrails(context=ctx, result=value)
+
+    assert value.decisions[0].score == 66
+    assert value.decisions[0].action == "BUY"
+    assert value.decisions[0].market_sector_score == 50
+    assert value.decisions[0].fundamental_score == 50
