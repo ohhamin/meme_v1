@@ -13,6 +13,8 @@ from backend.app.services.upbit_live_portfolio import UpbitLivePortfolioService
 from backend.app.services.toss_live_portfolio import TossLivePortfolioService
 from backend.app.services.live_order_service import LiveOrderService
 from backend.app.services.latest_decision import LatestDecisionService
+from backend.app.brokers.toss_market_data import TossMarketDataAdapter
+from backend.app.brokers.upbit_market_data import UpbitMarketDataAdapter
 
 
 class TradingService:
@@ -69,6 +71,7 @@ class TradingService:
                         "symbol": p.symbol,
                         "name": p.name,
                         "invested_amount": p.invested_amount,
+                        "average_price": p.average_price,
                         "quantity": p.quantity,
                         "return_rate": p.return_rate,
                         "decision_score": p.decision_score,
@@ -97,6 +100,7 @@ class TradingService:
                         "symbol": p.symbol,
                         "name": p.name,
                         "invested_amount": p.invested_amount,
+                        "average_price": p.average_price,
                         "quantity": p.quantity,
                         "return_rate": p.return_rate,
                         "decision_score": p.decision_score,
@@ -114,6 +118,68 @@ class TradingService:
             self._with_latest_decision(dict(row), latest_map)
             for row in rows
         ]
+
+    async def refresh_positions(self, market: str) -> list[dict]:
+        """Refresh held-position prices without running a decision cycle."""
+        if market not in {"stock", "crypto"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="market must be stock or crypto",
+            )
+
+        runtime = self.runtime.get()
+        if runtime.mode == "live":
+            return (
+                await self.stock_positions()
+                if market == "stock"
+                else await self.crypto_positions()
+            )
+
+        broker = self._paper_broker(market)
+        portfolio = broker.portfolio()
+        symbols = [position.symbol for position in portfolio.positions]
+        if not symbols:
+            return []
+
+        try:
+            if market == "stock":
+                adapter = TossMarketDataAdapter()
+                if not adapter.configured:
+                    raise ValueError(
+                        "Toss Open API credentials are not configured."
+                    )
+                snapshots = await adapter.snapshots(
+                    symbols,
+                    with_features=False,
+                )
+            else:
+                snapshots = await UpbitMarketDataAdapter().snapshots(
+                    symbols,
+                    with_features=False,
+                )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to refresh current prices: {exc}",
+            ) from exc
+
+        received = {item.symbol for item in snapshots}
+        missing = sorted(set(symbols) - received)
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "message": "Some held symbols have no fresh quote.",
+                    "symbols": missing,
+                },
+            )
+
+        broker.update_prices(snapshots)
+        return (
+            await self.stock_positions()
+            if market == "stock"
+            else await self.crypto_positions()
+        )
 
     async def manual_stock_order(
         self,
