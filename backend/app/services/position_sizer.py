@@ -62,25 +62,36 @@ class PositionSizer:
             base_target_pct = Decimal(str(self._buy_pct(decision.score)))
             risk_scale = self._risk_scale(instrument)
             target_pct = base_target_pct * risk_scale
-            notional = (
+            target_value = (
                 portfolio.equity * target_pct / Decimal("100")
             ).quantize(Decimal("1"), rounding=ROUND_DOWN)
+            current_value = (
+                position.market_value
+                if position is not None
+                else Decimal("0")
+            )
+            notional = max(Decimal("0"), target_value - current_value)
 
             if notional <= 0:
                 return self._no_order(
                     decision,
-                    reason="계산된 매수 금액이 0원이라 주문하지 않았어요.",
+                    reason=(
+                        "현재 보유 비중이 BUY 목표 비중 이상이라 "
+                        "추가 매수하지 않았어요."
+                    ),
                 )
 
+            minimum_one_share = False
             if decision.market == "stock":
                 quantity = (
                     notional / instrument.price
                 ).quantize(Decimal("1"), rounding=ROUND_DOWN)
                 if quantity <= 0:
-                    return self._no_order(
-                        decision,
-                        reason="계산된 매수 수량이 1주 미만이라 주문하지 않았어요.",
-                    )
+                    # Korean stocks trade in whole shares. Create a one-share
+                    # candidate and let Risk Guard decide whether cash reserve
+                    # and the hard concentration cap still allow it.
+                    quantity = Decimal("1")
+                    minimum_one_share = True
                 notional = quantity * instrument.price
             else:
                 quantity = (
@@ -93,6 +104,12 @@ class PositionSizer:
                     )
                 notional = quantity * instrument.price
 
+            sizing_note = (
+                " 주식 정수주 제약으로 최소 1주 주문 후보를 만들고 "
+                "Risk Guard가 최종 허용 여부를 확인합니다."
+                if minimum_one_share
+                else ""
+            )
             return PositionSizeResult(
                 status="ORDER",
                 market=decision.market,
@@ -102,8 +119,10 @@ class PositionSizer:
                 order_notional=notional,
                 order_quantity=quantity,
                 reason=(
-                    f"BUY 기본 비중 {base_target_pct}% × 변동성 조정 "
-                    f"{risk_scale} = 현재 평가금액의 {target_pct}%로 계산했어요."
+                    f"BUY 목표 비중 {base_target_pct}% × 변동성 조정 "
+                    f"{risk_scale} = 목표 {target_pct}%, "
+                    f"현재 보유가치 {current_value}원을 반영해 계산했어요."
+                    f"{sizing_note}"
                 ),
             )
 
