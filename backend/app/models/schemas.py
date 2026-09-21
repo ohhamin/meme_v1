@@ -118,16 +118,6 @@ class SymbolDecision(BaseModel):
     score: int = Field(ge=0, le=100)
     reason: str = Field(min_length=1, max_length=1000)
 
-    @model_validator(mode="after")
-    def action_matches_score(self):
-        if self.action == "BUY" and self.score < 60:
-            raise ValueError("BUY score must be 60-100")
-        if self.action == "SELL" and self.score > 40:
-            raise ValueError("SELL score must be 0-40")
-        if self.action == "HOLD" and not 41 <= self.score <= 59:
-            raise ValueError("HOLD score must be 41-59")
-        return self
-
 
 class DecisionCycleResult(BaseModel):
     decisions: list[SymbolDecision] = Field(max_length=200)
