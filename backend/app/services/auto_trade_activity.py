@@ -25,6 +25,8 @@ class AutoTradeActivityService:
         mode: str,
         market: str,
         symbol: str,
+        side: str | None = None,
+        event: str | None = None,
         now: datetime | None = None,
     ) -> int | None:
         data = self._read()
@@ -33,6 +35,8 @@ class AutoTradeActivityService:
                 mode=mode,
                 market=market,
                 symbol=symbol,
+                side=side,
+                event=event,
             )
         )
         if not raw:
@@ -60,6 +64,8 @@ class AutoTradeActivityService:
         mode: str,
         market: str,
         symbol: str,
+        side: str | None = None,
+        event: str | None = None,
         at: datetime | None = None,
     ) -> None:
         data = self._read()
@@ -72,6 +78,8 @@ class AutoTradeActivityService:
                 mode=mode,
                 market=market,
                 symbol=symbol,
+                side=side,
+                event=event,
             )
         ] = value.astimezone(self.tz).isoformat()
 
@@ -83,12 +91,19 @@ class AutoTradeActivityService:
         mode: str,
         market: str,
         symbol: str,
+        side: str | None = None,
+        event: str | None = None,
     ) -> str:
-        return (
+        base = (
             f"{mode.strip().lower()}:"
             f"{market.strip().lower()}:"
             f"{symbol.strip().upper()}"
         )
+        if event:
+            return f"{base}:event:{event.strip().lower()}"
+        if side:
+            return f"{base}:side:{side.strip().lower()}"
+        return base
 
     def _read(self) -> dict[str, str]:
         if not self.path.exists():
