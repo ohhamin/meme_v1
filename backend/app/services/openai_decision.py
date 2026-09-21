@@ -369,8 +369,10 @@ class LLMDecisionClient:
             "Every instrument already has a deterministic technical score in "
             "market_snapshot.features.quant_score; copy it exactly to technical_score. "
             "Do not change it. Score all evidence fields from 0-100 with 50 neutral. "
-            "For stocks, separately assess market_regime_score, sector_relative_strength_score, "
-            "macro_score, earnings_revision_score, quality_score, valuation_score, "
+            "For both stocks and crypto, assess market_regime_score from broad market evidence. "
+            "Use the same broad regime view for instruments in the same market unless verified evidence differs. "
+            "For stocks, separately assess sector_relative_strength_score, macro_score, "
+            "earnings_revision_score, quality_score, valuation_score, "
             "balance_shareholder_score, and news_event_score. "
             "Earnings revision should emphasize recent earnings/revenue surprises, guidance and "
             "consensus revisions. Quality covers profitability, ROE and cash-generation evidence. "
@@ -513,17 +515,103 @@ class LLMDecisionClient:
 
             final_score = max(0, min(100, final_score))
             decision.score = final_score
+
+            policy = LLMDecisionClient._regime_exposure_policy(
+                decision=decision,
+                account_snapshot=context.account_snapshot,
+            )
             decision.action = (
                 "BUY"
-                if final_score >= 65
+                if final_score >= policy["buy_threshold"]
                 else "SELL"
-                if final_score <= 35
+                if final_score <= policy["sell_threshold"]
                 else "HOLD"
             )
             original_reason = decision.reason.strip()
+            exposure_text = (
+                "미확인"
+                if policy["current_exposure_pct"] is None
+                else f'{policy["current_exposure_pct"]:.1f}%'
+            )
             decision.reason = (
-                f"종합 {final_score}/100 ({detail}) · {original_reason}"
+                f"종합 {final_score}/100 ({detail}) · "
+                f"장세 {policy['regime']} / 목표투자 "
+                f"{policy['target_exposure_pct']:.0f}% / 현재 {exposure_text} · "
+                f"판단기준 BUY≥{policy['buy_threshold']} "
+                f"SELL≤{policy['sell_threshold']} · {original_reason}"
             )[:1000]
+
+    @staticmethod
+    def _regime_exposure_policy(
+        *,
+        decision,
+        account_snapshot: dict,
+    ) -> dict:
+        config = get_settings()
+        regime_score = LLMDecisionClient._evidence_adjusted_score(
+            raw_score=decision.market_regime_score,
+            confidence=decision.market_sector_confidence,
+            age_hours=decision.market_sector_age_hours,
+            half_life_hours=48,
+        )
+
+        shift = max(0, int(config.position_regime_threshold_shift))
+        if regime_score >= config.position_regime_bull_min_score:
+            regime = "BULL"
+            target = float(config.position_target_exposure_bull_pct)
+            buy_threshold = 65 - shift
+            sell_threshold = 35 - shift
+        elif regime_score <= config.position_regime_bear_max_score:
+            regime = "BEAR"
+            target = float(config.position_target_exposure_bear_pct)
+            buy_threshold = 65 + shift
+            sell_threshold = 35 + shift
+        else:
+            regime = "NEUTRAL"
+            target = float(config.position_target_exposure_neutral_pct)
+            buy_threshold = 65
+            sell_threshold = 35
+
+        exposure = LLMDecisionClient._current_exposure_pct(
+            account_snapshot.get(decision.market)
+            if isinstance(account_snapshot, dict)
+            else None
+        )
+
+        # Soft exposure steering: the market regime sets the main threshold,
+        # while a large target gap adds only a small nudge. Risk Guard still
+        # owns the hard 90% total-exposure ceiling.
+        if exposure is not None:
+            gap = target - exposure
+            if gap >= 10:
+                buy_threshold -= 2
+                sell_threshold -= 2
+            elif gap <= -10:
+                buy_threshold += 3
+                sell_threshold += 3
+
+        return {
+            "regime": regime,
+            "regime_score": regime_score,
+            "target_exposure_pct": target,
+            "current_exposure_pct": exposure,
+            "buy_threshold": max(50, min(80, buy_threshold)),
+            "sell_threshold": max(20, min(50, sell_threshold)),
+        }
+
+    @staticmethod
+    def _current_exposure_pct(account: object) -> float | None:
+        if not isinstance(account, dict):
+            return None
+        try:
+            equity = float(account.get("equity"))
+            cash = float(account.get("cash"))
+        except (TypeError, ValueError):
+            return None
+        if equity <= 0:
+            return None
+        exposure = (equity - max(0.0, cash)) / equity * 100.0
+        return max(0.0, min(100.0, exposure))
 
     @staticmethod
     def _clamp_score(value: int | float) -> float:
