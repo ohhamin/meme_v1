@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 
 from backend.app.core.config import get_settings
 from backend.app.models.schemas import RiskGuardResult, RiskOrderIntent
@@ -7,10 +7,15 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 
 
 class RiskGuard:
-    """Deterministic hard-risk gate.
+    """Deterministic account-protection and exposure-control engine.
 
-    Risk Guard는 방향이나 종목을 고르지 않는다.
-    이미 만들어진 주문 의도를 수정/생성하지 않고 PASS/BLOCK/NO_ORDER만 반환한다.
+    BUY is treated as exposure-increasing and is checked strictly.
+    SELL that does not exceed the current holding is exposure-reducing and
+    bypasses BUY-only limits such as cooldown, daily order count, cash reserve,
+    position concentration, and daily loss lockout.
+
+    Risk Guard never chooses a symbol or market direction. It may, however,
+    reduce a BUY size so the order stays inside deterministic hard limits.
     """
 
     def __init__(self):
@@ -20,18 +25,39 @@ class RiskGuard:
 
     def policy(self) -> dict:
         return {
+            "version": "0.5",
             "max_position_pct": self.config.risk_max_position_pct,
             "max_daily_loss_pct": self.config.risk_max_daily_loss_pct,
             "max_daily_orders": self.config.risk_max_daily_orders,
             "max_data_age_seconds": self.config.risk_max_data_age_seconds,
             "min_cash_reserve_pct": self.config.risk_min_cash_reserve_pct,
             "max_open_positions": self.config.risk_max_open_positions,
-            "auto_symbol_cooldown_minutes": (
-                self.config.risk_auto_symbol_cooldown_minutes
+            "buy_cooldown_minutes": self.config.risk_auto_symbol_cooldown_minutes,
+            "sell_reentry_cooldown_minutes": (
+                self.config.risk_sell_reentry_cooldown_minutes
             ),
+            "stop_reentry_cooldown_minutes": (
+                self.config.risk_stop_reentry_cooldown_minutes
+            ),
+            "hard_stop_loss_pct": self.config.risk_hard_stop_loss_pct,
+            "trailing_activation_pct": (
+                self.config.risk_trailing_activation_pct
+            ),
+            "trailing_stop_pct": self.config.risk_trailing_stop_pct,
+            "risk_monitor_interval_minutes": (
+                self.config.risk_monitor_interval_minutes
+            ),
+            "buy_kill_switch": self.config.risk_buy_kill_switch,
             "minimum_open_positions": 0,
             "sell_is_risk_reducing": True,
-            "resizes_orders": False,
+            "resizes_buy_orders": True,
+            "result_states": [
+                "ALLOW",
+                "REDUCE",
+                "BLOCK",
+                "FORCE_EXIT",
+                "NO_ORDER",
+            ],
         }
 
     def evaluate(self, intent: RiskOrderIntent) -> RiskGuardResult:
@@ -40,103 +66,82 @@ class RiskGuard:
                 intent,
                 status="NO_ORDER",
                 reasons=["HOLD decision does not create an order."],
+                triggered_rule="HOLD",
             )
 
-        reasons: list[str] = []
         runtime = self.runtime.get()
+        reasons: list[str] = []
 
-        # 1) Global hard stop.
+        # System-safety rules apply to both BUY and SELL.
         if runtime.kill_switch:
-            reasons.append("Kill switch is enabled.")
-
-        # 2) A duplicate order in the same decision cycle is always blocked.
+            reasons.append("Trading kill switch is enabled.")
         if intent.same_cycle_duplicate:
             reasons.append("Duplicate order for the same symbol in this cycle.")
-
-        # 3) Automatic strategy may evaluate every 30 minutes, but a symbol
-        # may create at most one successful automatic order per cooldown window.
-        if (
-            intent.source == "auto"
-            and intent.seconds_since_last_auto_order is not None
-            and intent.seconds_since_last_auto_order
-            < self.config.risk_auto_symbol_cooldown_minutes * 60
-        ):
-            remaining = (
-                self.config.risk_auto_symbol_cooldown_minutes * 60
-                - intent.seconds_since_last_auto_order
-            )
-            reasons.append(
-                "Automatic symbol cooldown is active "
-                f"({remaining}s remaining)."
-            )
-
-        # 4) Stale market/account data must never be traded automatically.
         if intent.data_age_seconds > self.config.risk_max_data_age_seconds:
             reasons.append(
                 "Market/account snapshot is stale "
                 f"({intent.data_age_seconds}s > "
                 f"{self.config.risk_max_data_age_seconds}s)."
             )
-
-        # 5) Stock orders require an open market. Crypto adapters normally pass true.
         if intent.market == "stock" and not intent.market_open:
             reasons.append("Stock market is closed.")
-
-        # 6) Basic malformed-order checks.
         if intent.price <= 0:
             reasons.append("Price must be positive.")
-
         if intent.order_notional <= 0:
             reasons.append("Order notional must be positive.")
+        if intent.order_quantity <= 0:
+            reasons.append("Order quantity must be positive.")
 
-        if intent.action == "SELL" and intent.order_quantity <= 0:
-            reasons.append("Sell quantity must be positive.")
+        if reasons:
+            return self._result(
+                intent,
+                status="BLOCK",
+                reasons=reasons,
+                triggered_rule="SYSTEM_SAFETY",
+            )
 
-        # SELL은 기존 위험을 줄이는 방향이므로 아래의 신규위험 제한
-        # (일일 손실, 신규 노출, 현금 reserve, 주문 횟수)은 적용하지 않는다.
-        # 대신 보유 수량 초과는 반드시 차단한다.
+        # Exposure-reducing SELL must remain available during BUY lockouts.
         if intent.action == "SELL":
             if intent.order_quantity > intent.position_quantity:
-                reasons.append(
-                    "Sell quantity exceeds current position quantity."
+                return self._result(
+                    intent,
+                    status="BLOCK",
+                    reasons=[
+                        "Sell quantity exceeds current position quantity."
+                    ],
+                    triggered_rule="SELL_EXCEEDS_POSITION",
                 )
-            return self._finalize(intent, reasons)
+            return self._result(
+                intent,
+                status="ALLOW",
+                reasons=[],
+                triggered_rule="RISK_REDUCING_SELL",
+            )
 
-        # From here, BUY-only exposure controls.
-        # portfolio_equity / available_cash are always the selected broker account
-        # (Toss stock account OR Upbit crypto account), never a combined account.
-        equity = intent.portfolio_equity
-        position_after = intent.position_value + intent.order_notional
-        position_after_pct = self._pct(position_after, equity)
+        # BUY-only emergency/portfolio lockouts.
+        if self.config.risk_buy_kill_switch:
+            reasons.append("BUY kill switch is enabled.")
 
         if intent.daily_pnl_pct <= Decimal(
             str(-self.config.risk_max_daily_loss_pct)
         ):
             reasons.append(
-                "Daily loss limit reached "
+                "Daily equity loss limit reached "
                 f"({intent.daily_pnl_pct}% <= "
                 f"-{self.config.risk_max_daily_loss_pct}%)."
             )
 
         if intent.daily_order_count >= self.config.risk_max_daily_orders:
             reasons.append(
-                "Daily order count limit reached "
+                "Daily exposure-increasing order count limit reached "
                 f"({intent.daily_order_count} >= "
                 f"{self.config.risk_max_daily_orders})."
             )
 
-        if position_after_pct > Decimal(
-            str(self.config.risk_max_position_pct)
-        ):
-            reasons.append(
-                "Position exposure after order exceeds limit "
-                f"({position_after_pct:.2f}% > "
-                f"{self.config.risk_max_position_pct}%)."
-            )
-
         if (
             intent.position_quantity <= 0
-            and intent.open_position_count >= self.config.risk_max_open_positions
+            and intent.open_position_count
+            >= self.config.risk_max_open_positions
         ):
             reasons.append(
                 "Maximum open position count reached "
@@ -144,35 +149,146 @@ class RiskGuard:
                 f"{self.config.risk_max_open_positions})."
             )
 
+        cooldown_reason = self._buy_cooldown_reason(intent)
+        if cooldown_reason:
+            reasons.append(cooldown_reason)
+
+        if reasons:
+            return self._result(
+                intent,
+                status="BLOCK",
+                reasons=reasons,
+                triggered_rule="BUY_LOCKOUT",
+            )
+
+        # BUY sizing can be reduced to the maximum deterministic safe capacity.
+        equity = intent.portfolio_equity
+        max_position_value = equity * (
+            Decimal(str(self.config.risk_max_position_pct))
+            / Decimal("100")
+        )
+        max_by_position = max(
+            Decimal("0"),
+            max_position_value - intent.position_value,
+        )
+
         reserve_required = equity * (
             Decimal(str(self.config.risk_min_cash_reserve_pct))
             / Decimal("100")
         )
-        cash_after = intent.available_cash - intent.order_notional
+        max_by_cash = max(
+            Decimal("0"),
+            intent.available_cash - reserve_required,
+        )
 
-        if cash_after < 0:
-            reasons.append("Insufficient available cash.")
-        elif cash_after < reserve_required:
-            reasons.append(
-                "Cash reserve would fall below configured minimum "
-                f"({self.config.risk_min_cash_reserve_pct}%)."
+        safe_notional = min(
+            intent.order_notional,
+            max_by_position,
+            max_by_cash,
+        )
+
+        if safe_notional <= 0:
+            detail = []
+            if max_by_position <= 0:
+                detail.append(
+                    "Position is already at the configured concentration limit."
+                )
+            if max_by_cash <= 0:
+                detail.append(
+                    "No cash is available above the configured reserve."
+                )
+            return self._result(
+                intent,
+                status="BLOCK",
+                reasons=detail or ["No safe BUY capacity remains."],
+                triggered_rule="NO_BUY_CAPACITY",
             )
 
-        return self._finalize(intent, reasons)
+        adjusted_quantity = self._quantity_for_notional(
+            market=intent.market,
+            notional=safe_notional,
+            price=intent.price,
+        )
+        adjusted_notional = adjusted_quantity * intent.price
+
+        if adjusted_quantity <= 0 or adjusted_notional <= 0:
+            return self._result(
+                intent,
+                status="BLOCK",
+                reasons=[
+                    "Safe BUY capacity is below the minimum tradable quantity."
+                ],
+                triggered_rule="MIN_TRADABLE_QUANTITY",
+            )
+
+        if adjusted_notional < intent.order_notional:
+            return self._result(
+                intent,
+                status="REDUCE",
+                reasons=[
+                    "BUY size reduced to remain inside position and cash "
+                    "reserve limits."
+                ],
+                adjusted_notional=adjusted_notional,
+                adjusted_quantity=adjusted_quantity,
+                triggered_rule="EXPOSURE_CAP",
+            )
+
+        return self._result(
+            intent,
+            status="ALLOW",
+            reasons=[],
+            adjusted_notional=intent.order_notional,
+            adjusted_quantity=intent.order_quantity,
+            triggered_rule="WITHIN_LIMITS",
+        )
+
+    def _buy_cooldown_reason(self, intent: RiskOrderIntent) -> str | None:
+        if intent.source != "auto":
+            return None
+
+        checks = [
+            (
+                intent.seconds_since_last_stop_exit,
+                self.config.risk_stop_reentry_cooldown_minutes,
+                "Stop-loss re-entry cooldown",
+            ),
+            (
+                intent.seconds_since_last_sell,
+                self.config.risk_sell_reentry_cooldown_minutes,
+                "Post-SELL re-entry cooldown",
+            ),
+            (
+                (
+                    intent.seconds_since_last_buy
+                    if intent.seconds_since_last_buy is not None
+                    else intent.seconds_since_last_auto_order
+                ),
+                self.config.risk_auto_symbol_cooldown_minutes,
+                "BUY cooldown",
+            ),
+        ]
+        for elapsed, minutes, label in checks:
+            if elapsed is None:
+                continue
+            limit = minutes * 60
+            if elapsed < limit:
+                return f"{label} is active ({limit - elapsed}s remaining)."
+        return None
 
     @staticmethod
-    def _pct(value: Decimal, total: Decimal) -> Decimal:
-        if total <= 0:
-            return Decimal("999999")
-        return (value / total) * Decimal("100")
-
-    def _finalize(
-        self,
-        intent: RiskOrderIntent,
-        reasons: list[str],
-    ) -> RiskGuardResult:
-        status = "BLOCK" if reasons else "PASS"
-        return self._result(intent, status=status, reasons=reasons)
+    def _quantity_for_notional(
+        *,
+        market: str,
+        notional: Decimal,
+        price: Decimal,
+    ) -> Decimal:
+        if price <= 0:
+            return Decimal("0")
+        raw = notional / price
+        if market == "stock":
+            return raw.quantize(Decimal("1"), rounding=ROUND_DOWN)
+        return raw.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
 
     def _result(
         self,
@@ -180,12 +296,28 @@ class RiskGuard:
         *,
         status: str,
         reasons: list[str],
+        adjusted_notional: Decimal | None = None,
+        adjusted_quantity: Decimal | None = None,
+        triggered_rule: str | None = None,
     ) -> RiskGuardResult:
         result = RiskGuardResult(
             status=status,
             reasons=reasons,
             symbol=intent.symbol,
             action=intent.action,
+            original_notional=intent.order_notional,
+            original_quantity=intent.order_quantity,
+            adjusted_notional=(
+                intent.order_notional
+                if adjusted_notional is None
+                else adjusted_notional
+            ),
+            adjusted_quantity=(
+                intent.order_quantity
+                if adjusted_quantity is None
+                else adjusted_quantity
+            ),
+            triggered_rule=triggered_rule,
         )
 
         self.audit.write(
@@ -197,9 +329,12 @@ class RiskGuard:
                 "symbol": intent.symbol,
                 "action": intent.action,
                 "status": result.status,
+                "triggered_rule": result.triggered_rule,
                 "reasons": result.reasons,
-                "order_notional": str(intent.order_notional),
-                "order_quantity": str(intent.order_quantity),
+                "original_notional": str(result.original_notional),
+                "original_quantity": str(result.original_quantity),
+                "adjusted_notional": str(result.adjusted_notional),
+                "adjusted_quantity": str(result.adjusted_quantity),
             },
         )
         return result
