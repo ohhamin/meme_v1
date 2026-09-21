@@ -541,6 +541,16 @@ class _DecisionCardState extends State<_DecisionCard> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
+                if (data.score.isNotEmpty) ...[
+                  Text(
+                    data.score,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
