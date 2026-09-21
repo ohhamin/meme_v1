@@ -100,6 +100,16 @@ class PaperBroker:
                     seconds=instrument.data_age_seconds
                 )
                 positions[key]["last_price"] = str(instrument.price)
+                highest = Decimal(
+                    positions[key].get(
+                        "highest_price_since_entry",
+                        positions[key].get("average_price", "0"),
+                    )
+                )
+                if instrument.price > highest:
+                    positions[key]["highest_price_since_entry"] = str(
+                        instrument.price
+                    )
                 positions[key]["last_price_at"] = observed_at.isoformat()
                 positions[key]["last_market_open"] = instrument.market_open
                 if instrument.name:
@@ -155,6 +165,12 @@ class PaperBroker:
                     realized_pnl=realized_pnl,
                     decision_score=raw.get("decision_score"),
                     candidate_score=raw.get("entry_candidate_score"),
+                    highest_price_since_entry=Decimal(
+                        raw.get(
+                            "highest_price_since_entry",
+                            raw.get("last_price", "0"),
+                        )
+                    ),
                 )
             )
 
@@ -209,6 +225,9 @@ class PaperBroker:
                     "market_open": p.last_market_open,
                     "market_value": str(p.market_value),
                     "return_rate": str(p.return_rate),
+                    "highest_price_since_entry": str(
+                        p.highest_price_since_entry
+                    ),
                     "decision_score": p.decision_score,
                     "candidate_score": (
                         str(p.candidate_score)
@@ -341,6 +360,17 @@ class PaperBroker:
                 existing["quantity"] = str(new_qty)
                 existing["average_price"] = str(new_avg)
                 existing["last_price"] = str(fill_price)
+                existing["highest_price_since_entry"] = str(
+                    max(
+                        fill_price,
+                        Decimal(
+                            existing.get(
+                                "highest_price_since_entry",
+                                existing.get("last_price", "0"),
+                            )
+                        ),
+                    )
+                )
                 existing["last_price_at"] = now
                 existing["last_market_open"] = market_open
                 existing["name"] = (
@@ -364,6 +394,7 @@ class PaperBroker:
                     "quantity": str(quantity),
                     "average_price": str((notional + fee) / quantity),
                     "last_price": str(fill_price),
+                    "highest_price_since_entry": str(fill_price),
                     "last_price_at": now,
                     "last_market_open": market_open,
                     "realized_pnl": "0",
