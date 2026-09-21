@@ -30,20 +30,21 @@ def test_decision_action_score_valid(action, score):
     ("action", "score"),
     [
         ("BUY", 59),
-        ("HOLD", 60),
-        ("HOLD", 40),
+        ("HOLD", 70),
+        ("HOLD", 31),
         ("SELL", 41),
     ],
 )
-def test_decision_action_score_mismatch_is_rejected(action, score):
-    with pytest.raises(ValidationError):
-        SymbolDecision(
-            market="crypto",
-            symbol="KRW-BTC",
-            action=action,
-            score=score,
-            reason="test",
-        )
+def test_decision_score_can_represent_quant_prior_independently(action, score):
+    value = SymbolDecision(
+        market="crypto",
+        symbol="KRW-BTC",
+        action=action,
+        score=score,
+        reason="test",
+    )
+    assert value.action == action
+    assert value.score == score
 
 
 def test_decision_cycle_rejects_duplicate_symbol():
