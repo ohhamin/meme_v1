@@ -271,8 +271,8 @@ class LLMDecisionClient:
             "Do not reverse the quantitative direction. "
             "Evaluate every instrument contained in market_snapshot in ONE cycle. "
             "Return a concise Korean reason. Score must still obey BUY 60-100, "
-            "HOLD 41-59, SELL 0-40; the server will replace confirmed trade scores "
-            "with the deterministic quant_score and vetoed trades with neutral 50. "
+            "HOLD 41-59, SELL 0-40 in your raw response; after validation the server "
+            "will replace every displayed decision score with deterministic quant_score. "
             "There is no target number of holdings and staying fully in cash is valid. "
             "If data is missing, stale, contradictory, or insufficient, prefer HOLD. "
             "macro_market_context indicators marked stale are historical context only. "
@@ -339,7 +339,7 @@ class LLMDecisionClient:
                 continue
 
             decision.action = "HOLD"
-            decision.score = 50
+            decision.score = quant_score
             if quant_action == "HOLD":
                 prefix = f"정량 {quant_score}/100 중립 · "
             else:
