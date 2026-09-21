@@ -19,7 +19,7 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.4.0-quant
+Version: 0.5.0-risk
 
 ## 한눈에 보기
 
@@ -103,18 +103,25 @@ SELL은 기존 보유수량 기준으로 단계적으로 축소한다.
 - 점수 21~30: 40%
 - 점수 0~20: 60%
 
-## Risk Guard
+## Risk Guard v0.5
 
-- Kill switch
-- 오래된 시세 차단
-- 주식 장 운영 여부
-- 일일 손실 한도
-- 일일 주문 횟수
-- 한 종목 최대 비중
-- 전체 최대 보유 종목 수
-- 최소 현금 보유
-- 같은 종목 자동 주문 cooldown
-- 미확인 Live 주문 중복 방지
+Risk Guard는 단순 PASS/BLOCK 필터가 아니라 **계좌 보호 + 노출 제어 엔진**으로 동작한다.
+
+우선순위는 **System Safety → Emergency Exit → Portfolio Safety → Position Safety → Trading Discipline → Quant 주문**이다.
+
+- 결과 상태: ALLOW / REDUCE / BLOCK / FORCE_EXIT / NO_ORDER
+- BUY는 위험 증가 주문으로 엄격하게 제한한다.
+- 보유수량 이하 SELL은 위험 감소 주문으로 취급해 BUY cooldown, 일일 손실, 현금 reserve, 최대 보유종목 수, 일일 BUY 제한 때문에 막지 않는다.
+- 단, stale 시세, 장 종료, 잘못된 가격/수량, 전체 Trading Kill Switch 같은 시스템 안전 조건은 SELL에도 적용한다.
+- BUY가 종목 40% 한도나 최소 현금 10%를 일부만 초과하면 전부 BLOCK하지 않고 가능한 안전 수량까지 REDUCE한다.
+- 일일 손실 -3%는 day-start equity 대비 현재 equity(실현+미실현)를 기준으로 하며 신규 BUY만 차단한다.
+- 자동 BUY cooldown은 60분이다. SELL은 cooldown이 없다.
+- 일반 SELL 후 같은 종목 재BUY는 60분, Risk Monitor 손절/트레일링 청산 후 재BUY는 180분 금지한다.
+- Hard Stop: 평균단가 대비 -5%에서 전량 FORCE_EXIT.
+- Trailing Stop: 수익률이 한 번 +10%에 도달한 뒤, 진입 후 최고가 대비 -5% 하락하면 전량 FORCE_EXIT.
+- Quant 판단은 기본 60분이지만 Paper Risk Monitor는 5분마다 보유종목만 확인하며 LLM을 호출하지 않는다.
+- 미확인 Live 주문 중복 방지는 계속 유지한다.
+- Live 자동 FORCE_EXIT은 Paper 검증 전까지 활성화하지 않는다. Live 주문 경로에는 동일 BUY/SELL Risk Guard 정책만 적용한다.
 
 ## 연구 근거와 한계
 
@@ -173,9 +180,10 @@ class AlgorithmService:
             if (
                 "Version: 0.2.0-baseline" in current
                 or "Version: 0.3.0-quant" in current
+                or "Version: 0.4.0-quant" in current
             ):
                 legacy = self._legacy_applied_history(current)
-                backup = self.current_path.with_suffix(".pre-v0.4.md")
+                backup = self.current_path.with_suffix(".pre-v0.5.md")
                 if not backup.exists():
                     backup.write_text(current, encoding="utf-8")
 
@@ -184,7 +192,7 @@ class AlgorithmService:
                     migrated = (
                         migrated.rstrip()
                         + "\n\n## Legacy Applied Proposal History\n\n"
-                        + "아래 내용은 v0.4 이전 기록이며 현재 수학식이나 "
+                        + "아래 내용은 v0.5 이전 기록이며 현재 수학식이나 "
                         + "실행 규칙으로 사용하지 않는다.\n\n"
                         + legacy
                         + "\n"
