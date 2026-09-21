@@ -5,6 +5,7 @@ from backend.app.brokers.upbit_market_data import (
     UpbitMarketDataError,
 )
 from backend.app.models.schemas import PaperCycleResponse
+from backend.app.core.config import get_settings
 from backend.app.services.audit import AuditLogger
 from backend.app.services.paper_auto_cycle import PaperAutoCycleService
 from backend.app.services.toss_universe import TossUniverseService
@@ -22,6 +23,7 @@ class CombinedPaperRunner:
     """
 
     def __init__(self):
+        self.config = get_settings()
         self.paper_cycle = PaperAutoCycleService()
         self.upbit = UpbitMarketDataAdapter()
         self.toss = TossMarketDataAdapter()
@@ -48,16 +50,16 @@ class CombinedPaperRunner:
         ]
         try:
             upbit_markets = await self.upbit_universe_selector.select(
-                limit=self.paper_cycle.risk.config.decision_crypto_universe_limit,
+                limit=self.config.decision_crypto_universe_limit,
                 force=True,
                 required_markets=held_crypto,
             )
         except (UpbitMarketDataError, ValueError) as exc:
             failures.append(f"Upbit universe refresh: {exc}")
             upbit_markets = merge_decision_universe(
-                self.upbit_universe.get(),
                 held_crypto,
-            )[: self.paper_cycle.risk.config.decision_crypto_universe_limit]
+                self.upbit_universe.get(),
+            )[: self.config.decision_crypto_universe_limit]
         if upbit_markets:
             try:
                 crypto = await self.upbit.snapshots(
@@ -85,16 +87,16 @@ class CombinedPaperRunner:
         ]
         try:
             toss_symbols = await self.toss_universe_selector.select(
-                limit=self.paper_cycle.risk.config.decision_stock_universe_limit,
+                limit=self.config.decision_stock_universe_limit,
                 force=True,
                 required_symbols=held_stocks,
             )
         except (TossApiError, ValueError) as exc:
             failures.append(f"Toss universe refresh: {exc}")
             toss_symbols = merge_decision_universe(
-                self.toss_universe.get(),
                 held_stocks,
-            )[: self.paper_cycle.risk.config.decision_stock_universe_limit]
+                self.toss_universe.get(),
+            )[: self.config.decision_stock_universe_limit]
         if toss_symbols:
             if not self.toss.configured:
                 failures.append(
