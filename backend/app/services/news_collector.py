@@ -16,6 +16,8 @@ from backend.app.services.llm_budget import LLMBudgetService
 from backend.app.services.llm_runtime import LLMRuntimeStateService
 from backend.app.services.openai_usage_sync import OpenAIUsageSyncService
 from backend.app.services.rolling_context import RollingContextService
+from backend.app.services.toss_universe import TossUniverseService
+from backend.app.services.upbit_universe import UpbitUniverseService
 
 
 class NewsCollector:
@@ -32,6 +34,8 @@ class NewsCollector:
         self.runtime = LLMRuntimeStateService()
         self.openai_usage = OpenAIUsageSyncService()
         self.rolling = RollingContextService()
+        self.toss_universe = TossUniverseService()
+        self.upbit_universe = UpbitUniverseService()
         self.tz = ZoneInfo(self.config.app_timezone)
         self.base_dir: Path = self.config.data_path / "news"
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -176,21 +180,32 @@ class NewsCollector:
 
     def _build_prompt(self, now: datetime, previous: str) -> str:
         already_seen = previous.strip() or "(없음)"
+        stocks = ", ".join(self.toss_universe.get()) or "(없음)"
+        cryptos = ", ".join(self.upbit_universe.get()) or "(없음)"
         return f"""현재 시각: {now.isoformat()}
 
 최근 약 12시간 동안 한국 주식과 글로벌 금융시장, 암호화폐에 영향을 줄 수 있는
 주요 경제/시장 뉴스를 웹 검색으로 확인해 주세요.
 
+현재 판단 대상:
+- 한국 주식 종목코드: {stocks}
+- 코인: {cryptos}
+
 우선순위:
 - 한국/미국 주요 거시경제 지표와 중앙은행
-- 금리, 환율, 채권, 원자재
-- 한국 증시에 영향이 큰 산업/기업 이슈
-- 비트코인/이더리움 등 주요 암호화폐 시장 이슈
+- 금리, 환율, 채권, 원자재, KOSPI/KOSDAQ 및 주요 업종 흐름
+- 현재 판단 대상 주식의 실적, 매출/영업이익 전망, 가이던스, 수주, 사업환경,
+  PER/PBR/ROE 등 공개된 핵심 펀더멘털의 최근 변화가 확인되는 경우
+- 현재 판단 대상 주식의 산업/기업 뉴스와 외부 이벤트
+- 현재 판단 대상 코인 및 비트코인/이더리움의 규제, 네트워크, ETF/기관수급,
+  거래소·보안 등 시장에 영향을 줄 수 있는 이벤트
 - 지정학 이슈는 시장 영향이 구체적일 때만 포함
 
 출력:
-- 중요도 높은 항목 5~10개
-- 각 항목: 제목, 핵심 사실 1~2문장, 시장에서 주의해서 볼 포인트
+- 중요도 높은 항목 5~12개
+- 가능하면 현재 판단 대상과 직접 관련된 항목을 우선 포함
+- 각 항목: 제목, 관련 종목/자산, 핵심 사실 1~2문장, 시장에서 주의해서 볼 포인트
+- 수치나 기업 지표는 검색 결과로 확인된 값만 사용
 - 확인되지 않은 루머 제외
 - 매수/매도 추천 금지
 - 이전 수집과 완전히 같은 내용은 생략하고, 의미 있는 업데이트가 있을 때만 다시 포함
