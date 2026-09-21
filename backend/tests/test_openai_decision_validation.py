@@ -374,4 +374,59 @@ def test_stock_subfactors_are_combined_deterministically():
     assert value.decisions[0].fundamental_score == 77
     assert value.decisions[0].news_event_score == 50
     assert value.decisions[0].score == 63
-    assert value.decisions[0].action == "HOLD"
+    assert value.decisions[0].action == "BUY"
+    assert "장세 BULL" in value.decisions[0].reason
+    assert "목표투자 80%" in value.decisions[0].reason
+
+
+def test_regime_policy_uses_raised_exposure_targets():
+    bull = LLMDecisionClient._regime_exposure_policy(
+        decision=result(
+            [{
+                "market": "crypto",
+                "symbol": "KRW-BTC",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "test",
+                "market_regime_score": 80,
+                "market_sector_confidence": 100,
+                "market_sector_age_hours": 0,
+            }]
+        ).decisions[0],
+        account_snapshot={"crypto": {"equity": "1000000", "cash": "420000"}},
+    )
+    neutral = LLMDecisionClient._regime_exposure_policy(
+        decision=result(
+            [{
+                "market": "crypto",
+                "symbol": "KRW-ETH",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "test",
+                "market_regime_score": 50,
+                "market_sector_confidence": 100,
+                "market_sector_age_hours": 0,
+            }]
+        ).decisions[0],
+        account_snapshot={"crypto": {"equity": "1000000", "cash": "420000"}},
+    )
+    bear = LLMDecisionClient._regime_exposure_policy(
+        decision=result(
+            [{
+                "market": "crypto",
+                "symbol": "KRW-XRP",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "test",
+                "market_regime_score": 20,
+                "market_sector_confidence": 100,
+                "market_sector_age_hours": 0,
+            }]
+        ).decisions[0],
+        account_snapshot={"crypto": {"equity": "1000000", "cash": "420000"}},
+    )
+
+    assert bull["target_exposure_pct"] == 80
+    assert neutral["target_exposure_pct"] == 60
+    assert bear["target_exposure_pct"] == 35
+    assert bull["buy_threshold"] < neutral["buy_threshold"] < bear["buy_threshold"]
