@@ -47,7 +47,7 @@ def instrument(market: str = "crypto") -> MarketInstrumentSnapshot:
     )
 
 
-def test_buy_score_85_sizes_three_percent_of_equity():
+def test_buy_score_85_targets_fifteen_percent_of_equity():
     sizer = PositionSizer()
     decision = SymbolDecision(
         market="crypto",
@@ -63,7 +63,7 @@ def test_buy_score_85_sizes_three_percent_of_equity():
         portfolio=portfolio(),
     )
     assert result.status == "ORDER"
-    assert result.order_notional == Decimal("60000.00000000")
+    assert result.order_notional == Decimal("300000.00000000")
 
 
 def test_buy_below_configured_sizing_threshold_creates_no_order():
@@ -146,4 +146,52 @@ def test_buy_size_is_reduced_by_quant_volatility_scale():
     )
 
     assert result.status == "ORDER"
-    assert result.order_notional == Decimal("30000.00000000")
+    assert result.order_notional == Decimal("150000.00000000")
+
+
+
+def test_stock_buy_creates_one_share_candidate_when_target_is_below_one_share():
+    sizer = PositionSizer()
+    decision = SymbolDecision(
+        market="stock",
+        symbol="000660",
+        name="SK hynix",
+        action="BUY",
+        score=70,
+        reason="test",
+    )
+    value = instrument("stock")
+    value.symbol = "000660"
+    value.price = Decimal("700000")
+
+    result = sizer.size(
+        decision=decision,
+        instrument=value,
+        portfolio=portfolio(market="stock"),
+    )
+
+    assert result.status == "ORDER"
+    assert result.order_quantity == Decimal("1")
+    assert result.order_notional == Decimal("700000")
+    assert "최소 1주" in result.reason
+
+
+def test_buy_only_fills_gap_to_target_position():
+    sizer = PositionSizer()
+    decision = SymbolDecision(
+        market="crypto",
+        symbol="BTC",
+        name="Bitcoin",
+        action="BUY",
+        score=85,
+        reason="test",
+    )
+
+    result = sizer.size(
+        decision=decision,
+        instrument=instrument(),
+        portfolio=portfolio(with_position=True),
+    )
+
+    assert result.status == "NO_ORDER"
+    assert "목표 비중 이상" in result.reason
