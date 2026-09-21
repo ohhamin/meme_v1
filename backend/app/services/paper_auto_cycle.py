@@ -290,17 +290,6 @@ class PaperAutoCycleService:
                         ],
                     )
 
-            if risk_result.status == "BLOCK":
-                self.push.send(
-                    title="Risk Guard 차단",
-                    body=f"{decision.symbol} {decision.action}",
-                    data={
-                        "type": "risk_block",
-                        "symbol": decision.symbol,
-                        "action": decision.action,
-                    },
-                )
-
             items.append(
                 CycleExecutionItem(
                     decision=decision,
