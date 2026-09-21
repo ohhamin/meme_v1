@@ -170,6 +170,7 @@ class RiskOrderIntent(BaseModel):
     open_position_count: int = Field(default=0, ge=0)
     daily_pnl_pct: Decimal = Decimal("0")
     daily_order_count: int = Field(default=0, ge=0)
+    daily_buy_order_count: int | None = Field(default=None, ge=0)
     data_age_seconds: int = Field(default=0, ge=0)
     market_open: bool = True
     same_cycle_duplicate: bool = False
@@ -249,6 +250,7 @@ class PaperPortfolio(BaseModel):
     daily_pnl: Decimal = Decimal("0")
     daily_pnl_pct: Decimal = Decimal("0")
     daily_order_count: int = Field(default=0, ge=0)
+    daily_buy_order_count: int = Field(default=0, ge=0)
     positions: list[PaperPosition] = Field(default_factory=list)
 
 
