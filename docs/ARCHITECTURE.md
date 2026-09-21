@@ -816,9 +816,9 @@ LLM Decision (여러 종목)
 Position Sizer
       |
       v
-Risk Guard
+Risk Guard v0.5
       |
-  PASS / BLOCK
+ALLOW / REDUCE / BLOCK
       |
       v
 Paper Broker
@@ -856,8 +856,10 @@ SELL score > 40  -> NO_ORDER
 주식은 정수 주 단위로 내림하고, 코인은 8자리까지 계산한다.
 Sizer가 만든 주문 후보는 항상 Risk Guard를 다시 통과해야 한다.
 
-Sizer는 Risk Guard limit에 맞추기 위해 주문을 몰래 축소하지 않는다.
-즉 Sizer 결과가 hard limit을 넘으면 Risk Guard가 BLOCK한다.
+Sizer는 전략 점수에 따른 원 주문 크기만 계산한다.
+Risk Guard v0.5는 종목 비중/현금 reserve 한도를 일부 초과한 BUY를 전부 버리지 않고,
+가능한 안전 수량이 남아 있으면 REDUCE로 축소한다. 일일 손실, 보유 종목 수,
+재진입 cooldown처럼 주문 자체가 허용되지 않는 조건은 BLOCK한다.
 
 ### Paper Broker
 
@@ -1237,26 +1239,46 @@ Uvicorn worker를 여러 개 실행하지 않는다.
 `deploy/`에 Docker Compose와 Nginx 예제를 둔다.
 Broker credential, OpenAI key, Firebase Service Account는 이미지/Git에 포함하지 않는다.
 
-## 23. 자동 종목 Cooldown
+## 23. Risk Guard v0.5 / 자동 종목 Cooldown
 
-전체 판단 사이클은 30~120분이지만 **자동 주문은 종목별 기본 60분에 최대 한 번**만 허용한다.
+전체 판단 사이클은 30~120분이지만 위험 감소 SELL은 BUY cooldown 때문에 막지 않는다.
 
 ```text
 10:00 BTC BUY 체결
-10:30 전체 판단 -> BTC BUY 재판단 가능
-                   하지만 자동 주문은 BLOCK
-11:00 이후      -> 다시 자동 주문 가능
+10:20 급락 + SELL -> 즉시 SELL 허용
+10:30 BUY 재판단 -> BUY cooldown으로 BLOCK
+11:20 일반 SELL 이후 60분 경과 -> 재BUY 가능
+
+Risk Monitor 손절/트레일링 청산
+-> 같은 종목 재BUY는 180분 금지
 ```
 
 설정:
 
 ```text
 RISK_AUTO_SYMBOL_COOLDOWN_MINUTES=60
+RISK_SELL_REENTRY_COOLDOWN_MINUTES=60
+RISK_STOP_REENTRY_COOLDOWN_MINUTES=180
+RISK_HARD_STOP_LOSS_PCT=5
+RISK_TRAILING_ACTIVATION_PCT=10
+RISK_TRAILING_STOP_PCT=5
+RISK_MONITOR_INTERVAL_MINUTES=5
+RISK_BUY_KILL_SWITCH=false
 ```
 
-Paper와 Live의 cooldown 기록은 서로 분리한다.
-수동 주문은 사용자가 직접 확인한 행위이므로 이 자동 cooldown의 적용 대상이 아니다.
-Live 주문 결과가 timeout 후 reconciliation으로 복구된 경우에도 실제 자동 주문이 존재했다면 원래 주문 시각 기준 cooldown을 복구한다.
+Risk Guard 결과는 ALLOW / REDUCE / BLOCK / FORCE_EXIT / NO_ORDER로 구분한다.
+BUY는 위험 증가 주문, 보유수량 이하 SELL은 위험 감소 주문으로 분류한다.
+일일 손실 -3%와 일일 주문 제한은 신규 BUY만 막으며 SELL은 허용한다.
+일일 손실은 day-start equity 대비 현재 equity로 계산하므로 실현/미실현 손익이 함께 반영된다.
+
+Paper에서는 별도 Risk Monitor가 5분마다 보유 종목의 최신 시세만 조회한다.
+LLM을 호출하지 않으며 평균단가 대비 -5% Hard Stop 또는 +10% 수익 도달 후
+진입 이후 최고가 대비 -5% Trailing Stop이 발생하면 전량 FORCE_EXIT한다.
+Live 자동 FORCE_EXIT은 Paper 검증 전까지 활성화하지 않는다.
+
+Paper와 Live의 cooldown 기록은 서로 분리하며, BUY/SELL/stop-exit 시각도 따로 기록한다.
+수동 주문은 자동 재매매 cooldown의 적용 대상이 아니다.
+Live 주문 결과가 timeout 후 reconciliation으로 복구된 경우에도 실제 자동 주문이 존재했다면 원래 주문 시각 기준 기록을 복구한다.
 
 ## 24. 판단 Universe와 보유 포지션
 
