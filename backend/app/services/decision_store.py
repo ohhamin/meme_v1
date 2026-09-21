@@ -59,6 +59,25 @@ class DecisionMarkdownStore:
                     f"- Market: {decision.market}",
                     f"- Action: {decision.action}",
                     f"- Score: {decision.score}",
+                    (
+                        "- Score Components: "
+                        f"technical={decision.technical_score}, "
+                        f"market_sector={decision.market_sector_score}, "
+                        f"fundamental={decision.fundamental_score}, "
+                        f"news_event={decision.news_event_score}"
+                    ),
+                    (
+                        "- Evidence Confidence: "
+                        f"market_sector={decision.market_sector_confidence}, "
+                        f"fundamental={decision.fundamental_confidence}, "
+                        f"news_event={decision.news_event_confidence}"
+                    ),
+                    (
+                        "- Evidence Age Hours: "
+                        f"market_sector={decision.market_sector_age_hours}, "
+                        f"fundamental={decision.fundamental_age_hours}, "
+                        f"news_event={decision.news_event_age_hours}"
+                    ),
                     f"- Reason: {decision.reason}",
                     f"- Risk Guard: {risk_status}",
                 ]
@@ -138,6 +157,25 @@ class DecisionMarkdownStore:
                     f"- Market: {decision.market}",
                     f"- Action: {decision.action}",
                     f"- Score: {decision.score}",
+                    (
+                        "- Score Components: "
+                        f"technical={decision.technical_score}, "
+                        f"market_sector={decision.market_sector_score}, "
+                        f"fundamental={decision.fundamental_score}, "
+                        f"news_event={decision.news_event_score}"
+                    ),
+                    (
+                        "- Evidence Confidence: "
+                        f"market_sector={decision.market_sector_confidence}, "
+                        f"fundamental={decision.fundamental_confidence}, "
+                        f"news_event={decision.news_event_confidence}"
+                    ),
+                    (
+                        "- Evidence Age Hours: "
+                        f"market_sector={decision.market_sector_age_hours}, "
+                        f"fundamental={decision.fundamental_age_hours}, "
+                        f"news_event={decision.news_event_age_hours}"
+                    ),
                     f"- Reason: {decision.reason}",
                     f"- Sizing: {item.sizing.status}",
                     f"- Size Reason: {item.sizing.reason}",
@@ -234,6 +272,25 @@ class DecisionMarkdownStore:
                     f"- Market: {decision.market}",
                     f"- Action: {decision.action}",
                     f"- Score: {decision.score}",
+                    (
+                        "- Score Components: "
+                        f"technical={decision.technical_score}, "
+                        f"market_sector={decision.market_sector_score}, "
+                        f"fundamental={decision.fundamental_score}, "
+                        f"news_event={decision.news_event_score}"
+                    ),
+                    (
+                        "- Evidence Confidence: "
+                        f"market_sector={decision.market_sector_confidence}, "
+                        f"fundamental={decision.fundamental_confidence}, "
+                        f"news_event={decision.news_event_confidence}"
+                    ),
+                    (
+                        "- Evidence Age Hours: "
+                        f"market_sector={decision.market_sector_age_hours}, "
+                        f"fundamental={decision.fundamental_age_hours}, "
+                        f"news_event={decision.news_event_age_hours}"
+                    ),
                     f"- Reason: {decision.reason}",
                     f"- Sizing: {item.sizing.status}",
                     f"- Size Reason: {item.sizing.reason}",
