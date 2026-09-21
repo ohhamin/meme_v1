@@ -59,9 +59,9 @@ class TossUniverseService:
             self.get()
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-            return max(1, min(int(raw.get("auto_limit") or 15), 30))
+            return max(1, min(int(raw.get("auto_limit") or 25), 30))
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
-            return 15
+            return 25
 
     def set(self, symbols: list[str]) -> list[str]:
         return self.set_manual(symbols)
@@ -89,7 +89,7 @@ class TossUniverseService:
         symbols: list[str],
         *,
         selection_mode: str = "manual",
-        auto_limit: int = 15,
+        auto_limit: int = 25,
     ) -> None:
         temp = self.path.with_suffix(".tmp")
         temp.write_text(
