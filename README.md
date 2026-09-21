@@ -296,15 +296,33 @@ Feature 하나가 매수/매도 신호를 강제하지 않으며, 데이터가 �
 앱 세팅 화면에서도 같은 준비 상태를 표시한다.
 
 
-## Composite Score v0.7
+## Composite Score v0.8
 
-자동 판단의 최종 방향 점수는 시장별 고정 가중합으로 계산한다.
+최종 방향 점수의 큰 가중치는 유지한다.
 
 - 주식: Technical 40% + Market/Sector 20% + Company Fundamental 30% + Event/News 10%
 - 코인: Technical 80% + Event/News 20%
 
-Technical은 기존 deterministic 정량점수를 사용하며 LLM이 변경할 수 없다.
-나머지 context 점수는 수집된 뉴스/거시/기업 근거를 바탕으로 0~100으로 평가하되,
-확인 가능한 자료가 없으면 50(중립)으로 둔다. 최종 가중합과 BUY/HOLD/SELL 판정은
-백엔드가 다시 계산한다. 뉴스 수집기는 현재 판단 universe의 종목/코인을 함께 검색해
-실적·가이던스·밸류에이션 변화와 주요 이벤트를 context에 포함하도록 한다.
+Technical은 기존 deterministic 정량점수이며 LLM이 변경할 수 없다.
+LLM은 최종점수를 직접 정하지 않고 검증된 자료에서 세부 evidence와 신뢰도/나이를 구조화한다.
+
+주식 내부 구성:
+
+- Market/Sector: 업종 상대강도 50% + 시장 regime 25% + macro 25%
+- Fundamental: 실적/컨센서스 변화 35% + Quality 30% + Valuation 20% + 재무건전성/주주환원 15%
+
+Context evidence는 Backend에서 아래처럼 50점 쪽으로 보정한다.
+
+```text
+Adjusted = 50 + (Raw - 50) × Confidence × Freshness
+Freshness = 0.5 ^ (Age / HalfLife)
+```
+
+- Market/Sector half-life: 48시간
+- Fundamental half-life: 90일
+- Event/News: 이벤트별 유효시간을 half-life로 사용, 없으면 24시간
+- 근거가 없거나 출처가 약하면 confidence가 낮아져 자동으로 50점에 가까워진다.
+- 발생/발표 시각을 알 수 없으면 해당 context evidence를 보수적으로 중립 처리한다.
+
+뉴스 수집기는 현재 판단 universe를 포함해 검색하고, 발표 시각·복수 출처 여부·이벤트 지속성을 함께 기록한다.
+판단 Markdown에는 최종 component 점수와 evidence confidence/age도 남겨 Paper 결과 분석에 사용한다.
