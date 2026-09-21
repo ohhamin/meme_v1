@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta, timezone
+import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 from backend.app.core.config import get_settings
 from backend.app.services.algorithm_review import AlgorithmReviewService
@@ -268,12 +272,38 @@ class AdaptiveDecisionScheduler:
                     next_minutes=next_minutes,
                 )
         except Exception as exc:
+            error_type = type(exc).__name__
+            if isinstance(exc, ValidationError):
+                details = exc.errors(
+                    include_url=False,
+                    include_input=False,
+                    include_context=False,
+                )
+                error_detail = "; ".join(
+                    (
+                        f"{'.'.join(str(part) for part in item.get('loc', ()))}: "
+                        f"{item.get('msg', 'validation failed')}"
+                    )
+                    for item in details[:5]
+                )
+            else:
+                error_detail = str(exc).strip()
+
+            safe_reason = (
+                f"{error_type}: {error_detail}"
+                if error_detail
+                else error_type
+            )[:1000]
+            logger.exception(
+                "Scheduled decision cycle failed: %s",
+                safe_reason,
+            )
             self.state.save_last_run(
                 {
                     "finished_at": datetime.now(timezone.utc).isoformat(),
                     "mode": runtime.mode,
                     "status": "failed",
-                    "reason": type(exc).__name__,
+                    "reason": safe_reason,
                     "next_check_minutes": next_minutes,
                     "decision_count": 0,
                     "order_count": 0,
@@ -286,7 +316,8 @@ class AdaptiveDecisionScheduler:
                 {
                     "event": "scheduled_decision_cycle_failed",
                     "mode": runtime.mode,
-                    "error_type": type(exc).__name__,
+                    "error_type": error_type,
+                    "error_detail": error_detail[:1000],
                     "next_check_minutes": next_minutes,
                 },
             )
