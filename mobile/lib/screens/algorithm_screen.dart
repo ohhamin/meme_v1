@@ -285,7 +285,7 @@ class _CurrentAlgorithm extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
-                      '현재 적용 중 · Quant v0.4',
+                      '현재 적용 중 · Quant v0.8',
                       style: TextStyle(
                         color: AppColors.positive,
                         fontSize: 12,
@@ -301,10 +301,10 @@ class _CurrentAlgorithm extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     '① 거래가 활발한 후보를 고르고\n'
-                    '② 가격 흐름을 수학적으로 0~100점으로 계산한 뒤\n'
-                    '③ AI가 뉴스·경제 상황을 보고 위험하면 HOLD로 보류하고\n'
-                    '④ 변동성이 높으면 주문 금액을 줄인 다음\n'
-                    '⑤ Risk Guard가 마지막으로 주문을 검사해요.',
+                    '② 가격·추세로 Technical 점수를 계산한 뒤\n'
+                    '③ 주식은 시장·업종·기업·뉴스, 코인은 뉴스를 함께 평가하고\n'
+                    '④ 근거의 신뢰도와 최신성을 반영해 종합점수를 계산한 다음\n'
+                    '⑤ 주문 크기를 정하고 Risk Guard가 마지막으로 검사해요.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
@@ -315,30 +315,30 @@ class _CurrentAlgorithm extends StatelessWidget {
                       Expanded(
                         child: _AlgorithmMiniCard(
                           title: '주식',
-                          value: '상승일 비율 + 추세',
-                          description: '한국시장 반전 위험 보정',
+                          value: '40 · 20 · 30 · 10',
+                          description: '기술 · 시장/업종 · 기업 · 뉴스',
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _AlgorithmMiniCard(
                           title: '코인',
-                          value: '21일 + 7일',
-                          description: '짧은 모멘텀 중심',
+                          value: '80 · 20',
+                          description: '기술 · 이벤트/뉴스',
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    '65점 이상 BUY 후보 · 35점 이하 SELL 후보 · 그 사이는 HOLD',
+                    '종합 65점 이상 BUY · 35점 이하 SELL · 그 사이는 HOLD',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'AI는 수학적 방향을 반대로 뒤집지 않고, 위험하다고 판단하면 HOLD로만 보류해요.',
+                    'AI는 근거를 구조화하고, 최종 점수와 방향은 백엔드가 고정된 가중치로 계산해요.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -633,7 +633,7 @@ class _BacktestCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '현재 모델은 논문 근거를 반영한 규칙형 Quant이고, '
+              '이 검증은 현재 v0.8 전체 종합점수가 아니라 Technical 정량 신호를 비교해요. '
               '순수수학 후보는 가중치를 학습하지 않고 z-score와 '
               '90% 신뢰기준만 사용해요.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -643,7 +643,7 @@ class _BacktestCard extends StatelessWidget {
             const SizedBox(height: 12),
             if (result != null)
               _BacktestResultPanel(
-                title: '현재 Quant v0.4',
+                title: 'Technical Quant',
                 result: result!,
               ),
             if (mathResult != null) ...[
