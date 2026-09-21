@@ -42,7 +42,7 @@ def test_hold_creates_no_order():
 
 def test_buy_passes_when_within_hard_limits():
     result = make_guard().evaluate(make_intent())
-    assert result.status == "PASS"
+    assert result.status == "ALLOW"
     assert result.reasons == []
 
 
@@ -58,15 +58,16 @@ def test_buy_blocks_after_daily_loss_limit():
     assert any("Daily loss" in reason for reason in result.reasons)
 
 
-def test_buy_blocks_concentrated_position():
+def test_buy_is_reduced_when_position_would_exceed_limit():
     result = make_guard().evaluate(
         make_intent(
             position_value=Decimal("390000"),
             order_notional=Decimal("30000"),
         )
     )
-    assert result.status == "BLOCK"
-    assert any("Position exposure" in reason for reason in result.reasons)
+    assert result.status == "REDUCE"
+    assert result.adjusted_notional == Decimal("10000")
+    assert result.adjusted_quantity == Decimal("0.00010000")
 
 
 def test_sell_is_allowed_to_reduce_risk_even_after_daily_loss():
@@ -81,7 +82,7 @@ def test_sell_is_allowed_to_reduce_risk_even_after_daily_loss():
             available_cash=Decimal("0"),
         )
     )
-    assert result.status == "PASS"
+    assert result.status == "ALLOW"
 
 
 def test_sell_blocks_when_quantity_exceeds_holding():
@@ -107,7 +108,7 @@ def test_large_single_order_is_allowed_when_position_ratio_is_safe():
             available_cash=Decimal("500000"),
         )
     )
-    assert result.status == "PASS"
+    assert result.status == "ALLOW"
 
 
 def test_new_position_is_blocked_when_ten_are_already_open():
@@ -130,7 +131,7 @@ def test_existing_position_can_be_added_to_when_ten_are_open():
             open_position_count=10,
         )
     )
-    assert result.status == "PASS"
+    assert result.status == "ALLOW"
 
 
 
@@ -157,4 +158,53 @@ def test_manual_order_is_not_blocked_by_auto_symbol_cooldown():
         )
     )
 
-    assert result.status == "PASS"
+    assert result.status == "ALLOW"
+
+
+def test_sell_bypasses_buy_cooldown():
+    result = make_guard().evaluate(
+        make_intent(
+            action="SELL",
+            order_notional=Decimal("20000"),
+            order_quantity=Decimal("0.0001"),
+            position_quantity=Decimal("0.0002"),
+            seconds_since_last_buy=60,
+            seconds_since_last_auto_order=60,
+        )
+    )
+    assert result.status == "ALLOW"
+
+
+def test_stop_exit_reentry_cooldown_blocks_auto_buy():
+    result = make_guard().evaluate(
+        make_intent(
+            action="BUY",
+            seconds_since_last_stop_exit=60,
+        )
+    )
+    assert result.status == "BLOCK"
+    assert any("Stop-loss re-entry" in reason for reason in result.reasons)
+
+
+def test_buy_is_reduced_to_preserve_cash_reserve():
+    result = make_guard().evaluate(
+        make_intent(
+            position_value=Decimal("0"),
+            order_notional=Decimal("450000"),
+            order_quantity=Decimal("0.0045"),
+            available_cash=Decimal("500000"),
+        )
+    )
+    assert result.status == "REDUCE"
+    assert result.adjusted_notional == Decimal("400000")
+    assert result.adjusted_quantity == Decimal("0.00400000")
+
+
+def test_daily_limit_uses_buy_count_when_available():
+    result = make_guard().evaluate(
+        make_intent(
+            daily_order_count=99,
+            daily_buy_order_count=2,
+        )
+    )
+    assert result.status == "ALLOW"
