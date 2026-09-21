@@ -430,3 +430,87 @@ def test_regime_policy_uses_raised_exposure_targets():
     assert neutral["target_exposure_pct"] == 60
     assert bear["target_exposure_pct"] == 35
     assert bull["buy_threshold"] < neutral["buy_threshold"] < bear["buy_threshold"]
+
+
+def test_large_universe_uses_larger_output_budget(monkeypatch):
+    client = LLMDecisionClient()
+
+    class _FakeResponses:
+        async def create(self, **kwargs):
+            assert kwargs["max_output_tokens"] >= 12000
+            class _Usage:
+                input_tokens = 1
+                output_tokens = 1
+                total_tokens = 2
+            class _Response:
+                status = "completed"
+                incomplete_details = None
+                usage = _Usage()
+                output_text = (
+                    '{"decisions":['
+                    + ",".join(
+                        [
+                            '{"market":"crypto","symbol":"KRW-X'
+                            + str(i)
+                            + '","name":"X","action":"HOLD","score":50,'
+                            '"reason":"중립","technical_score":50,'
+                            '"market_regime_score":50,'
+                            '"sector_relative_strength_score":50,'
+                            '"macro_score":50,'
+                            '"market_sector_confidence":0,'
+                            '"market_sector_age_hours":null,'
+                            '"earnings_revision_score":50,'
+                            '"quality_score":50,'
+                            '"valuation_score":50,'
+                            '"balance_shareholder_score":50,'
+                            '"fundamental_confidence":0,'
+                            '"fundamental_age_hours":null,'
+                            '"news_event_score":50,'
+                            '"news_event_confidence":0,'
+                            '"news_event_age_hours":null,'
+                            '"news_event_horizon_hours":null}'
+                            for i in range(35)
+                        ]
+                    )
+                    + '],"next_check_minutes":60,"cycle_summary":"중립"}'
+                )
+                _request_id = "test"
+            return _Response()
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+    client.client = _FakeClient()
+    client.openai_usage.refresh = lambda: None
+
+    async def _noop_refresh():
+        return None
+
+    client.openai_usage.refresh = _noop_refresh
+    client.budget.record_usage = lambda **kwargs: None
+    client.runtime.resume = lambda: None
+    client.audit.write = lambda *args, **kwargs: None
+
+    ctx = CompactDecisionContext(
+        algorithm_markdown="test",
+        news_context="",
+        decision_context="",
+        macro_context={},
+        market_snapshot={
+            "instruments": [
+                {
+                    "market": "crypto",
+                    "symbol": f"KRW-X{i}",
+                    "features": {"quant_score": 50},
+                }
+                for i in range(35)
+            ]
+        },
+        account_snapshot={},
+        estimated_input_tokens=100,
+        budget_mode="normal",
+    )
+
+    import asyncio
+    result_value = asyncio.run(client.decide(ctx))
+    assert len(result_value.decisions) == 35
