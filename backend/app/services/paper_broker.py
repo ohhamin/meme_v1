@@ -69,6 +69,7 @@ class PaperBroker:
             "initial_cash": str(cash),
             "day_start_equity": str(cash),
             "daily_order_count": 0,
+            "daily_buy_order_count": 0,
             "positions": {},
         }
         self._write(state)
@@ -194,6 +195,9 @@ class PaperBroker:
             daily_pnl=daily_pnl,
             daily_pnl_pct=daily_pnl_pct,
             daily_order_count=int(state["daily_order_count"]),
+            daily_buy_order_count=int(
+                state.get("daily_buy_order_count", 0)
+            ),
             positions=sorted(positions, key=lambda p: p.symbol),
         )
 
@@ -209,6 +213,7 @@ class PaperBroker:
             "daily_pnl": str(portfolio.daily_pnl),
             "daily_pnl_pct": str(portfolio.daily_pnl_pct),
             "daily_order_count": portfolio.daily_order_count,
+            "daily_buy_order_count": portfolio.daily_buy_order_count,
             "positions": [
                 {
                     "market": p.market,
@@ -469,6 +474,10 @@ class PaperBroker:
                 existing["decision_score"] = decision_score
 
         state["daily_order_count"] = int(state["daily_order_count"]) + 1
+        if side == "buy":
+            state["daily_buy_order_count"] = int(
+                state.get("daily_buy_order_count", 0)
+            ) + 1
         self._write(state)
 
         execution = PaperOrderExecution(
@@ -610,6 +619,7 @@ class PaperBroker:
         state["date"] = today
         state["day_start_equity"] = str(cash + market_value)
         state["daily_order_count"] = 0
+        state["daily_buy_order_count"] = 0
         self._write(state)
 
     def _write(self, state: dict) -> None:
