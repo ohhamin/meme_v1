@@ -47,7 +47,7 @@ _DECISION_SCHEMA: dict[str, Any] = {
                         "minimum": 0,
                         "maximum": 100,
                     },
-                    "reason": {"type": "string"},
+                    "reason": {"type": "string", "maxLength": 180},
                     "technical_score": {
                         "type": "integer",
                         "minimum": 0,
@@ -157,7 +157,7 @@ _DECISION_SCHEMA: dict[str, Any] = {
             "minimum": 30,
             "maximum": 120,
         },
-        "cycle_summary": {"type": "string"},
+        "cycle_summary": {"type": "string", "maxLength": 400},
     },
     "required": [
         "decisions",
@@ -183,7 +183,7 @@ class LLMDecisionClient:
             AsyncOpenAI(
                 api_key=self.config.openai_api_key,
                 max_retries=0,
-                timeout=45.0,
+                timeout=75.0,
             )
             if self.config.openai_api_key
             else None
@@ -199,6 +199,16 @@ class LLMDecisionClient:
 
         request_text = self._build_input(context)
 
+        # 45 instruments can produce a large structured JSON response.
+        # The Responses API counts hidden reasoning inside max_output_tokens,
+        # so an 8k ceiling can truncate otherwise valid strict-schema JSON.
+        instrument_count = len(
+            context.market_snapshot.get("instruments") or []
+        )
+        output_token_limit = self.config.openai_max_output_tokens
+        if instrument_count >= 35:
+            output_token_limit = max(output_token_limit, 12000)
+
         try:
             response = await self.client.responses.create(
                 model=self.config.openai_decision_model,
@@ -207,7 +217,7 @@ class LLMDecisionClient:
                 reasoning={
                     "effort": self.config.openai_reasoning_effort,
                 },
-                max_output_tokens=self.config.openai_max_output_tokens,
+                max_output_tokens=output_token_limit,
                 text={
                     "format": {
                         "type": "json_schema",
@@ -261,6 +271,30 @@ class LLMDecisionClient:
             )
         await self.openai_usage.refresh()
 
+        response_status = getattr(response, "status", None)
+        incomplete_details = getattr(response, "incomplete_details", None)
+        if response_status == "incomplete":
+            reason = getattr(incomplete_details, "reason", None) or "unknown"
+            self.audit.write(
+                "system",
+                {
+                    "event": "llm_decision_incomplete",
+                    "model": self.config.openai_decision_model,
+                    "request_id": getattr(response, "_request_id", None),
+                    "reason": reason,
+                    "instrument_count": instrument_count,
+                    "max_output_tokens": output_token_limit,
+                    "estimated_input_tokens": context.estimated_input_tokens,
+                },
+            )
+            self.runtime.backoff(
+                reason="incomplete_response",
+                retry_after_seconds=30,
+            )
+            raise LLMUnavailableError(
+                "OpenAI decision response was incomplete: " + str(reason)
+            )
+
         raw = response.output_text.strip()
         if not raw:
             self.runtime.backoff(
@@ -281,7 +315,11 @@ class LLMDecisionClient:
                     "request_id": getattr(response, "_request_id", None),
                     "error_type": type(exc).__name__,
                     "error_detail": validation_detail[:4000],
+                    "response_length": len(raw),
+                    "response_tail": raw[-1000:],
                     "response_preview": raw[:4000],
+                    "instrument_count": instrument_count,
+                    "max_output_tokens": output_token_limit,
                 },
             )
             self.runtime.backoff(
@@ -329,7 +367,9 @@ class LLMDecisionClient:
                 "event": "llm_decision_completed",
                 "model": self.config.openai_decision_model,
                 "decision_count": len(result.decisions),
+                "instrument_count": instrument_count,
                 "estimated_input_tokens": context.estimated_input_tokens,
+                "max_output_tokens": output_token_limit,
                 "next_check_minutes": result.next_check_minutes,
                 "request_id": getattr(response, "_request_id", None),
                 "usage": (
