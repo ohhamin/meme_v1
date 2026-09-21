@@ -452,6 +452,24 @@ class ApiClient {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getBackendErrors() async {
+    final data =
+        await _request('GET', '/backend-errors') as Map<String, dynamic>;
+    final items = data['items'] as List<dynamic>? ?? <dynamic>[];
+    return items
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
+  }
+
+  Future<void> markBackendErrorImproved(String id, bool improved) async {
+    await _request(
+      'PUT',
+      '/backend-errors/$id/improved',
+      body: {'improved': improved},
+    );
+  }
+
   String _idempotencyKey(String symbol, String side) {
     return '$symbol-$side-${DateTime.now().microsecondsSinceEpoch}';
   }
