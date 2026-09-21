@@ -51,6 +51,18 @@ class PaperDashboardService:
         journal = self.orders.recent(limit=500, days=7)
         trading = self._trading_stats(journal)
         score_performance = self._score_performance(journal)
+        trading_by_market = {
+            market: self._trading_stats(
+                [row for row in journal if row.get("market") == market]
+            )
+            for market in ("stock", "crypto")
+        }
+        score_performance_by_market = {
+            market: self._score_performance(
+                [row for row in journal if row.get("market") == market]
+            )
+            for market in ("stock", "crypto")
+        }
         candidate_performance = self._candidate_score_performance(journal)
         recent_orders = self.orders.recent(limit=5000, days=3650)
 
@@ -73,7 +85,9 @@ class PaperDashboardService:
             },
             "positions": positions,
             "trading_7d": trading,
+            "trading_7d_by_market": trading_by_market,
             "score_performance_7d": score_performance,
+            "score_performance_7d_by_market": score_performance_by_market,
             "candidate_score_performance_7d": candidate_performance,
             # Backward-compatible aliases; values use the same 7-day window.
             "trading_30d": trading,
