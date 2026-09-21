@@ -30,6 +30,11 @@ router = APIRouter(
 async def positions():
     return await TradingService().crypto_positions()
 
+@router.post("/positions/refresh")
+async def refresh_positions():
+    return await TradingService().refresh_positions("crypto")
+
+
 @router.get("/performance")
 async def performance():
     return await MarketPerformanceService().build("crypto")
