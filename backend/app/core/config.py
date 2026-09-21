@@ -29,6 +29,13 @@ class AppSettings(BaseSettings):
     risk_min_cash_reserve_pct: float = 10.0
     risk_max_open_positions: int = 10
     risk_auto_symbol_cooldown_minutes: int = 60
+    risk_sell_reentry_cooldown_minutes: int = 60
+    risk_stop_reentry_cooldown_minutes: int = 180
+    risk_hard_stop_loss_pct: float = 5.0
+    risk_trailing_activation_pct: float = 10.0
+    risk_trailing_stop_pct: float = 5.0
+    risk_monitor_interval_minutes: int = 5
+    risk_buy_kill_switch: bool = False
 
     position_buy_min_score: int = 60
     position_sell_max_score: int = 40
