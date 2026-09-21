@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from backend.app.routers import (
     algorithm,
+    backend_errors,
     crypto,
     client_errors,
     decisions,
@@ -24,6 +26,7 @@ from backend.app.services.scheduler import AdaptiveDecisionScheduler
 from backend.app.services.startup_maintenance import StartupMaintenanceService
 from backend.app.services.safety_config import SafetyConfigValidator
 from backend.app.services.audit import AuditLogger
+from backend.app.services.backend_errors import BackendErrorStore
 
 
 scheduler = AdaptiveDecisionScheduler()
@@ -56,7 +59,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    BackendErrorStore().report_exception(
+        exc,
+        source="fastapi.unhandled",
+        context=f"{request.method} {request.url.path}",
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error."},
+    )
+
+
 app.include_router(health.router)
+app.include_router(backend_errors.router)
 app.include_router(client_errors.router)
 app.include_router(devices.router)
 app.include_router(live_orders.router)
