@@ -101,6 +101,9 @@ class PaperRiskMonitor:
                     ),
                     daily_pnl_pct=fresh_portfolio.daily_pnl_pct,
                     daily_order_count=fresh_portfolio.daily_order_count,
+                    daily_buy_order_count=(
+                        fresh_portfolio.daily_buy_order_count
+                    ),
                     data_age_seconds=instrument.data_age_seconds,
                     market_open=instrument.market_open,
                     same_cycle_duplicate=False,
