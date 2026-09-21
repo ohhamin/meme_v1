@@ -61,7 +61,7 @@ def test_buy_blocks_after_daily_loss_limit():
 def test_buy_is_reduced_when_position_would_exceed_limit():
     result = make_guard().evaluate(
         make_intent(
-            position_value=Decimal("390000"),
+            position_value=Decimal("590000"),
             order_notional=Decimal("30000"),
         )
     )
