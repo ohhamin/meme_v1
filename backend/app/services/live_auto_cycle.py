@@ -291,11 +291,35 @@ class LiveAutoCycleService:
                             symbol=decision.symbol,
                         )
                     ),
+                    seconds_since_last_buy=(
+                        self.auto_activity.seconds_since_last(
+                            mode="live",
+                            market=decision.market,
+                            symbol=decision.symbol,
+                            side="buy",
+                        )
+                    ),
+                    seconds_since_last_sell=(
+                        self.auto_activity.seconds_since_last(
+                            mode="live",
+                            market=decision.market,
+                            symbol=decision.symbol,
+                            side="sell",
+                        )
+                    ),
+                    seconds_since_last_stop_exit=(
+                        self.auto_activity.seconds_since_last(
+                            mode="live",
+                            market=decision.market,
+                            symbol=decision.symbol,
+                            event="stop_exit",
+                        )
+                    ),
                 )
             )
             seen.add(key)
 
-            if preliminary.status != "PASS":
+            if preliminary.status not in {"ALLOW", "REDUCE"}:
                 items.append(
                     LiveCycleExecutionItem(
                         decision=decision,
@@ -314,8 +338,16 @@ class LiveAutoCycleService:
                         if decision.action == "BUY"
                         else "sell"
                     ),
-                    quantity=sizing.order_quantity,
-                    notional=sizing.order_notional,
+                    quantity=(
+                        preliminary.adjusted_quantity
+                        if preliminary.status == "REDUCE"
+                        else sizing.order_quantity
+                    ),
+                    notional=(
+                        preliminary.adjusted_notional
+                        if preliminary.status == "REDUCE"
+                        else sizing.order_notional
+                    ),
                 )
                 message = (
                     f"Live order submitted: {order.order_id}"
