@@ -19,7 +19,7 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.5.0-risk
+Version: 0.6.0-sizing
 
 ## 한눈에 보기
 
@@ -185,9 +185,10 @@ class AlgorithmService:
                 "Version: 0.2.0-baseline" in current
                 or "Version: 0.3.0-quant" in current
                 or "Version: 0.4.0-quant" in current
+                or "Version: 0.5.0-risk" in current
             ):
                 legacy = self._legacy_applied_history(current)
-                backup = self.current_path.with_suffix(".pre-v0.5.md")
+                backup = self.current_path.with_suffix(".pre-v0.6.md")
                 if not backup.exists():
                     backup.write_text(current, encoding="utf-8")
 
@@ -196,7 +197,7 @@ class AlgorithmService:
                     migrated = (
                         migrated.rstrip()
                         + "\n\n## Legacy Applied Proposal History\n\n"
-                        + "아래 내용은 v0.5 이전 기록이며 현재 수학식이나 "
+                        + "아래 내용은 이전 버전에서 적용된 기록이며 현재 수학식이나 "
                         + "실행 규칙으로 사용하지 않는다.\n\n"
                         + legacy
                         + "\n"
