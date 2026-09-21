@@ -272,13 +272,26 @@ class LLMDecisionClient:
         try:
             result = DecisionCycleResult.model_validate(json.loads(raw))
         except (json.JSONDecodeError, ValueError) as exc:
+            validation_detail = str(exc)
+            self.audit.write(
+                "system",
+                {
+                    "event": "llm_invalid_structured_response",
+                    "model": self.config.openai_decision_model,
+                    "request_id": getattr(response, "_request_id", None),
+                    "error_type": type(exc).__name__,
+                    "error_detail": validation_detail[:4000],
+                    "response_preview": raw[:4000],
+                },
+            )
             self.runtime.backoff(
                 reason="invalid_structured_response",
                 retry_after_seconds=60,
             )
             self._audit_failure("invalid_structured_response", exc)
             raise LLMUnavailableError(
-                "OpenAI returned an invalid decision response."
+                "OpenAI returned an invalid decision response: "
+                + validation_detail[:700]
             ) from exc
 
         try:
