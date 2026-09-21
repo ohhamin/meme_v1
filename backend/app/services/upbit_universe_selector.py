@@ -35,10 +35,12 @@ class UpbitUniverseSelector:
     async def select(
         self,
         *,
-        limit: int = 10,
+        limit: int = 20,
         force: bool = True,
+        required_markets: list[str] | None = None,
     ) -> list[str]:
         limit = max(1, min(limit, 30))
+        required = self._stable_unique(required_markets or [])[:limit]
         if (
             not force
             and self.universe.selection_mode() == "auto"
@@ -95,7 +97,11 @@ class UpbitUniverseSelector:
                 await asyncio.sleep(0.11)
 
         if not rows:
-            selected = [item.market for item in liquid[:limit]]
+            selected = self._fill_required(
+                required,
+                [item.market for item in liquid],
+                limit,
+            )
             return self.universe.set_auto(selected, limit=limit)
 
         self._score(rows)
@@ -107,7 +113,11 @@ class UpbitUniverseSelector:
             ),
             reverse=True,
         )
-        selected = [item["market"] for item in ranked[:limit]]
+        selected = self._fill_required(
+            required,
+            [item["market"] for item in ranked],
+            limit,
+        )
         saved = self.universe.set_auto(selected, limit=limit)
         self._save_state(ranked, saved)
         return saved
@@ -119,6 +129,26 @@ class UpbitUniverseSelector:
             limit=self.universe.auto_limit(),
             force=False,
         )
+
+    @staticmethod
+    def _stable_unique(values: list[str]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for raw in values:
+            value = str(raw).strip().upper()
+            if value and value not in seen:
+                seen.add(value)
+                result.append(value)
+        return result
+
+    @classmethod
+    def _fill_required(
+        cls,
+        required: list[str],
+        ranked: list[str],
+        limit: int,
+    ) -> list[str]:
+        return cls._stable_unique([*required, *ranked])[:limit]
 
     @staticmethod
     def _metrics(candles: list[dict]) -> dict | None:
