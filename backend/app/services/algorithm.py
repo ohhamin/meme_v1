@@ -19,7 +19,7 @@ _RULE_RE = re.compile(
 
 _BASELINE = """# 현재 매매 알고리즘
 
-Version: 0.6.0-sizing
+Version: 0.7.0-composite
 
 ## 한눈에 보기
 
@@ -27,11 +27,11 @@ Version: 0.6.0-sizing
 
 1. 거래가 충분한 종목만 후보로 고른다.
 2. 일봉 가격으로 모멘텀·추세·변동성·거래량을 계산해 0~100점을 만든다.
-3. 정량점수 65 이상은 BUY 후보, 35 이하는 SELL 후보, 사이는 HOLD다.
-4. AI는 뉴스·거시환경·계좌상태를 보고 BUY/SELL을 HOLD로 보류할 수 있지만 반대 방향으로 뒤집을 수 없다.
+3. 가격 기반 Technical 점수와 시장별 Context 점수를 고정 가중치로 합쳐 Composite Score를 만든다.
+4. 종합점수 65 이상은 BUY, 35 이하는 SELL, 사이는 HOLD다.
 5. 변동성이 높을수록 주문 크기를 줄이고, 마지막에는 Risk Guard가 주문 가능 여부를 다시 검사한다.
 
-즉 **후보 선정 → 정량 점수 → AI 보수적 검토 → 주문크기 계산 → Risk Guard** 순서다.
+즉 **후보 선정 → Technical 점수 → Context 점수 → Composite Score → 주문크기 계산 → Risk Guard** 순서다.
 
 ## 수학적 핵심
 
@@ -68,6 +68,36 @@ CryptoScore = 0.40×M21 + 0.30×M7 + 0.15×Trend + 0.10×Stability + 0.05×Volum
 - M7: 최근 7일 위험조정 모멘텀
 - 42일 강한 상승이 21일 신호보다 과도하게 앞서 있으면 장기 반전 가능성을 고려해 감점
 - 장기 낙폭이 크다는 이유만으로 자동 매수하지는 않음
+
+## 종합 점수 체계
+
+최종 방향 점수는 가격 그래프만 사용하지 않고 시장별로 다른 가중합을 사용한다.
+
+주식:
+
+```text
+StockScore =
+  Technical 40%
++ Market / Sector 20%
++ Company Fundamental 30%
++ Event / News 10%
+```
+
+- Technical: 기존 deterministic 가격·추세·변동성·거래량 정량점수
+- Market / Sector: KOSPI/KOSDAQ, 금리·환율, 업종환경·산업 사이클 등 확인된 자료
+- Company Fundamental: 실적·매출/영업이익 전망, 가이던스, 밸류에이션, 재무건전성, 주주환원 등 확인된 기업자료
+- Event / News: 최근 기업·산업 이벤트 및 뉴스
+- 확인 가능한 자료가 없는 Context component는 50점(중립)으로 둔다.
+
+코인:
+
+```text
+CryptoScore = Technical 80% + Event / News 20%
+```
+
+코인의 Market/Sector 및 Company Fundamental 점수는 사용하지 않는다.
+Context 점수는 LLM이 제공된 뉴스/거시자료를 읽어 산정하지만, 백엔드가 고정 가중치로 최종 점수를 다시 계산한다.
+LLM은 Technical 점수를 변경할 수 없으며 확인되지 않은 수치나 사실을 만들어내면 안 된다.
 
 ## BUY / HOLD / SELL
 
@@ -186,9 +216,10 @@ class AlgorithmService:
                 or "Version: 0.3.0-quant" in current
                 or "Version: 0.4.0-quant" in current
                 or "Version: 0.5.0-risk" in current
+                or "Version: 0.6.0-sizing" in current
             ):
                 legacy = self._legacy_applied_history(current)
-                backup = self.current_path.with_suffix(".pre-v0.6.md")
+                backup = self.current_path.with_suffix(".pre-v0.7.md")
                 if not backup.exists():
                     backup.write_text(current, encoding="utf-8")
 
