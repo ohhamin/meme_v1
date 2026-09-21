@@ -137,6 +137,28 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
     assert result["trading_30d"]["realized_pnl"] == "8000"
     assert len(result["recent_orders"]) == 3
 
+    stock_trading = result["trading_7d_by_market"]["stock"]
+    crypto_trading = result["trading_7d_by_market"]["crypto"]
+    assert stock_trading["sell_count"] == 1
+    assert stock_trading["win_rate_pct"] == "0.00"
+    assert stock_trading["realized_pnl"] == "-4000"
+    assert crypto_trading["sell_count"] == 1
+    assert crypto_trading["win_rate_pct"] == "100.00"
+    assert crypto_trading["realized_pnl"] == "12000"
+
+    stock_score = {
+        item["bucket"]: item
+        for item in result["score_performance_7d_by_market"]["stock"]
+    }
+    crypto_score = {
+        item["bucket"]: item
+        for item in result["score_performance_7d_by_market"]["crypto"]
+    }
+    assert stock_score["70-79"]["closed_trades"] == 1
+    assert stock_score["70-79"]["average_return_pct"] == "-2.00"
+    assert crypto_score["60-69"]["closed_trades"] == 1
+    assert crypto_score["60-69"]["average_return_pct"] == "6.00"
+
 
     score = {
         item["bucket"]: item
