@@ -58,9 +58,9 @@ class UpbitUniverseService:
             self.get()
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-            return max(1, min(int(raw.get("auto_limit") or 10), 50))
+            return max(1, min(int(raw.get("auto_limit") or 20), 50))
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
-            return 10
+            return 20
 
     def set(self, markets: list[str]) -> list[str]:
         return self.set_manual(markets)
@@ -88,7 +88,7 @@ class UpbitUniverseService:
         markets: list[str],
         *,
         selection_mode: str = "manual",
-        auto_limit: int = 10,
+        auto_limit: int = 20,
     ) -> None:
         temp = self.path.with_suffix(".tmp")
         temp.write_text(
