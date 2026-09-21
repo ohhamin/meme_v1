@@ -131,10 +131,15 @@ class RiskGuard:
                 f"-{self.config.risk_max_daily_loss_pct}%)."
             )
 
-        if intent.daily_order_count >= self.config.risk_max_daily_orders:
+        buy_order_count = (
+            intent.daily_buy_order_count
+            if intent.daily_buy_order_count is not None
+            else intent.daily_order_count
+        )
+        if buy_order_count >= self.config.risk_max_daily_orders:
             reasons.append(
                 "Daily exposure-increasing order count limit reached "
-                f"({intent.daily_order_count} >= "
+                f"({buy_order_count} >= "
                 f"{self.config.risk_max_daily_orders})."
             )
 
