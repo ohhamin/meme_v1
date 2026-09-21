@@ -28,6 +28,7 @@ from backend.app.services.runtime_settings import RuntimeSettingsService
 from backend.app.services.toss_universe import TossUniverseService
 from backend.app.services.toss_universe_selector import TossUniverseSelector
 from backend.app.services.upbit_universe import UpbitUniverseService
+from backend.app.services.upbit_universe_selector import UpbitUniverseSelector
 from backend.app.services.cycle_metrics import CycleMetricsStore
 from backend.app.services.decision_universe import merge_decision_universe
 from backend.app.services.auto_trade_activity import AutoTradeActivityService
@@ -48,6 +49,10 @@ class LiveAutoCycleService:
         self.upbit_market = UpbitMarketDataAdapter()
         self.toss_market = TossMarketDataAdapter()
         self.upbit_universe = UpbitUniverseService()
+        self.upbit_universe_selector = UpbitUniverseSelector(
+            market_data=self.upbit_market,
+            universe=self.upbit_universe,
+        )
         self.toss_universe = TossUniverseService()
         self.toss_universe_selector = TossUniverseSelector(
             market_data=self.toss_market,
@@ -72,12 +77,14 @@ class LiveAutoCycleService:
         if self.config.upbit_live_order_enabled:
             try:
                 portfolio = await self.portfolios.upbit()
-                markets = merge_decision_universe(
-                    self.upbit_universe.get(),
-                    [
-                        position.symbol
-                        for position in portfolio.positions
-                    ],
+                held_crypto = [
+                    position.symbol
+                    for position in portfolio.positions
+                ]
+                markets = await self.upbit_universe_selector.select(
+                    limit=self.config.decision_crypto_universe_limit,
+                    force=True,
+                    required_markets=held_crypto,
                 )
                 if markets:
                     crypto = await self.upbit_market.snapshots(
@@ -112,14 +119,15 @@ class LiveAutoCycleService:
 
         if self.config.toss_live_order_enabled:
             try:
-                await self.toss_universe_selector.refresh_if_auto()
                 portfolio = await self.portfolios.toss()
-                symbols = merge_decision_universe(
-                    self.toss_universe.get(),
-                    [
-                        position.symbol
-                        for position in portfolio.positions
-                    ],
+                held_stocks = [
+                    position.symbol
+                    for position in portfolio.positions
+                ]
+                symbols = await self.toss_universe_selector.select(
+                    limit=self.config.decision_stock_universe_limit,
+                    force=True,
+                    required_symbols=held_stocks,
                 )
                 if symbols:
                     stocks = await self.toss_market.snapshots(
