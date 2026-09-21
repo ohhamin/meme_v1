@@ -247,7 +247,7 @@ class TradingService:
         )
         risk = self.risk.evaluate(intent)
 
-        if risk.status != "PASS":
+        if risk.status not in {"ALLOW", "REDUCE"}:
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
                 detail={
@@ -263,7 +263,11 @@ class TradingService:
                 symbol=symbol,
                 name=position.name,
                 side=side,
-                quantity=quantity,
+                quantity=(
+                    risk.adjusted_quantity
+                    if risk.status == "REDUCE"
+                    else quantity
+                ),
                 market_price=position.last_price,
                 decision_score=position.decision_score,
                 source="manual",
