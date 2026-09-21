@@ -75,7 +75,7 @@ class AppSettings(BaseSettings):
     openai_decision_model: str = "gpt-5.6-terra"
     openai_summary_model: str = "gpt-5.6-luna"
     openai_reasoning_effort: str = "low"
-    openai_max_output_tokens: int = 4000
+    openai_max_output_tokens: int = 8000
     llm_enabled: bool = True
     llm_daily_token_budget: int = 2000000
     llm_cycle_input_token_limit: int = 12000
