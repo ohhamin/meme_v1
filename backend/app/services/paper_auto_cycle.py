@@ -235,6 +235,7 @@ class PaperAutoCycleService:
                         event="stop_exit",
                     )
                 ),
+                target_exposure_pct=decision.target_exposure_pct,
             )
             risk_result = self.risk.evaluate(intent)
             seen.add(key)
