@@ -323,6 +323,7 @@ class LiveAutoCycleService:
                             event="stop_exit",
                         )
                     ),
+                    target_exposure_pct=decision.target_exposure_pct,
                 )
             )
             seen.add(key)
