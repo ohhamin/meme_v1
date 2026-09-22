@@ -11,6 +11,7 @@ from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.position_sizer import PositionSizer
 from backend.app.services.paper_dashboard import PaperDashboardService
 from backend.app.services.paper_order_journal import PaperOrderJournal
+from backend.app.services.cycle_metrics import CycleMetricsStore
 
 
 router = APIRouter(
@@ -29,6 +30,7 @@ def _accounts() -> PaperAccountsResponse:
 
 @router.get("/portfolio", response_model=PaperAccountsResponse)
 async def portfolio():
+    metrics.mark_paper_reset(payload.market)
     return _accounts()
 
 
@@ -46,6 +48,7 @@ async def reset(payload: PaperResetRequest):
     )
 
     journal = PaperOrderJournal()
+    metrics = CycleMetricsStore()
 
     if payload.market in {"stock", "all"}:
         PaperBroker("stock").reset(initial_cash)
