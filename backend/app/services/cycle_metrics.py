@@ -17,6 +17,7 @@ class CycleMetricsStore:
             / "metrics"
         )
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.reset_markers_path = self.base_dir / "paper_reset_markers.json"
 
     def append(
         self,
@@ -78,3 +79,40 @@ class CycleMetricsStore:
                     records.append(raw)
 
         return records
+
+
+    def mark_paper_reset(self, market: str) -> str:
+        """Record a Paper reset boundary without deleting telemetry."""
+        if market not in {"stock", "crypto", "all"}:
+            raise ValueError("market must be stock, crypto, or all")
+
+        now = datetime.now(self.tz).isoformat()
+        markers = self.paper_reset_markers()
+        targets = ("stock", "crypto") if market == "all" else (market,)
+        for target in targets:
+            markers[target] = now
+
+        temp = self.reset_markers_path.with_suffix(".tmp")
+        temp.write_text(
+            json.dumps(markers, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        temp.replace(self.reset_markers_path)
+        return now
+
+    def paper_reset_markers(self) -> dict[str, str]:
+        if not self.reset_markers_path.exists():
+            return {}
+        try:
+            raw = json.loads(
+                self.reset_markers_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            return {}
+        if not isinstance(raw, dict):
+            return {}
+        return {
+            key: str(value)
+            for key, value in raw.items()
+            if key in {"stock", "crypto"} and value
+        }
