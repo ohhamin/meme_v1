@@ -78,6 +78,7 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
             "realized_pnl": "12000",
             "entry_score": "65",
             "realized_return_pct": "6.0",
+            "decision_reason": "TRAILING_STOP: peak gain 12.00%, drawdown -5.20% <= -5.0%",
         },
         {
             "order_id": "paper-2",
@@ -88,6 +89,7 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
             "entry_score": "75",
             "realized_return_pct": "-2.0",
             "candidate_score": "84",
+            "decision_reason": "정량 SELL",
         },
         {
             "order_id": "paper-3",
@@ -162,6 +164,20 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
     assert crypto_score["60-69"]["positive_close_count"] == 1
     assert crypto_score["60-69"]["negative_close_count"] == 0
     assert crypto_score["60-69"]["average_return_pct"] == "6.00"
+
+    stock_exit = {
+        item["key"]: item
+        for item in result["exit_reason_performance_7d_by_market"]["stock"]
+    }
+    crypto_exit = {
+        item["key"]: item
+        for item in result["exit_reason_performance_7d_by_market"]["crypto"]
+    }
+    assert stock_exit["normal_sell"]["closed_trades"] == 1
+    assert stock_exit["normal_sell"]["average_return_pct"] == "-2.00"
+    assert stock_exit["hard_stop"]["closed_trades"] == 0
+    assert crypto_exit["trailing_stop"]["closed_trades"] == 1
+    assert crypto_exit["trailing_stop"]["average_return_pct"] == "6.00"
 
 
     score = {
