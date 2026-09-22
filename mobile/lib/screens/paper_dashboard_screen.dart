@@ -616,9 +616,23 @@ class _MarketTradingCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _Metric(label: '익절', value: '$winCount회')),
-              Expanded(child: _Metric(label: '손절', value: '$lossCount회')),
-              Expanded(child: _Metric(label: '청산', value: '$sellCount회')),
+              Expanded(
+                child: _Metric(
+                  label: '+청산',
+                  value: '$winCount회',
+                  valueColor: AppColors.positive,
+                ),
+              ),
+              Expanded(
+                child: _Metric(
+                  label: '-청산',
+                  value: '$lossCount회',
+                  valueColor: AppColors.negative,
+                ),
+              ),
+              Expanded(
+                child: _Metric(label: '전체 청산', value: '$sellCount회'),
+              ),
               Expanded(child: _Metric(label: '체결', value: '$orderCount회')),
             ],
           ),
@@ -1012,6 +1026,14 @@ class _CandidatePerformanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bucket = data['bucket']?.toString() ?? '-';
     final trades = (data['closed_trades'] as num?)?.toInt() ?? 0;
+    final positiveCloses =
+        (data['positive_close_count'] as num?)?.toInt() ??
+            (data['wins'] as num?)?.toInt() ??
+            0;
+    final negativeCloses =
+        (data['negative_close_count'] as num?)?.toInt() ??
+            (data['losses'] as num?)?.toInt() ??
+            0;
     final winRate = _number(data['win_rate_pct']);
     final avgReturn = _number(data['average_return_pct']);
     final pnl = _number(data['realized_pnl']);
@@ -1036,7 +1058,12 @@ class _CandidatePerformanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '청산 $trades회 · 승률 ${winRate.toStringAsFixed(1)}%',
+                  '+청산 $positiveCloses회 · -청산 $negativeCloses회 · 전체 $trades회',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '승률 ${winRate.toStringAsFixed(1)}%',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 4),
@@ -1090,6 +1117,14 @@ class _ScorePerformanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bucket = data['bucket']?.toString() ?? '-';
     final trades = (data['closed_trades'] as num?)?.toInt() ?? 0;
+    final positiveCloses =
+        (data['positive_close_count'] as num?)?.toInt() ??
+            (data['wins'] as num?)?.toInt() ??
+            0;
+    final negativeCloses =
+        (data['negative_close_count'] as num?)?.toInt() ??
+            (data['losses'] as num?)?.toInt() ??
+            0;
     final winRate = _number(data['win_rate_pct']);
     final avgReturn = _number(data['average_return_pct']);
     final pnl = _number(data['realized_pnl']);
@@ -1113,7 +1148,12 @@ class _ScorePerformanceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '청산 $trades회 · 승률 ${winRate.toStringAsFixed(1)}%',
+                  '+청산 $positiveCloses회 · -청산 $negativeCloses회 · 전체 $trades회',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '승률 ${winRate.toStringAsFixed(1)}%',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
