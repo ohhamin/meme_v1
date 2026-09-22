@@ -308,6 +308,72 @@ class PaperDashboardService:
 
         return result
 
+    @staticmethod
+    def _exit_reason_performance(records: list[dict]) -> list[dict]:
+        categories = [
+            ("normal_sell", "일반 SELL"),
+            ("hard_stop", "Hard Stop"),
+            ("trailing_stop", "Trailing Stop"),
+        ]
+        grouped: dict[str, list[tuple[Decimal, Decimal]]] = {
+            key: [] for key, _ in categories
+        }
+
+        for record in records:
+            if record.get("side") != "sell":
+                continue
+            try:
+                pnl = Decimal(str(record.get("realized_pnl")))
+                return_pct = Decimal(
+                    str(record.get("realized_return_pct"))
+                )
+            except (ValueError, TypeError):
+                continue
+
+            reason = str(record.get("decision_reason") or "").upper()
+            if reason.startswith("HARD_STOP:"):
+                key = "hard_stop"
+            elif reason.startswith("TRAILING_STOP:"):
+                key = "trailing_stop"
+            else:
+                key = "normal_sell"
+            grouped[key].append((pnl, return_pct))
+
+        result = []
+        for key, label in categories:
+            rows = grouped[key]
+            wins = [row for row in rows if row[0] > 0]
+            losses = [row for row in rows if row[0] < 0]
+            avg_return = (
+                sum((row[1] for row in rows), Decimal("0"))
+                / Decimal(len(rows))
+                if rows
+                else Decimal("0")
+            )
+            realized = sum((row[0] for row in rows), Decimal("0"))
+            win_rate = (
+                Decimal(len(wins)) / Decimal(len(rows)) * Decimal("100")
+                if rows
+                else Decimal("0")
+            )
+            result.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "closed_trades": len(rows),
+                    "wins": len(wins),
+                    "losses": len(losses),
+                    "win_rate_pct": str(
+                        win_rate.quantize(Decimal("0.01"))
+                    ),
+                    "average_return_pct": str(
+                        avg_return.quantize(Decimal("0.01"))
+                    ),
+                    "realized_pnl": str(realized),
+                }
+            )
+        return result
+
     def _combined_drawdown_7d(self) -> float | None:
         series: list[Decimal] = []
         for record in self.metrics.recent(limit_days=7):
