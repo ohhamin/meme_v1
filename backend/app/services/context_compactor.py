@@ -44,26 +44,29 @@ class CompactContextBuilder:
         news_context = self._read_compact_or_fallback(
             compact_name="news_rolling.md",
             store=self.news,
-            max_chars=self.config.llm_context_news_chars,
+            max_chars=min(self.config.llm_context_news_chars, 6000),
         )
+        # Past decisions are not market evidence. Keep only a very small tail
+        # for continuity; positions and current exposure already come from the
+        # account snapshot.
         decision_context = self._read_compact_or_fallback(
             compact_name="decision_rolling.md",
             store=self.decisions,
-            max_chars=self.config.llm_context_decision_chars,
+            max_chars=min(self.config.llm_context_decision_chars, 1200),
         )
 
         # 예산 절약 모드에서는 과거 context를 절반으로 축소한다.
         if budget_status["mode"] == "conserve":
             news_context = self._tail(
                 news_context,
-                max(2000, self.config.llm_context_news_chars // 2),
+                max(1200, min(3000, self.config.llm_context_news_chars // 2)),
             )
             decision_context = self._tail(
                 decision_context,
-                max(1500, self.config.llm_context_decision_chars // 2),
+                max(400, min(600, self.config.llm_context_decision_chars // 2)),
             )
 
-        algorithm = self.algorithms.current()
+        algorithm = self.algorithms.llm_context()
         macro_context = self.macro.read()
         compact_market_snapshot = self._compact_market_snapshot(
             market_snapshot
@@ -87,17 +90,17 @@ class CompactContextBuilder:
         cycle_limit = self.config.llm_cycle_input_token_limit
         target = max(1000, cycle_limit - 750) if cycle_limit > 0 else 0
         while target > 0 and estimated > target and (
-            len(news_context) > 1000 or len(decision_context) > 750
+            len(news_context) > 800 or len(decision_context) > 300
         ):
-            if len(news_context) >= len(decision_context) and len(news_context) > 1000:
+            if len(news_context) >= len(decision_context) and len(news_context) > 800:
                 news_context = self._tail(
                     news_context,
-                    max(1000, int(len(news_context) * 0.8)),
+                    max(800, int(len(news_context) * 0.8)),
                 )
-            elif len(decision_context) > 750:
+            elif len(decision_context) > 300:
                 decision_context = self._tail(
                     decision_context,
-                    max(750, int(len(decision_context) * 0.8)),
+                    max(300, int(len(decision_context) * 0.8)),
                 )
 
             estimated = self._estimate(
