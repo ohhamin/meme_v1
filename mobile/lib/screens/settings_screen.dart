@@ -699,7 +699,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-    controller.dispose();
+    Future<void>.delayed(
+      const Duration(milliseconds: 400),
+      controller.dispose,
+    );
     if (value == null) return;
 
     try {
@@ -823,7 +826,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   final message =
                                       item['message']?.toString() ?? '-';
                                   return Material(
-                                    color: Colors.transparent,
+                                    color: AppColors.surface,
                                     child: ListTile(
                                     contentPadding:
                                         const EdgeInsets.symmetric(
@@ -858,9 +861,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             title: Text(
                                               '개선여부 ${improved ? 'Y' : 'N'}',
                                             ),
-                                            content: SingleChildScrollView(
-                                              child: SelectableText(
-                                                '$message\n\n$stack',
+                                            content: SizedBox(
+                                              width: double.maxFinite,
+                                              height: MediaQuery.of(dialogContext)
+                                                      .size
+                                                      .height *
+                                                  0.55,
+                                              child: SingleChildScrollView(
+                                                child: SelectableText(
+                                                  '$message\n\n$stack',
+                                                ),
                                               ),
                                             ),
                                             actions: [
@@ -995,7 +1005,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   final source =
                                       item['source']?.toString() ?? '';
                                   return Material(
-                                    color: Colors.transparent,
+                                    color: AppColors.surface,
                                     child: ListTile(
                                     contentPadding:
                                         const EdgeInsets.symmetric(
@@ -1033,12 +1043,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             title: Text(
                                               '개선여부 ${improved ? 'Y' : 'N'}',
                                             ),
-                                            content: SingleChildScrollView(
-                                              child: SelectableText(
-                                                '$type\n$message'
-                                                '${source.isEmpty ? '' : '\n\n발생 위치: $source'}'
-                                                '${contextText.isEmpty ? '' : '\n상황: $contextText'}'
-                                                '${stack.isEmpty ? '' : '\n\n$stack'}',
+                                            content: SizedBox(
+                                              width: double.maxFinite,
+                                              height: MediaQuery.of(dialogContext)
+                                                      .size
+                                                      .height *
+                                                  0.55,
+                                              child: SingleChildScrollView(
+                                                child: SelectableText(
+                                                  '$type\n$message'
+                                                  '${source.isEmpty ? '' : '\n\n발생 위치: $source'}'
+                                                  '${contextText.isEmpty ? '' : '\n상황: $contextText'}'
+                                                  '${stack.isEmpty ? '' : '\n\n$stack'}',
+                                                ),
                                               ),
                                             ),
                                             actions: [
