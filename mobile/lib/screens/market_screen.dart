@@ -1317,7 +1317,7 @@ class _MarketScreenState extends State<MarketScreen> {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
             children: [
               _PerformanceSummary(
-                future: _performanceFuture,
+                items: items,
                 isStock: widget.isStock,
               ),
               const SizedBox(height: 12),
