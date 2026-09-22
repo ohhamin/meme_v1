@@ -252,8 +252,8 @@ def test_quant_hold_preserves_quant_score():
     )
 
     assert value.decisions[0].action == "HOLD"
-    assert value.decisions[0].score == 49
-    assert "종합 49/100" in value.decisions[0].reason
+    assert value.decisions[0].score == 47
+    assert "종합 47/100" in value.decisions[0].reason
 
 
 
@@ -373,7 +373,7 @@ def test_stock_subfactors_are_combined_deterministically():
     assert value.decisions[0].market_sector_score == 75
     assert value.decisions[0].fundamental_score == 77
     assert value.decisions[0].news_event_score == 50
-    assert value.decisions[0].score == 63
+    assert value.decisions[0].score == 65
     assert value.decisions[0].action == "BUY"
     assert "장세 BULL" in value.decisions[0].reason
     assert "목표투자 80%" in value.decisions[0].reason
@@ -514,3 +514,44 @@ def test_large_universe_uses_larger_output_budget(monkeypatch):
     import asyncio
     result_value = asyncio.run(client.decide(ctx))
     assert len(result_value.decisions) == 35
+
+
+
+def test_stock_missing_context_does_not_drag_technical_score_to_50():
+    ctx = CompactDecisionContext(
+        algorithm_markdown="test",
+        news_context="",
+        decision_context="",
+        macro_context={},
+        market_snapshot={
+            "instruments": [
+                {
+                    "market": "stock",
+                    "symbol": "005930",
+                    "features": {"quant_score": 72},
+                },
+            ]
+        },
+        account_snapshot={},
+        estimated_input_tokens=100,
+        budget_mode="normal",
+    )
+    value = result(
+        [
+            {
+                "market": "stock",
+                "symbol": "005930",
+                "action": "HOLD",
+                "score": 50,
+                "reason": "no verified context",
+            }
+        ]
+    )
+
+    LLMDecisionClient._apply_quant_guardrails(context=ctx, result=value)
+
+    assert value.decisions[0].market_sector_confidence == 0
+    assert value.decisions[0].fundamental_confidence == 0
+    assert value.decisions[0].news_event_confidence == 0
+    assert value.decisions[0].score == 72
+    assert value.decisions[0].action == "BUY"
