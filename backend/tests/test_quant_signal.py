@@ -20,7 +20,7 @@ def test_stock_positive_medium_momentum_can_create_buy_prior():
         features=features,
     )
 
-    assert result["quant_model_version"] == "v0.4"
+    assert result["quant_model_version"] == "v0.4.1"
     assert result["quant_score"] >= 65
     assert result["quant_action"] == "BUY"
     assert 0.35 <= result["quant_risk_scale"] <= 1.0
@@ -56,3 +56,16 @@ def test_high_volatility_only_reduces_exposure():
 
     assert result["quant_risk_scale"] < 1.0
     assert result["quant_risk_scale"] >= 0.35
+
+
+
+def test_momentum_score_no_longer_hits_100_at_z_two():
+    score = QuantSignalService._momentum_score(
+        return_pct=20.0,
+        daily_vol_pct=5.0,
+        horizon=4,
+    )
+
+    # z == 2.0 used to saturate at 100. The smoothed curve keeps
+    # headroom so 90+ remains an unusually strong signal.
+    assert 85 < score < 90
