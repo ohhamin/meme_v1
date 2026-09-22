@@ -83,6 +83,52 @@ class PaperOrderJournal:
             )
         return path
 
+    def reset_market(self, market: str) -> int:
+        """Remove Paper execution history for one market only."""
+        if market not in {"stock", "crypto"}:
+            raise ValueError("market must be stock or crypto")
+
+        removed = 0
+        for path in sorted(self.base_dir.glob("*.jsonl")):
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except OSError:
+                continue
+
+            kept: list[str] = []
+            changed = False
+            for line in lines:
+                if not line.strip():
+                    continue
+                try:
+                    raw = json.loads(line)
+                except json.JSONDecodeError:
+                    # Preserve malformed/unknown records rather than deleting
+                    # data we cannot safely classify.
+                    kept.append(line)
+                    continue
+
+                if isinstance(raw, dict) and raw.get("market") == market:
+                    removed += 1
+                    changed = True
+                else:
+                    kept.append(line)
+
+            if not changed:
+                continue
+
+            if kept:
+                temp = path.with_suffix(".tmp")
+                temp.write_text(
+                    "\n".join(kept) + "\n",
+                    encoding="utf-8",
+                )
+                temp.replace(path)
+            else:
+                path.unlink(missing_ok=True)
+
+        return removed
+
     def recent(
         self,
         *,
