@@ -87,7 +87,7 @@ StockScore =
 - Market / Sector: KOSPI/KOSDAQ, 금리·환율, 업종환경·산업 사이클 등 확인된 자료
 - Company Fundamental: 실적·매출/영업이익 전망, 가이던스, 밸류에이션, 재무건전성, 주주환원 등 확인된 기업자료
 - Event / News: 최근 기업·산업 이벤트 및 뉴스
-- 확인 가능한 자료가 없는 Context component는 50점(중립)으로 둔다.
+- 확인 가능한 자료가 없는 Context component는 50점(중립)으로 표시하지만, 최종 주식 점수에서는 해당 component의 유효가중치를 0에 가깝게 낮춘다.
 
 코인:
 
@@ -97,11 +97,24 @@ CryptoScore = Technical 80% + Event / News 20%
 
 코인의 Market/Sector 및 Company Fundamental 점수는 사용하지 않는다.
 LLM은 최종점수를 직접 결정하지 않고, 제공된 자료에서 세부 evidence score·신뢰도·데이터 나이를 구조화한다.
-Backend는 아래 규칙으로 각 Context component를 50점(중립) 쪽으로 보정한 뒤 고정 가중합을 계산한다.
+Backend는 아래 규칙으로 각 Context component의 표시 점수를 50점(중립) 쪽으로 보정한다.
 
 ```text
 Adjusted = 50 + (Raw - 50) × Confidence × Freshness
 Freshness = 0.5 ^ (Age / HalfLife)
+```
+
+주식 최종점수는 근거가 없는 50점이 Technical을 계속 누르지 않도록 유효가중치를 재정규화한다.
+
+```text
+EffectiveWeight = BaseWeight × Confidence × Freshness
+
+StockScore =
+Σ(RawComponent × EffectiveWeight)
+──────────────────────────────────
+Σ(EffectiveWeight)
+
+Technical은 항상 40% 기본가중치가 100% 활성화된다.
 ```
 
 - Market/Sector 내부: 업종 상대강도 50% + 시장 Regime 25% + Macro 25%
