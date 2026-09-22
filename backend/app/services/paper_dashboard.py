@@ -189,6 +189,8 @@ class PaperDashboardService:
                     rows.append((pnl, return_pct))
 
             wins = [row for row in rows if row[0] > 0]
+            losses = [row for row in rows if row[0] < 0]
+            breakevens = [row for row in rows if row[0] == 0]
             win_rate = (
                 Decimal(len(wins)) / Decimal(len(rows)) * Decimal("100")
                 if rows
@@ -207,6 +209,11 @@ class PaperDashboardService:
                     "bucket": label,
                     "closed_trades": len(rows),
                     "wins": len(wins),
+                    "losses": len(losses),
+                    "breakevens": len(breakevens),
+                    "positive_close_count": len(wins),
+                    "negative_close_count": len(losses),
+                    "breakeven_close_count": len(breakevens),
                     "win_rate_pct": str(
                         win_rate.quantize(Decimal("0.01"))
                     ),
@@ -251,6 +258,8 @@ class PaperDashboardService:
                     rows.append((pnl, return_pct))
 
             wins = [row for row in rows if row[0] > 0]
+            losses = [row for row in rows if row[0] < 0]
+            breakevens = [row for row in rows if row[0] == 0]
             win_rate = (
                 Decimal(len(wins))
                 / Decimal(len(rows))
@@ -274,6 +283,11 @@ class PaperDashboardService:
                     "bucket": label,
                     "closed_trades": len(rows),
                     "wins": len(wins),
+                    "losses": len(losses),
+                    "breakevens": len(breakevens),
+                    "positive_close_count": len(wins),
+                    "negative_close_count": len(losses),
+                    "breakeven_close_count": len(breakevens),
                     "win_rate_pct": str(
                         win_rate.quantize(Decimal("0.01"))
                     ),
