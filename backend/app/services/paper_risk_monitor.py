@@ -54,7 +54,7 @@ class PaperRiskMonitor:
                 if market == "crypto":
                     snapshots = await self.upbit.snapshots(
                         symbols,
-                        with_features=False,
+                        with_features=True,
                     )
                 else:
                     if not self.toss.configured:
@@ -78,7 +78,11 @@ class PaperRiskMonitor:
                 position = broker.position(symbol)
                 if instrument is None or position is None:
                     continue
-                exit_reason = self._exit_reason(position)
+                exit_reason = self._exit_reason(
+                    position,
+                    market=market,
+                    instrument=instrument,
+                )
                 if exit_reason is None:
                     continue
 
@@ -195,7 +199,13 @@ class PaperRiskMonitor:
         )
         return result
 
-    def _exit_reason(self, position) -> str | None:
+    def _exit_reason(
+        self,
+        position,
+        *,
+        market: str = "stock",
+        instrument=None,
+    ) -> str | None:
         if position.average_price <= 0 or position.last_price <= 0:
             return None
 
@@ -204,7 +214,14 @@ class PaperRiskMonitor:
             / position.average_price
             * Decimal("100")
         )
-        hard_stop = Decimal(str(self.config.risk_hard_stop_loss_pct))
+
+        hard_stop = Decimal(
+            str(
+                self.config.risk_crypto_hard_stop_loss_pct
+                if market == "crypto"
+                else self.config.risk_hard_stop_loss_pct
+            )
+        )
         if pnl_pct <= -hard_stop:
             return (
                 f"HARD_STOP: return {pnl_pct:.2f}% <= -{hard_stop}%"
@@ -219,8 +236,13 @@ class PaperRiskMonitor:
             / position.average_price
             * Decimal("100")
         )
+
         activation = Decimal(
-            str(self.config.risk_trailing_activation_pct)
+            str(
+                self.config.risk_crypto_trailing_activation_pct
+                if market == "crypto"
+                else self.config.risk_trailing_activation_pct
+            )
         )
         if peak_gain_pct < activation or peak <= 0:
             return None
@@ -230,7 +252,12 @@ class PaperRiskMonitor:
             / peak
             * Decimal("100")
         )
-        trailing_stop = Decimal(str(self.config.risk_trailing_stop_pct))
+
+        trailing_stop = (
+            self._crypto_trailing_stop(instrument)
+            if market == "crypto"
+            else Decimal(str(self.config.risk_trailing_stop_pct))
+        )
         if drawdown_from_peak <= -trailing_stop:
             return (
                 "TRAILING_STOP: "
@@ -238,3 +265,26 @@ class PaperRiskMonitor:
                 f"drawdown {drawdown_from_peak:.2f}% <= -{trailing_stop}%"
             )
         return None
+
+    def _crypto_trailing_stop(self, instrument) -> Decimal:
+        minimum = Decimal(str(self.config.risk_crypto_trailing_min_pct))
+        maximum = Decimal(str(self.config.risk_crypto_trailing_max_pct))
+        multiplier = Decimal(
+            str(self.config.risk_crypto_trailing_vol_multiplier)
+        )
+
+        try:
+            features = instrument.features if instrument is not None else {}
+            raw_vol = features.get("realized_volatility_pct")
+            volatility = Decimal(str(raw_vol))
+        except (AttributeError, TypeError, ValueError):
+            volatility = Decimal("0")
+
+        if volatility <= 0:
+            # Neutral fallback in the configured band.
+            return min(max(Decimal("5"), minimum), maximum)
+
+        dynamic = volatility * multiplier
+        return min(max(dynamic, minimum), maximum).quantize(
+            Decimal("0.01")
+        )
