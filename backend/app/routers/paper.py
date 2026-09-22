@@ -30,7 +30,6 @@ def _accounts() -> PaperAccountsResponse:
 
 @router.get("/portfolio", response_model=PaperAccountsResponse)
 async def portfolio():
-    metrics.mark_paper_reset(payload.market)
     return _accounts()
 
 
@@ -58,6 +57,7 @@ async def reset(payload: PaperResetRequest):
         PaperBroker("crypto").reset(initial_cash)
         journal.reset_market("crypto")
 
+    metrics.mark_paper_reset(payload.market)
     return _accounts()
 
 
