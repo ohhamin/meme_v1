@@ -144,6 +144,12 @@ class SymbolDecision(BaseModel):
     news_event_age_hours: int | None = Field(default=None, ge=0)
     news_event_horizon_hours: int | None = Field(default=None, ge=1)
 
+    # Backend-computed portfolio steering metadata. The LLM does not own these.
+    market_regime: str | None = None
+    target_exposure_pct: float | None = Field(default=None, ge=0, le=100)
+    buy_threshold: int | None = Field(default=None, ge=0, le=100)
+    sell_threshold: int | None = Field(default=None, ge=0, le=100)
+
 
 class DecisionCycleResult(BaseModel):
     decisions: list[SymbolDecision] = Field(max_length=200)
@@ -207,6 +213,7 @@ class RiskOrderIntent(BaseModel):
     seconds_since_last_buy: int | None = Field(default=None, ge=0)
     seconds_since_last_sell: int | None = Field(default=None, ge=0)
     seconds_since_last_stop_exit: int | None = Field(default=None, ge=0)
+    target_exposure_pct: Decimal | None = Field(default=None, ge=0, le=100)
 
 
 class RiskGuardResult(BaseModel):
