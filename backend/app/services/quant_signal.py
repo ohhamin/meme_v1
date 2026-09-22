@@ -11,7 +11,7 @@ class QuantSignalService:
     downgrade to HOLD.
     """
 
-    MODEL_VERSION = "v0.4"
+    MODEL_VERSION = "v0.4.1"
     BUY_THRESHOLD = 65.0
     SELL_THRESHOLD = 35.0
 
@@ -189,8 +189,10 @@ class QuantSignalService:
         if return_pct is None:
             return 50.0
         denom = max(daily_vol_pct * math.sqrt(horizon), 0.25)
-        z = cls._clamp(return_pct / denom, -2.0, 2.0)
-        return 50.0 + 25.0 * z
+        # Smooth saturation: strong momentum should approach the extremes
+        # gradually instead of hitting 100 as soon as z reaches 2.
+        z = cls._clamp(return_pct / denom, -4.0, 4.0)
+        return 50.0 + 50.0 * math.tanh(z / 2.0)
 
     @classmethod
     def _trend_score(
