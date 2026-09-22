@@ -598,6 +598,10 @@ class LLMDecisionClient:
                 if final_score <= policy["sell_threshold"]
                 else "HOLD"
             )
+            decision.market_regime = policy["regime"]
+            decision.target_exposure_pct = policy["target_exposure_pct"]
+            decision.buy_threshold = policy["buy_threshold"]
+            decision.sell_threshold = policy["sell_threshold"]
             original_reason = decision.reason.strip()
             exposure_text = (
                 "미확인"
