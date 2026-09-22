@@ -239,3 +239,34 @@ def test_buy_blocks_when_portfolio_is_already_ninety_percent_invested():
 
     assert result.status == "BLOCK"
     assert any("total exposure limit" in reason for reason in result.reasons)
+
+
+
+def test_auto_buy_is_capped_at_regime_target_exposure():
+    result = make_guard().evaluate(
+        make_intent(
+            order_notional=Decimal("150000"),
+            order_quantity=Decimal("0.0015"),
+            available_cash=Decimal("450000"),
+            target_exposure_pct=Decimal("60"),
+        )
+    )
+
+    # Current invested = 550k, so a 60% target leaves only 50k capacity.
+    assert result.status == "REDUCE"
+    assert result.adjusted_notional == Decimal("50000")
+    assert result.adjusted_quantity == Decimal("0.00050000")
+
+
+def test_manual_buy_ignores_regime_target_and_uses_absolute_cap():
+    result = make_guard().evaluate(
+        make_intent(
+            source="manual",
+            order_notional=Decimal("150000"),
+            order_quantity=Decimal("0.0015"),
+            available_cash=Decimal("450000"),
+            target_exposure_pct=Decimal("60"),
+        )
+    )
+
+    assert result.status == "ALLOW"
