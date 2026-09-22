@@ -538,12 +538,42 @@ class LLMDecisionClient:
                 decision.market_sector_score = market_sector
                 decision.fundamental_score = fundamental
 
-                final_score = round(
-                    technical * 0.40
-                    + market_sector * 0.20
-                    + fundamental * 0.30
-                    + news * 0.10
+                # Missing/weak context must not behave like a persistent
+                # 50-point drag on stocks. Scale each contextual weight by
+                # evidence confidence * freshness, then renormalize the active
+                # weights. Technical always remains fully active at 40%.
+                market_strength = LLMDecisionClient._evidence_strength(
+                    confidence=decision.market_sector_confidence,
+                    age_hours=decision.market_sector_age_hours,
+                    half_life_hours=48,
                 )
+                fundamental_strength = LLMDecisionClient._evidence_strength(
+                    confidence=decision.fundamental_confidence,
+                    age_hours=decision.fundamental_age_hours,
+                    half_life_hours=24 * 90,
+                )
+                news_strength = LLMDecisionClient._evidence_strength(
+                    confidence=decision.news_event_confidence,
+                    age_hours=decision.news_event_age_hours,
+                    half_life_hours=(
+                        decision.news_event_horizon_hours
+                        if decision.news_event_horizon_hours is not None
+                        else 24
+                    ),
+                )
+                weighted_sum = (
+                    technical * 0.40
+                    + raw_market_sector * 0.20 * market_strength
+                    + raw_fundamental * 0.30 * fundamental_strength
+                    + raw_news * 0.10 * news_strength
+                )
+                active_weight = (
+                    0.40
+                    + 0.20 * market_strength
+                    + 0.30 * fundamental_strength
+                    + 0.10 * news_strength
+                )
+                final_score = round(weighted_sum / active_weight)
                 detail = (
                     f"기술 {technical} · 시장/업종 {market_sector} · "
                     f"기업 {fundamental} · 뉴스 {news}"
@@ -657,6 +687,21 @@ class LLMDecisionClient:
     @staticmethod
     def _clamp_score(value: int | float) -> float:
         return max(0.0, min(100.0, float(value)))
+
+    @staticmethod
+    def _evidence_strength(
+        *,
+        confidence: int | float,
+        age_hours: int | None,
+        half_life_hours: int | float,
+    ) -> float:
+        """Return usable evidence weight in the 0..1 range."""
+        conf = LLMDecisionClient._clamp_score(confidence) / 100.0
+        if age_hours is None or conf <= 0:
+            return 0.0
+        half_life = max(1.0, float(half_life_hours))
+        freshness = math.pow(0.5, max(0, age_hours) / half_life)
+        return max(0.0, min(1.0, conf * freshness))
 
     @staticmethod
     def _evidence_adjusted_score(
