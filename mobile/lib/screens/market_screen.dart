@@ -22,13 +22,22 @@ class MarketScreen extends StatefulWidget {
 
 class _MarketScreenState extends State<MarketScreen> {
   late Future<List<Map<String, dynamic>>> _future;
-  late Future<Map<String, dynamic>> _performanceFuture;
   int? _upbitUniverseCount;
   int? _tossUniverseCount;
   bool _refreshingPositions = false;
 
   String get _market => widget.isStock ? 'stocks' : 'crypto';
   String get _title => widget.isStock ? '주식' : '코인';
+
+  void _disposeControllerAfterRoute(TextEditingController controller) {
+    // Modal/dialog pop animations can rebuild their TextField for a few
+    // frames after the route future completes. Dispose after the transition
+    // instead of invalidating the controller immediately.
+    Future<void>.delayed(
+      const Duration(milliseconds: 400),
+      controller.dispose,
+    );
+  }
 
   @override
   void initState() {
@@ -43,7 +52,6 @@ class _MarketScreenState extends State<MarketScreen> {
 
   void _reload() {
     _future = ApiClient.instance.getPositions(_market);
-    _performanceFuture = ApiClient.instance.getMarketPerformance(_market);
   }
 
   Future<void> _loadUniverseCount() async {
@@ -187,7 +195,7 @@ class _MarketScreenState extends State<MarketScreen> {
     );
 
     if (confirmed != true || !mounted) {
-      controller.dispose();
+      _disposeControllerAfterRoute(controller);
       return;
     }
 
@@ -276,7 +284,7 @@ class _MarketScreenState extends State<MarketScreen> {
         SnackBar(content: Text(e.toString())),
       );
     } finally {
-      controller.dispose();
+      _disposeControllerAfterRoute(controller);
     }
   }
 
@@ -630,7 +638,7 @@ class _MarketScreenState extends State<MarketScreen> {
         },
       );
 
-      controller.dispose();
+      _disposeControllerAfterRoute(controller);
 
       if (saved == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1048,7 +1056,7 @@ class _MarketScreenState extends State<MarketScreen> {
                             final checked = selected.contains(market);
 
                             return Material(
-                              color: Colors.transparent,
+                              color: AppColors.surface,
                               child: CheckboxListTile(
                               value: checked,
                               onChanged: (value) {
@@ -1144,7 +1152,7 @@ class _MarketScreenState extends State<MarketScreen> {
         },
       );
 
-      searchController.dispose();
+      _disposeControllerAfterRoute(searchController);
 
       if (saved == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
