@@ -12,10 +12,11 @@ from backend.app.services.upbit_universe import UpbitUniverseService
 
 
 class UpbitUniverseSelector:
-    """Select liquid crypto candidates using short-horizon momentum.
+    """Select tradable crypto candidates without duplicating the signal model.
 
-    Liquidity is a hard practical preference; price momentum decides which of
-    the liquid coins deserve attention. This is candidate selection only.
+    Candidate selection prioritizes liquidity, stability and activity.
+    Momentum is intentionally a small tie-breaker because QuantSignalService
+    owns the directional BUY/SELL decision.
     """
 
     def __init__(
@@ -221,11 +222,11 @@ class UpbitUniverseSelector:
             stability_score = cls._percentile(stability, stability[index])
 
             raw = (
-                liquidity_score * 0.35
-                + medium_score * 0.30
-                + short_score * 0.20
-                + stability_score * 0.10
-                + activity_score * 0.05
+                liquidity_score * 0.55
+                + stability_score * 0.20
+                + activity_score * 0.10
+                + medium_score * 0.10
+                + short_score * 0.05
             )
 
             penalty = 0.0
