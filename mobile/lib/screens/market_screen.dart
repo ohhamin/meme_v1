@@ -1279,7 +1279,7 @@ class _MarketScreenState extends State<MarketScreen> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
               children: [
                 _PerformanceSummary(
-                  future: _performanceFuture,
+                  items: items,
                   isStock: widget.isStock,
                 ),
                 const SizedBox(height: 12),
@@ -1425,83 +1425,57 @@ class _SelectorMetric extends StatelessWidget {
 
 class _PerformanceSummary extends StatelessWidget {
   const _PerformanceSummary({
-    required this.future,
+    required this.items,
     required this.isStock,
   });
 
-  final Future<Map<String, dynamic>> future;
+  final List<Map<String, dynamic>> items;
   final bool isStock;
+
+  num _number(Map<String, dynamic> item, String key) =>
+      num.tryParse(item[key]?.toString() ?? '0') ?? 0;
 
   @override
   Widget build(BuildContext context) {
     final money = NumberFormat('#,###');
-    return FutureBuilder<Map<String, dynamic>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const AppSurface(
-            child: SizedBox(
-              height: 74,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          );
-        }
+    final invested = items.fold<num>(
+      0,
+      (sum, item) => sum + _number(item, 'invested_amount'),
+    );
+    final marketValue = items.fold<num>(
+      0,
+      (sum, item) => sum + _number(item, 'market_value'),
+    );
+    final unrealized = marketValue - invested;
+    final returnPct = invested > 0 ? unrealized / invested * 100 : 0;
+    final returnColor = returnPct > 0
+        ? AppColors.positive
+        : returnPct < 0
+            ? AppColors.negative
+            : AppColors.textSecondary;
 
-        final data = snapshot.data!;
-        final mode = data['mode']?.toString().toUpperCase() ?? '-';
-        final returnPct =
-            num.tryParse(data['return_pct']?.toString() ?? '0') ?? 0;
-        final unrealized =
-            num.tryParse(data['unrealized_pnl']?.toString() ?? '0') ?? 0;
-        final realized =
-            num.tryParse(data['realized_pnl_7d']?.toString() ?? '');
-        final winRate =
-            num.tryParse(data['win_rate_7d_pct']?.toString() ?? '');
-        final returnColor = returnPct > 0
-            ? AppColors.positive
-            : returnPct < 0
-                ? AppColors.negative
-                : AppColors.textSecondary;
-
-        return AppSurface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${isStock ? '주식' : '코인'} 성과 요약',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  Text(mode, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                '${returnPct >= 0 ? '+' : ''}${returnPct.toStringAsFixed(2)}%',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: returnColor,
-                    ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                '평가손익 ${money.format(unrealized)}원 · 보유 ${data['position_count'] ?? 0}개',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              if (realized != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '최근 7일 실현손익 ${money.format(realized)}원'
-                  '${winRate == null ? '' : ' · 승률 ${winRate.toStringAsFixed(1)}%'}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${isStock ? '주식' : '코인'} 성과 요약',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        );
-      },
+          const SizedBox(height: 14),
+          Text(
+            '${returnPct >= 0 ? '+' : ''}${returnPct.toStringAsFixed(2)}%',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: returnColor,
+                ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '평가손익 ${money.format(unrealized)}원 · 보유 ${items.length}개',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }
