@@ -376,8 +376,16 @@ class PaperDashboardService:
 
     def _combined_drawdown_7d(self) -> float | None:
         series: list[Decimal] = []
+        markers = self.metrics.paper_reset_markers()
+        # Combined equity is only comparable after both accounts are on the
+        # current reset baseline. If one market was reset later, start there.
+        reset_after = max(markers.values(), default="")
+
         for record in self.metrics.recent(limit_days=7):
             if record.get("mode") != "paper":
+                continue
+            timestamp = str(record.get("timestamp") or "")
+            if reset_after and timestamp <= reset_after:
                 continue
             accounts = record.get("accounts")
             if not isinstance(accounts, dict):
@@ -393,7 +401,8 @@ class PaperDashboardService:
                 series.append(total)
 
         if not series:
-            return None
+            # A freshly reset account has no post-reset drawdown yet.
+            return 0.0 if reset_after else None
 
         peak = series[0]
         max_drawdown = Decimal("0")
