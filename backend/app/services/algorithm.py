@@ -16,6 +16,19 @@ _RULE_RE = re.compile(
     flags=re.DOTALL,
 )
 
+_LLM_DECISION_CONTEXT = """Version: 0.8.0-evidence
+
+LLM 역할은 매매방향 결정이 아니라 제공된 자료의 evidence 추출이다.
+Backend가 Technical 점수, 가중치, BUY/SELL 임계값, Position Sizer와 Risk Guard를 계산한다.
+
+- 주식 Context: 시장/업종, 기업 Fundamental, Event/News
+- 코인 Context: Event/News만 사용
+- 확인 가능한 근거가 없으면 score=50, confidence=0, age=null
+- 오래되거나 모순된 근거는 confidence를 낮춘다.
+- 숫자·실적·밸류에이션·뉴스를 추측하지 않는다.
+- Technical 점수는 market_snapshot의 quant_score가 기준이며 LLM이 변경하지 않는다.
+"""
+
 
 _BASELINE = """# 현재 매매 알고리즘
 
@@ -279,6 +292,33 @@ class AlgorithmService:
 
     def current(self) -> str:
         return self.current_path.read_text(encoding="utf-8")
+
+    def llm_context(self) -> str:
+        """Small prompt context for the evidence extractor.
+
+        The full algorithm document is for humans/audit. Sending formulas,
+        references and Risk Guard prose every hourly cycle wastes tokens because
+        those rules are already enforced by backend code.
+        """
+        current = self.current()
+        applied = ""
+        marker = "## Applied Proposals"
+        if marker in current:
+            applied = current.split(marker, 1)[1].strip()
+            if applied == "아직 적용된 제안이 없다.":
+                applied = ""
+
+        if not applied:
+            return _LLM_DECISION_CONTEXT
+
+        # Applied proposal rules can affect the LLM evidence layer, so preserve
+        # them while bounding prompt growth.
+        return (
+            _LLM_DECISION_CONTEXT.rstrip()
+            + "\n\n적용된 evidence 규칙:\n"
+            + applied[-3000:]
+            + "\n"
+        )
 
     def list_pending(self) -> list[AlgorithmProposal]:
         proposals = []
