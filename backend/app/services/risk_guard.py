@@ -193,9 +193,20 @@ class RiskGuard:
             Decimal("0"),
             equity - intent.available_cash,
         )
+        exposure_limit_pct = Decimal(
+            str(self.config.risk_max_portfolio_exposure_pct)
+        )
+        if (
+            intent.source == "auto"
+            and intent.target_exposure_pct is not None
+        ):
+            exposure_limit_pct = min(
+                exposure_limit_pct,
+                Decimal(str(intent.target_exposure_pct)),
+            )
+
         max_portfolio_value = equity * (
-            Decimal(str(self.config.risk_max_portfolio_exposure_pct))
-            / Decimal("100")
+            exposure_limit_pct / Decimal("100")
         )
         max_by_portfolio = max(
             Decimal("0"),
@@ -221,7 +232,7 @@ class RiskGuard:
                 )
             if max_by_portfolio <= 0:
                 detail.append(
-                    "Portfolio is already at the configured total exposure limit."
+                    "Portfolio is already at the active exposure target/limit."
                 )
             return self._result(
                 intent,
@@ -253,7 +264,7 @@ class RiskGuard:
                 status="REDUCE",
                 reasons=[
                     "BUY size reduced to remain inside position, cash reserve, "
-                    "and total portfolio exposure limits."
+                    "and the active portfolio exposure target."
                 ],
                 adjusted_notional=adjusted_notional,
                 adjusted_quantity=adjusted_quantity,
