@@ -64,6 +64,12 @@ class PaperDashboardService:
             for market in ("stock", "crypto")
         }
         candidate_performance = self._candidate_score_performance(journal)
+        exit_performance_by_market = {
+            market: self._exit_reason_performance(
+                [row for row in journal if row.get("market") == market]
+            )
+            for market in ("stock", "crypto")
+        }
         recent_orders = self.orders.recent(limit=5000, days=3650)
 
         return {
@@ -89,6 +95,7 @@ class PaperDashboardService:
             "score_performance_7d": score_performance,
             "score_performance_7d_by_market": score_performance_by_market,
             "candidate_score_performance_7d": candidate_performance,
+            "exit_reason_performance_7d_by_market": exit_performance_by_market,
             # Backward-compatible aliases; values use the same 7-day window.
             "trading_30d": trading,
             "score_performance_30d": score_performance,
