@@ -103,14 +103,17 @@ def test_adaptive_scheduler_pushes_completed_cycle_summary(
             items=[
                 SimpleNamespace(
                     decision=SimpleNamespace(action="BUY"),
+                    risk=SimpleNamespace(status="ALLOW"),
                     order=SimpleNamespace(),
                 ),
                 SimpleNamespace(
                     decision=SimpleNamespace(action="HOLD"),
+                    risk=SimpleNamespace(status="NO_ORDER"),
                     order=None,
                 ),
                 SimpleNamespace(
                     decision=SimpleNamespace(action="SELL"),
+                    risk=SimpleNamespace(status="BLOCK"),
                     order=None,
                 ),
             ],
@@ -138,7 +141,9 @@ def test_adaptive_scheduler_pushes_completed_cycle_summary(
 
     assert len(sent) == 1
     assert sent[0]["title"] == "자동 판단 완료"
-    assert "BUY 1 / SELL 1 / HOLD 1" in sent[0]["body"]
+    assert "실제 BUY 1 (전체 1)" in sent[0]["body"]
+    assert "실제 SELL 0 (전체 1)" in sent[0]["body"]
+    assert "HOLD 1" in sent[0]["body"]
     assert "주문 1건" in sent[0]["body"]
     assert "다음 판단 45분 후" in sent[0]["body"]
     assert sent[0]["data"]["type"] == "decision_cycle_completed"
