@@ -155,8 +155,12 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
         for item in result["score_performance_7d_by_market"]["crypto"]
     }
     assert stock_score["70-79"]["closed_trades"] == 1
+    assert stock_score["70-79"]["positive_close_count"] == 0
+    assert stock_score["70-79"]["negative_close_count"] == 1
     assert stock_score["70-79"]["average_return_pct"] == "-2.00"
     assert crypto_score["60-69"]["closed_trades"] == 1
+    assert crypto_score["60-69"]["positive_close_count"] == 1
+    assert crypto_score["60-69"]["negative_close_count"] == 0
     assert crypto_score["60-69"]["average_return_pct"] == "6.00"
 
 
@@ -177,6 +181,8 @@ def test_paper_dashboard_combines_accounts_and_drawdown(monkeypatch):
         for item in result["candidate_score_performance_7d"]
     }
     assert candidate["80-100"]["closed_trades"] == 1
+    assert candidate["80-100"]["positive_close_count"] == 0
+    assert candidate["80-100"]["negative_close_count"] == 1
     assert candidate["80-100"]["win_rate_pct"] == "0.00"
     assert candidate["80-100"]["average_return_pct"] == "-2.00"
     assert candidate["80-100"]["sample_sufficient"] is False
