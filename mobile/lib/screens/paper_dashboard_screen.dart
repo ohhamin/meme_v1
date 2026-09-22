@@ -202,6 +202,19 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
                     <dynamic>[])
                 .map((item) => (item as Map).cast<String, dynamic>())
                 .toList();
+        final exitPerformanceByMarket =
+            (data['exit_reason_performance_7d_by_market'] as Map?)
+                    ?.cast<String, dynamic>() ??
+                <String, dynamic>{};
+        List<Map<String, dynamic>> exitStats(String market) {
+          final raw = exitPerformanceByMarket[market] as List<dynamic>? ??
+              <dynamic>[];
+          return raw
+              .map((item) => (item as Map).cast<String, dynamic>())
+              .toList();
+        }
+        final stockExitPerformance = exitStats('stock');
+        final cryptoExitPerformance = exitStats('crypto');
 
         final equity = _number(combined['equity']);
         final cash = _number(combined['cash']);
@@ -402,6 +415,25 @@ class _PaperDashboardScreenState extends State<PaperDashboardScreen> {
               const SizedBox(height: 8),
               Text(
                 '코인 매수 당시 판단점수와 이후 매도 실현성과를 연결한 최근 7일 통계예요.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 24),
+              const SectionTitle('청산 사유별 성과'),
+              const SizedBox(height: 12),
+              _ExitPerformanceGroup(
+                title: '주식',
+                items: stockExitPerformance,
+                money: _money,
+              ),
+              const SizedBox(height: 10),
+              _ExitPerformanceGroup(
+                title: '코인',
+                items: cryptoExitPerformance,
+                money: _money,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '최근 7일 매도 체결을 일반 SELL · Hard Stop · Trailing Stop으로 나눠 비교해요.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
@@ -642,6 +674,102 @@ class _MarketTradingCard extends StatelessWidget {
   }
 }
 
+
+class _ExitPerformanceGroup extends StatelessWidget {
+  const _ExitPerformanceGroup({
+    required this.title,
+    required this.items,
+    required this.money,
+  });
+
+  final String title;
+  final List<Map<String, dynamic>> items;
+  final NumberFormat money;
+
+  num _number(dynamic value) =>
+      num.tryParse(value?.toString() ?? '0') ?? 0;
+
+  Color _pnlColor(num value) {
+    if (value > 0) return AppColors.positive;
+    if (value < 0) return AppColors.negative;
+    return AppColors.textSecondary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = items
+        .where((item) => (item['closed_trades'] as num? ?? 0) > 0)
+        .toList();
+
+    return AppSurface(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          if (active.isEmpty)
+            Text(
+              '청산 데이터가 아직 없어요.',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          else
+            ...active.map((item) {
+              final count =
+                  (item['closed_trades'] as num?)?.toInt() ?? 0;
+              final wins = (item['wins'] as num?)?.toInt() ?? 0;
+              final losses = (item['losses'] as num?)?.toInt() ?? 0;
+              final avg = _number(item['average_return_pct']);
+              final pnl = _number(item['realized_pnl']);
+              final label = item['label']?.toString() ?? '-';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '전체 $count회 · +청산 $wins회 · -청산 $losses회',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${avg > 0 ? '+' : ''}${avg.toStringAsFixed(2)}%',
+                          style: TextStyle(
+                            color: _pnlColor(avg),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${pnl > 0 ? '+' : ''}${money.format(pnl)}원',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
 
 class _AccountCard extends StatelessWidget {
   const _AccountCard({
