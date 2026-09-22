@@ -32,9 +32,17 @@ class AppSettings(BaseSettings):
     risk_auto_symbol_cooldown_minutes: int = 60
     risk_sell_reentry_cooldown_minutes: int = 60
     risk_stop_reentry_cooldown_minutes: int = 180
+    # Stock protective exits
     risk_hard_stop_loss_pct: float = 5.0
     risk_trailing_activation_pct: float = 10.0
     risk_trailing_stop_pct: float = 5.0
+
+    # Crypto gets wider loss tolerance and earlier profit protection.
+    risk_crypto_hard_stop_loss_pct: float = 7.0
+    risk_crypto_trailing_activation_pct: float = 7.0
+    risk_crypto_trailing_min_pct: float = 4.0
+    risk_crypto_trailing_max_pct: float = 7.0
+    risk_crypto_trailing_vol_multiplier: float = 1.25
     risk_monitor_interval_minutes: int = 5
     risk_buy_kill_switch: bool = False
 
