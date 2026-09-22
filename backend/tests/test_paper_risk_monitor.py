@@ -10,6 +10,11 @@ def make_monitor() -> PaperRiskMonitor:
         risk_hard_stop_loss_pct=5.0,
         risk_trailing_activation_pct=10.0,
         risk_trailing_stop_pct=5.0,
+        risk_crypto_hard_stop_loss_pct=7.0,
+        risk_crypto_trailing_activation_pct=7.0,
+        risk_crypto_trailing_min_pct=4.0,
+        risk_crypto_trailing_max_pct=7.0,
+        risk_crypto_trailing_vol_multiplier=1.25,
     )
     return monitor
 
@@ -50,3 +55,37 @@ def test_trailing_stop_does_not_trigger_while_drawdown_is_small():
         position(average=100, last=107, peak=110)
     )
     assert reason is None
+
+
+
+def instrument(volatility):
+    return SimpleNamespace(
+        features={"realized_volatility_pct": volatility},
+    )
+
+
+def test_crypto_hard_stop_triggers_at_minus_seven_percent():
+    reason = make_monitor()._exit_reason(
+        position(average=100, last=93, peak=104),
+        market="crypto",
+        instrument=instrument(4.0),
+    )
+    assert reason is not None
+    assert reason.startswith("HARD_STOP")
+
+
+def test_crypto_trailing_activates_at_seven_percent():
+    reason = make_monitor()._exit_reason(
+        position(average=100, last=102.5, peak=108),
+        market="crypto",
+        instrument=instrument(4.0),
+    )
+    assert reason is not None
+    assert reason.startswith("TRAILING_STOP")
+
+
+def test_crypto_trailing_width_scales_with_volatility_and_is_capped():
+    monitor = make_monitor()
+    assert monitor._crypto_trailing_stop(instrument(2.0)) == Decimal("4.00")
+    assert monitor._crypto_trailing_stop(instrument(4.0)) == Decimal("5.00")
+    assert monitor._crypto_trailing_stop(instrument(8.0)) == Decimal("7.00")
