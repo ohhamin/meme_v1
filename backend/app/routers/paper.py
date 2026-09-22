@@ -10,6 +10,7 @@ from backend.app.models.schemas import (
 from backend.app.services.paper_broker import PaperBroker
 from backend.app.services.position_sizer import PositionSizer
 from backend.app.services.paper_dashboard import PaperDashboardService
+from backend.app.services.paper_order_journal import PaperOrderJournal
 
 
 router = APIRouter(
@@ -44,11 +45,15 @@ async def reset(payload: PaperResetRequest):
         else None
     )
 
+    journal = PaperOrderJournal()
+
     if payload.market in {"stock", "all"}:
         PaperBroker("stock").reset(initial_cash)
+        journal.reset_market("stock")
 
     if payload.market in {"crypto", "all"}:
         PaperBroker("crypto").reset(initial_cash)
+        journal.reset_market("crypto")
 
     return _accounts()
 
